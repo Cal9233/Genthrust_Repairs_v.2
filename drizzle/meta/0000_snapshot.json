@@ -1,0 +1,1975 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "",
+  "version": "5",
+  "dialect": "mysql",
+  "tables": {
+    "active": {
+      "name": "active",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RO": {
+          "autoincrement": false,
+          "name": "RO",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_MADE": {
+          "autoincrement": false,
+          "name": "DATE_MADE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_NAME": {
+          "autoincrement": false,
+          "name": "SHOP_NAME",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART": {
+          "autoincrement": false,
+          "name": "PART",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART_DESCRIPTION": {
+          "autoincrement": false,
+          "name": "PART_DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "REQ_WORK": {
+          "autoincrement": false,
+          "name": "REQ_WORK",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_DROPPED_OFF": {
+          "autoincrement": false,
+          "name": "DATE_DROPPED_OFF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_COST": {
+          "autoincrement": false,
+          "name": "ESTIMATED_COST",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FINAL_COST": {
+          "autoincrement": false,
+          "name": "FINAL_COST",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TERMS": {
+          "autoincrement": false,
+          "name": "TERMS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_REF": {
+          "autoincrement": false,
+          "name": "SHOP_REF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_DELIVERY_DATE": {
+          "autoincrement": false,
+          "name": "ESTIMATED_DELIVERY_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS_DATE": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "GENTHRUST_STATUS": {
+          "autoincrement": false,
+          "name": "GENTHRUST_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_STATUS": {
+          "autoincrement": false,
+          "name": "SHOP_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TRACKING_NUMBER_PICKING_UP": {
+          "autoincrement": false,
+          "name": "TRACKING_NUMBER_PICKING_UP",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NOTES": {
+          "autoincrement": false,
+          "name": "NOTES",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LAST_DATE_UPDATED": {
+          "autoincrement": false,
+          "name": "LAST_DATE_UPDATED",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NEXT_DATE_TO_UPDATE": {
+          "autoincrement": false,
+          "name": "NEXT_DATE_TO_UPDATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "active_id": {
+          "name": "active_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "b_e_r_r_a_i": {
+      "name": "b_e_r_r_a_i",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PN_B_E_R_R_A_I": {
+          "autoincrement": false,
+          "name": "PN_B_E_R_R_A_I",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "b_e_r_r_a_i_id": {
+          "name": "b_e_r_r_a_i_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "bins_inventory_actual": {
+      "name": "bins_inventory_actual",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PART_NUMBER": {
+          "autoincrement": false,
+          "name": "PART_NUMBER",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DESCRIPTION": {
+          "autoincrement": false,
+          "name": "DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "QTY": {
+          "autoincrement": false,
+          "name": "QTY",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LOCATION": {
+          "autoincrement": false,
+          "name": "LOCATION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "BIN": {
+          "autoincrement": false,
+          "name": "BIN",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CONDITION": {
+          "autoincrement": false,
+          "name": "CONDITION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SUGGESTED_SELL_PRICE_MAX_30": {
+          "autoincrement": false,
+          "name": "SUGGESTED_SELL_PRICE_MAX_30",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "COST": {
+          "autoincrement": false,
+          "name": "COST",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SUGGESTED_SELL_PRICE_MIN_15": {
+          "autoincrement": false,
+          "name": "SUGGESTED_SELL_PRICE_MIN_15",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SUGGESTED_SELL_PRICE_MAX_30_2": {
+          "autoincrement": false,
+          "name": "SUGGESTED_SELL_PRICE_MAX_30_2",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "COMENT": {
+          "autoincrement": false,
+          "name": "COMENT",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Column1": {
+          "autoincrement": false,
+          "name": "Column1",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "bins_inventory_actual_id": {
+          "name": "bins_inventory_actual_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "delta_apa": {
+      "name": "delta_apa",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DELTA_APA": {
+          "autoincrement": false,
+          "name": "DELTA_APA",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "delta_apa_id": {
+          "name": "delta_apa_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "hold": {
+      "name": "hold",
+      "columns": {
+        "38418": {
+          "autoincrement": false,
+          "name": "38418",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "2025_08_26_00_00_00": {
+          "autoincrement": false,
+          "name": "2025_08_26_00_00_00",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FLORIDA_AERO_SYSTEMS": {
+          "autoincrement": false,
+          "name": "FLORIDA_AERO_SYSTEMS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "3_1423_2": {
+          "autoincrement": false,
+          "name": "3_1423_2",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "1987_2201": {
+          "autoincrement": false,
+          "name": "1987_2201",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NOSE_WHEEL": {
+          "autoincrement": false,
+          "name": "NOSE_WHEEL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "OH": {
+          "autoincrement": false,
+          "name": "OH",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHIPPING": {
+          "autoincrement": false,
+          "name": "SHIPPING",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NET_30": {
+          "autoincrement": false,
+          "name": "NET_30",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "WAITING_QUOTE": {
+          "autoincrement": false,
+          "name": "WAITING_QUOTE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "2025_08_26_00_00_00_1": {
+          "autoincrement": false,
+          "name": "2025_08_26_00_00_00_1",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "2025_08_26_00_00_00_2": {
+          "autoincrement": false,
+          "name": "2025_08_26_00_00_00_2",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "hold_id": {
+          "name": "hold_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "inventoryindex": {
+      "name": "inventoryindex",
+      "columns": {
+        "IndexId": {
+          "autoincrement": true,
+          "name": "IndexId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PartNumber": {
+          "autoincrement": false,
+          "name": "PartNumber",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TableName": {
+          "autoincrement": false,
+          "name": "TableName",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "RowId": {
+          "autoincrement": false,
+          "name": "RowId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Qty": {
+          "autoincrement": false,
+          "name": "Qty",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SerialNumber": {
+          "autoincrement": false,
+          "name": "SerialNumber",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Condition": {
+          "autoincrement": false,
+          "name": "Condition",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Location": {
+          "autoincrement": false,
+          "name": "Location",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Description": {
+          "autoincrement": false,
+          "name": "Description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LastSeen": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "LastSeen",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "inventoryindex_IndexId": {
+          "name": "inventoryindex_IndexId",
+          "columns": [
+            "IndexId"
+          ]
+        }
+      },
+      "indexes": {
+        "idx_partnumber": {
+          "name": "idx_partnumber",
+          "columns": [
+            "PartNumber"
+          ],
+          "isUnique": false
+        },
+        "idx_qty": {
+          "name": "idx_qty",
+          "columns": [
+            "Qty"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "logs": {
+      "name": "logs",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Timestamp": {
+          "autoincrement": false,
+          "name": "Timestamp",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Date": {
+          "autoincrement": false,
+          "name": "Date",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "User": {
+          "autoincrement": false,
+          "name": "User",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "User_Message": {
+          "autoincrement": false,
+          "name": "User_Message",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "AI_Response": {
+          "autoincrement": false,
+          "name": "AI_Response",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Context": {
+          "autoincrement": false,
+          "name": "Context",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Model": {
+          "autoincrement": false,
+          "name": "Model",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Duration_ms": {
+          "autoincrement": false,
+          "name": "Duration_ms",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Success": {
+          "autoincrement": false,
+          "name": "Success",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Error": {
+          "autoincrement": false,
+          "name": "Error",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "logs_id": {
+          "name": "logs_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "net": {
+      "name": "net",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RO": {
+          "autoincrement": false,
+          "name": "RO",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_MADE": {
+          "autoincrement": false,
+          "name": "DATE_MADE",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_NAME": {
+          "autoincrement": false,
+          "name": "SHOP_NAME",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART": {
+          "autoincrement": false,
+          "name": "PART",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART_DESCRIPTION": {
+          "autoincrement": false,
+          "name": "PART_DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "REQ_WORK": {
+          "autoincrement": false,
+          "name": "REQ_WORK",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_DROPPED_OFF": {
+          "autoincrement": false,
+          "name": "DATE_DROPPED_OFF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_COST": {
+          "autoincrement": false,
+          "name": "ESTIMATED_COST",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FINAL_COST": {
+          "autoincrement": false,
+          "name": "FINAL_COST",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TERMS": {
+          "autoincrement": false,
+          "name": "TERMS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_REF": {
+          "autoincrement": false,
+          "name": "SHOP_REF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_DELIVERY_DATE": {
+          "autoincrement": false,
+          "name": "ESTIMATED_DELIVERY_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS_DATE": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "GENTHRUST_STATUS": {
+          "autoincrement": false,
+          "name": "GENTHRUST_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_STATUS": {
+          "autoincrement": false,
+          "name": "SHOP_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TRACKING_NUMBER_PICKING_UP": {
+          "autoincrement": false,
+          "name": "TRACKING_NUMBER_PICKING_UP",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NOTES": {
+          "autoincrement": false,
+          "name": "NOTES",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LAST_DATE_UPDATED": {
+          "autoincrement": false,
+          "name": "LAST_DATE_UPDATED",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NEXT_DATE_TO_UPDATE": {
+          "autoincrement": false,
+          "name": "NEXT_DATE_TO_UPDATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "net_id": {
+          "name": "net_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "paid": {
+      "name": "paid",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RO": {
+          "autoincrement": false,
+          "name": "RO",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_MADE": {
+          "autoincrement": false,
+          "name": "DATE_MADE",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_NAME": {
+          "autoincrement": false,
+          "name": "SHOP_NAME",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART": {
+          "autoincrement": false,
+          "name": "PART",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART_DESCRIPTION": {
+          "autoincrement": false,
+          "name": "PART_DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "REQ_WORK": {
+          "autoincrement": false,
+          "name": "REQ_WORK",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_DROPPED_OFF": {
+          "autoincrement": false,
+          "name": "DATE_DROPPED_OFF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_COST": {
+          "autoincrement": false,
+          "name": "ESTIMATED_COST",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FINAL_COST": {
+          "autoincrement": false,
+          "name": "FINAL_COST",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TERMS": {
+          "autoincrement": false,
+          "name": "TERMS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_REF": {
+          "autoincrement": false,
+          "name": "SHOP_REF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_DELIVERY_DATE": {
+          "autoincrement": false,
+          "name": "ESTIMATED_DELIVERY_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS_DATE": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "GENTHRUST_STATUS": {
+          "autoincrement": false,
+          "name": "GENTHRUST_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_STATUS": {
+          "autoincrement": false,
+          "name": "SHOP_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TRACKING_NUMBER_PICKING_UP": {
+          "autoincrement": false,
+          "name": "TRACKING_NUMBER_PICKING_UP",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NOTES": {
+          "autoincrement": false,
+          "name": "NOTES",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LAST_DATE_UPDATED": {
+          "autoincrement": false,
+          "name": "LAST_DATE_UPDATED",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NEXT_DATE_TO_UPDATE": {
+          "autoincrement": false,
+          "name": "NEXT_DATE_TO_UPDATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "paid_id": {
+          "name": "paid_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "partes_ar_asia": {
+      "name": "partes_ar_asia",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PN_APA": {
+          "autoincrement": false,
+          "name": "PN_APA",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "partes_ar_asia_id": {
+          "name": "partes_ar_asia_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "partes_ar_asia_sanford": {
+      "name": "partes_ar_asia_sanford",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PN_APA_SANFORD": {
+          "autoincrement": false,
+          "name": "PN_APA_SANFORD",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "partes_ar_asia_sanford_id": {
+          "name": "partes_ar_asia_sanford_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "partes_bolivia": {
+      "name": "partes_bolivia",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PN_BOLIVIA": {
+          "autoincrement": false,
+          "name": "PN_BOLIVIA",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "partes_bolivia_id": {
+          "name": "partes_bolivia_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "pn_no_reparadas_727": {
+      "name": "pn_no_reparadas_727",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PART_No": {
+          "autoincrement": false,
+          "name": "PART_No",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DESCRIPTION": {
+          "autoincrement": false,
+          "name": "DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "QTY": {
+          "autoincrement": false,
+          "name": "QTY",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "STOCK_ROOM": {
+          "autoincrement": false,
+          "name": "STOCK_ROOM",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LOCATION": {
+          "autoincrement": false,
+          "name": "LOCATION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "COMMENT": {
+          "autoincrement": false,
+          "name": "COMMENT",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SISTEMA": {
+          "autoincrement": false,
+          "name": "SISTEMA",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "pn_no_reparadas_727_id": {
+          "name": "pn_no_reparadas_727_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "pn_no_reparadas_md82": {
+      "name": "pn_no_reparadas_md82",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PART_No": {
+          "autoincrement": false,
+          "name": "PART_No",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DESCRIPTION": {
+          "autoincrement": false,
+          "name": "DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "QTY": {
+          "autoincrement": false,
+          "name": "QTY",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "STOCK_ROOM": {
+          "autoincrement": false,
+          "name": "STOCK_ROOM",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LOCATION": {
+          "autoincrement": false,
+          "name": "LOCATION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "BIN": {
+          "autoincrement": false,
+          "name": "BIN",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "COMMENT": {
+          "autoincrement": false,
+          "name": "COMMENT",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SISTEMA": {
+          "autoincrement": false,
+          "name": "SISTEMA",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "pn_no_reparadas_md82_id": {
+          "name": "pn_no_reparadas_md82_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "returns": {
+      "name": "returns",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RO": {
+          "autoincrement": false,
+          "name": "RO",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_MADE": {
+          "autoincrement": false,
+          "name": "DATE_MADE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_NAME": {
+          "autoincrement": false,
+          "name": "SHOP_NAME",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART": {
+          "autoincrement": false,
+          "name": "PART",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PART_DESCRIPTION": {
+          "autoincrement": false,
+          "name": "PART_DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "REQ_WORK": {
+          "autoincrement": false,
+          "name": "REQ_WORK",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DATE_DROPPED_OFF": {
+          "autoincrement": false,
+          "name": "DATE_DROPPED_OFF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_COST": {
+          "autoincrement": false,
+          "name": "ESTIMATED_COST",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FINAL_COST": {
+          "autoincrement": false,
+          "name": "FINAL_COST",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TERMS": {
+          "autoincrement": false,
+          "name": "TERMS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_REF": {
+          "autoincrement": false,
+          "name": "SHOP_REF",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ESTIMATED_DELIVERY_DATE": {
+          "autoincrement": false,
+          "name": "ESTIMATED_DELIVERY_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CURENT_STATUS_DATE": {
+          "autoincrement": false,
+          "name": "CURENT_STATUS_DATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "GENTHRUST_STATUS": {
+          "autoincrement": false,
+          "name": "GENTHRUST_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SHOP_STATUS": {
+          "autoincrement": false,
+          "name": "SHOP_STATUS",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TRACKING_NUMBER_PICKING_UP": {
+          "autoincrement": false,
+          "name": "TRACKING_NUMBER_PICKING_UP",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NOTES": {
+          "autoincrement": false,
+          "name": "NOTES",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LAST_DATE_UPDATED": {
+          "autoincrement": false,
+          "name": "LAST_DATE_UPDATED",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NEXT_DATE_TO_UPDATE": {
+          "autoincrement": false,
+          "name": "NEXT_DATE_TO_UPDATE",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "returns_id": {
+          "name": "returns_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "shops": {
+      "name": "shops",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Customer": {
+          "autoincrement": false,
+          "name": "Customer",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Business_Name": {
+          "autoincrement": false,
+          "name": "Business_Name",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Address_Line_1": {
+          "autoincrement": false,
+          "name": "Address_Line_1",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Address_Line_2": {
+          "autoincrement": false,
+          "name": "Address_Line_2",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Address_Line_3": {
+          "autoincrement": false,
+          "name": "Address_Line_3",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Address_Line_4": {
+          "autoincrement": false,
+          "name": "Address_Line_4",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "City": {
+          "autoincrement": false,
+          "name": "City",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "State": {
+          "autoincrement": false,
+          "name": "State",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ZIP": {
+          "autoincrement": false,
+          "name": "ZIP",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Country": {
+          "autoincrement": false,
+          "name": "Country",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Phone": {
+          "autoincrement": false,
+          "name": "Phone",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Toll_Free": {
+          "autoincrement": false,
+          "name": "Toll_Free",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Fax": {
+          "autoincrement": false,
+          "name": "Fax",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Email": {
+          "autoincrement": false,
+          "name": "Email",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Website": {
+          "autoincrement": false,
+          "name": "Website",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Contact": {
+          "autoincrement": false,
+          "name": "Contact",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Payment_Terms": {
+          "autoincrement": false,
+          "name": "Payment_Terms",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ILS_Code": {
+          "autoincrement": false,
+          "name": "ILS_Code",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Last_Sale_Date": {
+          "autoincrement": false,
+          "name": "Last_Sale_Date",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "YTD_Sales": {
+          "autoincrement": false,
+          "name": "YTD_Sales",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "shops_id": {
+          "name": "shops_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "stock_room_actual": {
+      "name": "stock_room_actual",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "GENTHRUST_XVII_INVENTORY": {
+          "autoincrement": false,
+          "name": "GENTHRUST_XVII_INVENTORY",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "stock_room_actual_id": {
+          "name": "stock_room_actual_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "terra": {
+      "name": "terra",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PART_No": {
+          "autoincrement": false,
+          "name": "PART_No",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SERIAL": {
+          "autoincrement": false,
+          "name": "SERIAL",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "DESCRIPTION": {
+          "autoincrement": false,
+          "name": "DESCRIPTION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "QTY": {
+          "autoincrement": false,
+          "name": "QTY",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "STOCK_ROOM": {
+          "autoincrement": false,
+          "name": "STOCK_ROOM",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "LOCATION": {
+          "autoincrement": false,
+          "name": "LOCATION",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "COMMENT": {
+          "autoincrement": false,
+          "name": "COMMENT",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SISTEMA": {
+          "autoincrement": false,
+          "name": "SISTEMA",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(CURRENT_TIMESTAMP)",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {
+        "terra_id": {
+          "name": "terra_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    }
+  },
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {
+      "active": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "b_e_r_r_a_i": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "bins_inventory_actual": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "delta_apa": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "hold": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "inventoryindex": {
+        "columns": {
+          "LastSeen": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "logs": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "net": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "paid": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "partes_ar_asia": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "partes_ar_asia_sanford": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "partes_bolivia": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "pn_no_reparadas_727": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "pn_no_reparadas_md82": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "returns": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "shops": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "stock_room_actual": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      },
+      "terra": {
+        "columns": {
+          "created_at": {
+            "isDefaultAnExpression": true
+          }
+        }
+      }
+    },
+    "indexes": {}
+  }
+}
