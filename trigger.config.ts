@@ -1,4 +1,5 @@
 import { defineConfig } from "@trigger.dev/sdk/v3";
+import { additionalPackages } from "@trigger.dev/build/extensions/core";
 
 /**
  * Trigger.dev v3 Configuration
@@ -21,5 +22,22 @@ export default defineConfig({
       maxTimeoutInMs: 10000,
       factor: 2,
     },
+  },
+  // Build configuration
+  build: {
+    // Externalize packages that shouldn't be bundled (installed at runtime)
+    external: [
+      "isomorphic-fetch",
+      "@microsoft/microsoft-graph-client",
+    ],
+    // Extensions to add additional packages to the container
+    extensions: [
+      additionalPackages({
+        packages: [
+          "isomorphic-fetch",
+          "@microsoft/microsoft-graph-client",
+        ],
+      }),
+    ],
   },
 });
