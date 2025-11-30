@@ -262,6 +262,176 @@ TRIGGER_SECRET_KEY=tr_dev_xxxxx  # From Trigger.dev dashboard
 
 ---
 
+## [0.4.0] - 2025-11-29
+
+### Phase 4: Microsoft Graph API Integration
+
+Full implementation of the Excel sync engine using Microsoft Graph API with durable execution.
+
+### Added
+
+#### Graph API Client (`src/lib/graph.ts`)
+- `getGraphClient(userId)` - Retrieves refresh_token from DB, exchanges for fresh access_token
+- `createExcelSession()` - Creates persistent session with `persistChanges: true`
+- `closeExcelSession()` - Properly closes session to persist all changes
+- `getWorkbookBasePath()` - Builds Graph API URLs for SharePoint/OneDrive
+- `chunkArray()` - Chunks arrays into groups of 20 (Graph API batch limit)
+- Automatic token rotation (Microsoft rotates refresh_tokens)
+
+#### Batch Processing (`src/lib/graph/batch.ts`)
+- `buildBatchUpdateRequests()` - Creates PATCH requests for row updates
+- `executeBatch()` - Posts batch to `/$batch` endpoint with session header
+- `analyzeBatchResponse()` - Analyzes results for errors and rate limits
+- `hasRateLimitError()` - Detects 429 responses for retry handling
+
+#### Excel Mapping (`src/lib/graph/excel-mapping.ts`)
+- `dbRowToExcelRow()` - Converts database row to Excel array format
+- `getRowRangeAddress()` - Generates Excel range addresses (e.g., "Active!A5:U5")
+- Column mapping from 21 database fields to Excel columns A-U
+
+#### Excel Search (`src/lib/graph/excel-search.ts`)
+- `findRowsByRO()` - Searches RO column (A2:A10000) to find existing rows
+- `getNextAvailableRow()` - Uses `usedRange` endpoint to find next empty row
+
+#### Type Definitions (`src/lib/types/graph.ts`)
+- `TokenResponse` - OAuth token response structure
+- `ExcelSession` - Excel session object
+- `UserNotConnectedError` - Custom error for missing Microsoft auth
+- `TokenRefreshError` - Custom error for token refresh failures
+
+#### Full Sync Task (`src/trigger/excel-sync.ts`)
+- 4-phase execution with progress tracking:
+  - **Phase 1 (10%)**: Authenticate user, create Excel session
+  - **Phase 2 (15%)**: Fetch repair orders from MySQL, find existing Excel rows
+  - **Phase 3 (15-90%)**: Process chunks of 20 orders, batch updates/inserts
+  - **Phase 4 (95-100%)**: Close Excel session, return summary
+- Uses `metadata.set()` for real-time progress tracking
+- Separates insert vs. update logic based on RO number lookup
+- Rate limit handling (429 errors) triggers Trigger.dev retry
+- Returns: `{ syncedCount, failedCount, rowsUpdated, rowsAdded, errors? }`
+
+### Technical Details
+
+#### File Structure Added
+```
+src/lib/
+├── graph.ts                    # Main Graph client
+├── graph/
+│   ├── batch.ts               # JSON batching utilities
+│   ├── excel-mapping.ts       # DB to Excel column mapping
+│   └── excel-search.ts        # Row lookup functions
+└── types/
+    └── graph.ts               # TypeScript definitions
+```
+
+#### Environment Variables Required
+```env
+SHAREPOINT_SITE_ID=             # SharePoint site ID (from Graph Explorer)
+EXCEL_WORKBOOK_ID=              # Workbook item ID
+EXCEL_WORKSHEET_NAME=Active     # Worksheet name (default: Active)
+```
+
+### Dependencies Added
+- `@microsoft/microsoft-graph-client` - Official Microsoft Graph SDK
+- `isomorphic-fetch` - Fetch polyfill for Node.js (Trigger.dev containers)
+
+---
+
+## [0.4.5] - 2025-11-29
+
+### Phase 4.5: UI Integration
+
+Real-time sync UI with progress tracking and dashboard integration.
+
+### Added
+
+#### SyncStatus Component (`src/components/sync/SyncStatus.tsx`)
+- "Sync to Excel" button with loading state
+- Real-time progress bar (0-100%)
+- 8 status states: idle, starting, initializing, fetching, processing, finishing, completed, failed
+- Success summary: rows updated, rows added, failed count
+- Error display with retry capability
+- "Sync Again" button after completion
+- Optimistic UI: button disabled during sync
+
+#### Progress Component (`src/components/ui/progress.tsx`)
+- Radix UI Progress bar primitive
+- Accessible progress indicator
+
+#### Dashboard Integration (`src/app/(protected)/dashboard/page.tsx`)
+- User profile card (avatar, name, email, user ID)
+- Sign out button
+- Excel Sync Status card
+- Responsive card-based layout
+
+#### React Hooks (`src/hooks/use-trigger-run.ts`)
+- `useTriggerRun(runId, accessToken)` - Wraps Trigger.dev realtime hooks
+- Extracts metadata: status, progress, totalItems, processedItems
+- Maps Trigger.dev run states to custom SyncStatus types
+
+### Technical Details
+
+#### File Structure Added
+```
+src/
+├── components/
+│   ├── sync/
+│   │   └── SyncStatus.tsx      # Sync status card
+│   └── ui/
+│       └── progress.tsx        # Progress bar
+└── app/(protected)/
+    └── dashboard/
+        └── page.tsx            # Updated with SyncStatus
+```
+
+### Dependencies Added
+- `@radix-ui/react-progress` - Progress bar primitive
+
+---
+
+## [0.5.0] - 2025-11-30
+
+### Phase 5: Production Hardening
+
+Bug fixes and improvements for Trigger.dev worker compatibility.
+
+### Fixed
+
+#### Lazy Environment Variable Loading (`src/lib/graph.ts`)
+- **Problem**: Environment variables read at module load time were `undefined` in Trigger.dev workers
+- **Solution**: Moved env var reads inside functions (lazy loading)
+- Changed from `SHAREPOINT_HOSTNAME` + `SHAREPOINT_SITE_PATH` to single `SHAREPOINT_SITE_ID`
+- Fixed tenant ID loading for single-tenant Microsoft OAuth
+
+#### Trigger.dev Build Configuration (`trigger.config.ts`)
+- Added `@trigger.dev/build` package for build extensions
+- Configured external packages: `isomorphic-fetch`, `@microsoft/microsoft-graph-client`
+- Added `additionalPackages` extension for container installation
+
+### Changed
+
+#### Simplified SharePoint URL Construction
+- **Before**: Complex `hostname:path` format prone to errors
+- **After**: Simple `/sites/{siteId}/drive/items/{itemId}/workbook` format
+- Single `SHAREPOINT_SITE_ID` env var instead of two separate vars
+
+### Technical Details
+
+#### Environment Variables Updated
+```env
+# Removed:
+# SHAREPOINT_HOSTNAME=
+# SHAREPOINT_SITE_PATH=
+
+# Added:
+SHAREPOINT_SITE_ID=hostname,webId,siteId  # From Graph Explorer
+```
+
+### Dependencies Added
+- `@trigger.dev/build` - Build extensions for Trigger.dev
+
+---
+
 ## Notes
 
 ### Architecture Decisions
@@ -270,9 +440,35 @@ Per `CLAUDE.md` guidelines:
 - **Global Singleton**: Prevents connection pool exhaustion in serverless
 - **Edge/Node Split**: Middleware uses edge-compatible config; API routes use full config with DB adapter
 - **Durable Execution**: All Excel syncing runs in Trigger.dev containers (no timeouts)
+- **Lazy Loading**: Environment variables read at runtime for worker compatibility
 
-### Next Steps (Phase 4)
-- [ ] Implement Microsoft Graph API integration inside task
-- [ ] Add repair order CRUD operations with sync status
-- [ ] Configure Excel session management (workbook-session-id)
-- [ ] Implement JSON batching for Graph API writes (groups of 20)
+### Architecture Flow
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ UI Layer (SyncStatus Component)                                 │
+│ - Dashboard with progress bar                                   │
+│ - useTriggerRun hook polls for updates                         │
+└─────────────────────────────────────┬───────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Server Action (triggerExcelSync)                                │
+│ - Validates auth, dispatches to Trigger.dev                    │
+│ - Returns { runId, publicAccessToken }                         │
+└─────────────────────────────────────┬───────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Durable Task (sync-repair-orders in Trigger.dev container)     │
+│ - 4-phase execution with progress tracking                     │
+│ - JSON batching (20 items per batch)                           │
+│ - Persistent Excel sessions                                    │
+└─────────────────────────────────────┬───────────────────────────┘
+                                      │
+          ┌───────────────────────────┴───────────────────────┐
+          ▼                                                    ▼
+    ┌──────────────┐                                ┌──────────────┐
+    │ Aiven MySQL  │                                │ SharePoint   │
+    │ (Source)     │                                │ Excel (Sync) │
+    └──────────────┘                                └──────────────┘
+```
