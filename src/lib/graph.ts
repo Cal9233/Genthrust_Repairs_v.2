@@ -6,23 +6,19 @@ import { eq, and } from "drizzle-orm";
 import type { TokenResponse, ExcelSession } from "./types/graph";
 import { UserNotConnectedError, TokenRefreshError } from "./types/graph";
 
-const MICROSOFT_TOKEN_ENDPOINT =
-  "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-
-// SharePoint configuration
-const SHAREPOINT_HOSTNAME = process.env.SHAREPOINT_HOSTNAME;
-const SHAREPOINT_SITE_PATH = process.env.SHAREPOINT_SITE_PATH;
-
 /**
  * Build the Graph API base path for the workbook
  *
- * For SharePoint: /sites/{hostname}:{site-path}:/drive/items/{itemId}/workbook
+ * For SharePoint: /sites/{siteId}/drive/items/{itemId}/workbook
  * For OneDrive:   /me/drive/items/{itemId}/workbook
  */
 export function getWorkbookBasePath(workbookId: string): string {
-  if (SHAREPOINT_HOSTNAME && SHAREPOINT_SITE_PATH) {
-    // SharePoint site path
-    return `/sites/${SHAREPOINT_HOSTNAME}:${SHAREPOINT_SITE_PATH}:/drive/items/${workbookId}/workbook`;
+  // Lazy load: read env at runtime, not module load (important for Trigger.dev workers)
+  const siteId = process.env.SHAREPOINT_SITE_ID;
+
+  if (siteId) {
+    // SharePoint site by ID (simpler, more reliable)
+    return `/sites/${siteId}/drive/items/${workbookId}/workbook`;
   }
   // Fallback to personal OneDrive
   return `/me/drive/items/${workbookId}/workbook`;
@@ -39,14 +35,18 @@ export function getWorksheetPath(workbookId: string, worksheetName: string): str
  * Refresh the access token using the stored refresh_token
  */
 async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
+  // Lazy load: read env at runtime (important for Trigger.dev workers)
   const clientId = process.env.AUTH_MICROSOFT_ENTRA_ID_ID;
   const clientSecret = process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET;
+  const tenantId = process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID;
 
-  if (!clientId || !clientSecret) {
+  if (!clientId || !clientSecret || !tenantId) {
     throw new TokenRefreshError(
       "Missing Microsoft OAuth credentials in environment"
     );
   }
+
+  const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -57,7 +57,7 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> 
     scope: "openid profile email User.Read Files.ReadWrite.All Sites.ReadWrite.All offline_access",
   });
 
-  const response = await fetch(MICROSOFT_TOKEN_ENDPOINT, {
+  const response = await fetch(tokenEndpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params.toString(),
