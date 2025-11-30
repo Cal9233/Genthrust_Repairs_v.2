@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GenThrust RO Tracker v2
 
-## Getting Started
+The **GenThrust Repair Order Tracker** is a mission-critical dashboard for managing aviation repair orders.
 
-First, run the development server:
+This "Version 2" architecture replaces the legacy client-side application with a **Durable, Event-Driven** system designed to eliminate timeouts, prevent database connection exhaustion, and enable long-running AI agents.
 
+## 🏗 Architecture
+
+The system is split into two distinct runtime environments that work in tandem:
+
+1.  **The Frontend (Next.js 15):** Handles user interaction, data visualization, and immediate database reads/writes.
+2.  **The Orchestration Engine (Trigger.dev v3):** Handles heavy background tasks (Excel Sync, AI Research) in durable containers that never time out.
+
+### Key Technologies
+* **Framework:** Next.js 15 (App Router)
+* **Database:** Aiven MySQL (accessed via Drizzle ORM)
+* **Orchestration:** Trigger.dev v3
+* **Excel Integration:** Microsoft Graph API (Persistent Sessions + JSON Batching)
+* **AI:** Vercel AI SDK (Claude 3.5 Sonnet)
+* **Auth:** Auth.js v5 (Microsoft Entra ID)
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+* Node.js 18+
+* npm
+* Access to the Aiven MySQL Database
+* Access to the Trigger.dev Cloud Dashboard
+
+### 2. Installation
 ```bash
+# Clone the repository
+git clone [https://github.com/Cal9233/Genthrust_Repairs_v.2.git](https://github.com/Cal9233/Genthrust_Repairs_v.2.git)
+cd Genthrust_Repairs_v.2
+
+# Install dependencies
+npm install
+3. Environment Setup
+
+Create a .env.local file in the root directory. You need secrets for Database, Auth, Graph API, and AI.
+
+Bash
+# --- Database (Aiven) ---
+DATABASE_HOST=genthrust-inventory-....aivencloud.com
+DATABASE_PORT=12076
+DATABASE_USER=avnadmin
+DATABASE_PASSWORD=...
+DATABASE_NAME=defaultdb
+
+# --- Authentication (Auth.js) ---
+AUTH_SECRET=... # Run `npx auth secret` to generate
+AUTH_MICROSOFT_ENTRA_ID_ID=... # Client ID
+AUTH_MICROSOFT_ENTRA_ID_SECRET=... # Client Secret
+AUTH_MICROSOFT_ENTRA_ID_TENANT_ID=...
+AUTH_MICROSOFT_ENTRA_ID_ISSUER=[https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0](https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0)
+
+# --- Trigger.dev (Background Workers) ---
+TRIGGER_SECRET_KEY=tr_dev_... # Get this from cloud.trigger.dev
+
+# --- Excel Sync (Microsoft Graph) ---
+# Use the Graph Explorer to find your specific SharePoint Site ID
+SHAREPOINT_SITE_ID=genthrustxvii.sharepoint.com,guid,guid
+EXCEL_WORKBOOK_ID=... # The specific file ID
+EXCEL_WORKSHEET_NAME=Active
+
+# --- AI Agent (Anthropic) ---
+ANTHROPIC_API_KEY=sk-ant-...
+Note: You also need a certs/ca.pem file in the root directory to connect to Aiven via SSL.
+
+4. Running the App (The Dual-Terminal Workflow)
+
+Because this app relies on background workers, you must run two commands in parallel.
+
+Terminal 1: The Frontend This runs the Next.js UI at http://localhost:3000.
+
+Bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Terminal 2: The Background Worker This connects your local machine to the Trigger.dev cloud to process tasks.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Bash
+npx trigger.dev@latest dev
+🛠 Core Features
+1. Inventory Search
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+URL: /inventory
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Tech: Debounced Server Actions.
 
-## Learn More
+Safety: Uses a Global Singleton database connection to prevent "Too Many Connections" errors on Aiven.
 
-To learn more about Next.js, take a look at the following resources:
+2. Excel Sync ("The Invincible Engine")
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+URL: /dashboard -> "Sync to Excel"
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Problem Solved: Legacy timeouts.
 
-## Deploy on Vercel
+How it works:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Uses Persistent Sessions (workbook-session-id) to keep the Excel file open in memory.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Uses JSON Batching to group updates into chunks of 20 (Graph API limit).
+
+Runs inside a container with 2GB RAM.
+
+3. AI Assistant
+
+URL: Floating Bubble (Bottom Right)
+
+Capabilities: Can search inventory and lookup Repair Order details.
+
+Durability: Each tool call (search_inventory, get_repair_order) is an isolated sub-task. If the DB flickers, the AI retries just that step without losing context.
+
+⚠️ Troubleshooting
+Error: "Url specified is invalid" (Graph API)
+
+Cause: Incorrect URL formatting for SharePoint.
+
+Fix: Ensure you are using SHAREPOINT_SITE_ID in .env.local and NOT SHAREPOINT_HOSTNAME.
+
+Error: "TokenRefreshError / AADSTS50194"
+
+Cause: Trying to login via the /common endpoint.
+
+Fix: Ensure src/lib/graph.ts uses ${tenantId} in the token endpoint URL, not "common".
+
+Error: "Agent execution failed"
+
+Cause: Usually missing ANTHROPIC_API_KEY.
+
+Fix: Add key to .env.local and restart the Trigger.dev terminal.
+
+Error: "Credit balance too low"
+
+Cause: Anthropic API safety buffer.
+
+Fix: Add $5 credits to your Anthropic Console.
