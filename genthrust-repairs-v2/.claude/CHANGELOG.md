@@ -117,6 +117,72 @@ NEXTAUTH_URL=
 
 ---
 
+## [0.2.0] - 2025-11-29
+
+### Phase 2: Inventory Search
+
+Implemented the inventory search feature using Next.js Server Actions.
+
+### Added
+
+#### Server Actions (`src/app/actions/inventory.ts`)
+- `searchInventory(query: string)` - Fuzzy search on `inventoryindex` table
+  - Searches both `partNumber` and `description` columns using SQL `LIKE`
+  - Returns `Result<T>` type per CLAUDE.md guidelines
+  - Limited to 50 results to prevent UI flooding
+  - Minimum 2 character query requirement
+
+#### Hooks (`src/hooks/useDebounce.ts`)
+- `useDebounce<T>(value, delay)` - Generic debounce hook
+  - 300ms default delay
+  - Prevents excessive DB queries during typing
+
+#### Components
+- `InventorySearch` (`src/components/inventory/InventorySearch.tsx`)
+  - Client component with debounced search-as-you-type
+  - Uses `useTransition` for non-blocking search
+  - Displays results in shadcn/ui Table
+  - Shows loading state, error handling, and empty state
+
+#### Pages
+- Inventory page at `/inventory` (protected route)
+  - Located at `src/app/(protected)/inventory/page.tsx`
+
+#### UI Components (shadcn/ui)
+- Input component (`src/components/ui/input.tsx`)
+- Table component (`src/components/ui/table.tsx`)
+
+### Technical Details
+
+#### File Structure Added
+```
+src/
+├── app/
+│   ├── (protected)/
+│   │   └── inventory/
+│   │       └── page.tsx          # Inventory search page
+│   └── actions/
+│       └── inventory.ts          # Server actions
+├── components/
+│   ├── inventory/
+│   │   └── InventorySearch.tsx   # Search component
+│   └── ui/
+│       ├── input.tsx             # shadcn Input
+│       └── table.tsx             # shadcn Table
+└── hooks/
+    └── useDebounce.ts            # Debounce hook
+```
+
+#### Search Implementation
+- Uses Drizzle ORM `like()` with `%query%` pattern
+- Searches on indexed `partNumber` column for performance
+- Falls back to `description` column for broader matches
+
+### Dependencies Added
+- None (uses existing Drizzle ORM and shadcn/ui infrastructure)
+
+---
+
 ## Notes
 
 ### Architecture Decisions
