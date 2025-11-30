@@ -183,6 +183,85 @@ src/
 
 ---
 
+## [0.3.0] - 2025-11-29
+
+### Phase 3: Trigger.dev Orchestration
+
+Integrated Trigger.dev v3 for durable background task execution, solving the "Timeout Fragility" issue from the legacy app.
+
+### Added
+
+#### Task Definition (`src/trigger/excel-sync.ts`)
+- `syncRepairOrders` task for background Excel sync operations
+  - Accepts payload: `{ batchId: string, repairOrderIds: string[] }`
+  - Configured with `machine: { preset: "small-1x" }` (2GB RAM for large Excel files)
+  - Progress tracking via `metadata.set()` for realtime UI updates
+  - Three-phase execution: initializing → processing → finishing
+  - Zod schema validation for type-safe payloads
+  - Retry configuration: 3 attempts with exponential backoff
+
+#### Server Actions (`src/app/actions/sync.ts`)
+- `triggerSync(payload)` - Dispatches sync job to Trigger.dev
+  - Authenticates user via Auth.js session
+  - Validates payload (batchId, repairOrderIds required)
+  - Returns `{ runId, publicAccessToken }` for realtime tracking
+  - Follows `Result<T>` pattern per CLAUDE.md
+- `triggerSyncBatch(batchId)` - Placeholder for Phase 4 database integration
+
+#### React Hooks (`src/hooks/use-trigger-run.ts`)
+- `useTriggerRun(runId, accessToken)` - Wraps Trigger.dev's `useRealtimeRun`
+  - Exposes: `status`, `progress` (0-100), `output`, `error`
+  - Additional state: `isRunning`, `isComplete`, `totalItems`, `processedItems`
+  - Status types: `idle | starting | initializing | processing | finishing | completed | failed | canceled`
+- `useTriggerRunWithProgress()` - Extended version with stream support for logs
+
+#### Configuration
+- `trigger.config.ts` - Trigger.dev v3 project configuration
+  - Tasks directory: `src/trigger/`
+  - Max duration: 600 seconds (10 minutes)
+  - Default retry: 3 attempts with exponential backoff
+
+### Technical Details
+
+#### File Structure Added
+```
+├── trigger.config.ts                    # Trigger.dev configuration
+└── src/
+    ├── trigger/
+    │   └── excel-sync.ts                # Background task definition
+    ├── hooks/
+    │   └── use-trigger-run.ts           # Realtime progress hook
+    └── app/actions/
+        └── sync.ts                      # Server action for triggering jobs
+```
+
+#### Architecture Flow (Write-Behind Pattern)
+```
+UI Component
+    ↓ calls
+triggerSync() Server Action
+    ↓ authenticates, then
+tasks.trigger("sync-repair-orders", payload)
+    ↓ returns
+{ runId, publicAccessToken }
+    ↓ monitored by
+useTriggerRun(runId, accessToken)
+    ↓ exposes
+{ status, progress, output, error }
+```
+
+#### Environment Variables Required
+```env
+TRIGGER_SECRET_KEY=tr_dev_xxxxx  # From Trigger.dev dashboard
+```
+
+### Dependencies Added
+- `@trigger.dev/sdk` - Trigger.dev v3 SDK for task definition and triggering
+- `@trigger.dev/react-hooks` - React hooks for realtime run monitoring
+- `zod` - Schema validation for task payloads
+
+---
+
 ## Notes
 
 ### Architecture Decisions
@@ -190,9 +269,10 @@ Per `CLAUDE.md` guidelines:
 - **Write-Behind Pattern**: MySQL is source of truth; Excel sync happens via background workers
 - **Global Singleton**: Prevents connection pool exhaustion in serverless
 - **Edge/Node Split**: Middleware uses edge-compatible config; API routes use full config with DB adapter
+- **Durable Execution**: All Excel syncing runs in Trigger.dev containers (no timeouts)
 
-### Next Steps (Phase 2)
-- [ ] Set up Trigger.dev for background tasks
-- [ ] Implement Microsoft Graph API integration
-- [ ] Add repair order CRUD operations
-- [ ] Configure Excel sync workflows
+### Next Steps (Phase 4)
+- [ ] Implement Microsoft Graph API integration inside task
+- [ ] Add repair order CRUD operations with sync status
+- [ ] Configure Excel session management (workbook-session-id)
+- [ ] Implement JSON batching for Graph API writes (groups of 20)
