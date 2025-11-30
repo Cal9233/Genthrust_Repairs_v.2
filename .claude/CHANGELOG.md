@@ -635,6 +635,92 @@ src/
 
 ---
 
+## [0.8.0] - 2025-11-30
+
+### Phase 8: Repair Order Detail View
+
+Clickable table rows with modal detail view and improved date parsing.
+
+### Added
+
+#### RODetailDialog (`src/components/dashboard/RODetailDialog.tsx`)
+- Modal dialog for viewing repair order details
+- 2-column layout: Part Information (left) + Dates & Logistics (right)
+- **Part Info**: Part Number, Serial Number, Description, Requested Work
+- **Dates**: Date Dropped Off, Estimated Delivery, Next Update Date
+- **Logistics**: Tracking Number with external link detection
+- **Notes**: `cleanNotes()` helper to strip HISTORY JSON and extract actual notes
+- **Cost Summary**: Estimated Cost and Final Cost with USD formatting
+- Loading state with spinner
+- Error state handling
+- StatusBadge in header next to RO number
+- DialogDescription for accessibility compliance
+
+#### Date Utilities (`src/lib/date-utils.ts`)
+- Extracted `parseDate()` to shared module for client/server use
+- Added `isOverdue(dateStr)` function for overdue detection
+- Supports: MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD, ISO 8601, Excel serial numbers
+
+### Fixed
+
+#### Date Parsing (`src/app/actions/dashboard.ts`)
+- **Bug**: Overdue count was 0 when dates were ISO 8601 format (`2025-11-15T05:00:00.000Z`)
+- **Fix**: Changed regex from `/^(\d{4})-(\d{2})-(\d{2})$/` to `/^(\d{4})-(\d{2})-(\d{2})/` (removed end anchor)
+- Added debug logging for unparseable dates
+- Overdue count now correctly shows 47 instead of 0
+
+### Changed
+
+#### RepairOrderTable (`src/components/dashboard/RepairOrderTable.tsx`)
+- Added row click handler: `onClick={() => setSelectedRoId(ro.id)}`
+- Added `cursor-pointer` class to rows
+- Integrated RODetailDialog component
+
+---
+
+## [0.9.0] - 2025-11-30
+
+### Phase 9: Overdue Visibility - Highlighting & Filtering
+
+Visual highlighting of overdue items and clickable KPI cards for filtering.
+
+### Added
+
+#### Server Actions (`src/app/actions/dashboard.ts`)
+- `RepairOrderFilter` type: `"all" | "overdue"`
+- Updated `getRepairOrders(query, page, filter)` with filter parameter
+- **Overdue filter**: Fetches all records, filters in-memory with `isOverdue()`, then paginates
+- Efficient for small datasets (<1000 rows)
+
+#### Overdue Highlighting (`src/components/dashboard/RepairOrderTable.tsx`)
+- Red `AlertCircle` icon for overdue dates
+- `text-danger-red` color class for overdue text
+- `font-medium` weight for emphasis
+- Filter indicator in subtitle: "(Overdue)" when filtered
+- `shadow-vibrant` card styling
+- Loading spinner inside search input
+- Table wrapped in `rounded-md border`
+- `hover:bg-muted/50` row hover states
+- `font-mono` for RO# column
+- `Intl.DateTimeFormat` for consistent date formatting
+
+#### Clickable Stats Cards (`src/components/dashboard/StatsGrid.tsx`)
+- `activeFilter` prop to show selected state
+- "Total Active" card links to `/dashboard` (reset filter)
+- "Overdue" card links to `/dashboard?filter=overdue`
+- Ring highlight on active card: `ring-2 ring-primary-bright-blue` or `ring-danger-red`
+- `transition-opacity hover:opacity-80` for hover feedback
+
+### Changed
+
+#### Dashboard Page (`src/app/(protected)/dashboard/page.tsx`)
+- Added `searchParams: Promise<{ filter?: string }>` prop
+- Parses filter from URL query params
+- Passes `activeFilter` to StatsGrid
+- Passes `filter` to RepairOrderTable
+
+---
+
 ## [Unreleased]
 
 ### Phase 5 Addendum: Durable AI Agent Integration

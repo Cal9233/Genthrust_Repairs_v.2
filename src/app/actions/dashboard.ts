@@ -2,7 +2,8 @@
 
 import { db } from "@/lib/db";
 import { active } from "@/lib/schema";
-import { like, or, sql, count, sum, desc } from "drizzle-orm";
+import { like, or, sql, count, desc } from "drizzle-orm";
+import { parseDate, isOverdue } from "@/lib/date-utils";
 
 // Result type per CLAUDE.md
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -28,41 +29,8 @@ export type PaginatedRepairOrders = {
 
 const ITEMS_PER_PAGE = 20;
 
-/**
- * Parse a date string in various formats
- * Handles: MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, and Excel serial numbers
- */
-function parseDate(dateString: string | null | undefined): Date | null {
-  if (!dateString || typeof dateString !== "string") return null;
-
-  const trimmed = dateString.trim();
-  if (!trimmed) return null;
-
-  // Try MM/DD/YYYY or M/D/YYYY format
-  const usDateMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (usDateMatch) {
-    const [, month, day, year] = usDateMatch;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    if (!isNaN(date.getTime())) return date;
-  }
-
-  // Try YYYY-MM-DD format
-  const isoDateMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoDateMatch) {
-    const date = new Date(trimmed);
-    if (!isNaN(date.getTime())) return date;
-  }
-
-  // Try Excel serial number (days since 1899-12-30)
-  const serialNumber = Number(trimmed);
-  if (!isNaN(serialNumber) && serialNumber > 0 && serialNumber < 100000) {
-    const excelEpoch = new Date(1899, 11, 30);
-    const date = new Date(excelEpoch.getTime() + serialNumber * 86400000);
-    if (!isNaN(date.getTime())) return date;
-  }
-
-  return null;
-}
+// Filter type for repair orders
+export type RepairOrderFilter = "all" | "overdue";
 
 /**
  * Get dashboard statistics from the active table
@@ -82,9 +50,21 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
 
     const excludedStatuses = ["PAID", "BER", "RAI", "RETURNED"];
 
+    let unparseableCount = 0;
+    const unparseableSamples: string[] = [];
+
     for (const record of allRecords) {
       // Count overdue (nextDateToUpdate < today)
       const nextUpdateDate = parseDate(record.nextDateToUpdate);
+
+      // Track unparseable dates for debugging
+      if (record.nextDateToUpdate && !nextUpdateDate) {
+        unparseableCount++;
+        if (unparseableSamples.length < 3) {
+          unparseableSamples.push(`"${record.nextDateToUpdate}"`);
+        }
+      }
+
       if (nextUpdateDate && nextUpdateDate < today) {
         overdue++;
       }
@@ -100,6 +80,16 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
         valueInWork += record.estimatedCost;
       }
     }
+
+    // Log summary for debugging
+    if (unparseableCount > 0) {
+      console.log(
+        `[getDashboardStats] Warning: ${unparseableCount} unparseable dates. Samples: ${unparseableSamples.join(", ")}`
+      );
+    }
+    console.log(
+      `[getDashboardStats] Total: ${allRecords.length}, Overdue: ${overdue}, WaitingQuote: ${waitingQuote}, ValueInWork: $${valueInWork}`
+    );
 
     return {
       success: true,
@@ -123,30 +113,67 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
 }
 
 /**
- * Get paginated repair orders with optional search
+ * Get paginated repair orders with optional search and filter
  */
 export async function getRepairOrders(
   query: string = "",
-  page: number = 1
+  page: number = 1,
+  filter: RepairOrderFilter = "all"
 ): Promise<Result<PaginatedRepairOrders>> {
   try {
     const offset = (page - 1) * ITEMS_PER_PAGE;
     const searchPattern = query.trim() ? `%${query.trim()}%` : null;
 
-    // Build the base query
+    // Build the search condition
+    const searchCondition = searchPattern
+      ? or(
+          like(sql`CAST(${active.ro} AS CHAR)`, searchPattern),
+          like(active.shopName, searchPattern),
+          like(active.part, searchPattern),
+          like(active.serial, searchPattern),
+          like(active.partDescription, searchPattern)
+        )
+      : undefined;
+
+    // If filtering for overdue, we need to fetch all and filter in memory
+    // (date parsing can't be done in SQL with string dates)
+    if (filter === "overdue") {
+      let dataQuery = db.select().from(active);
+      if (searchCondition) {
+        dataQuery = dataQuery.where(searchCondition) as typeof dataQuery;
+      }
+
+      const allResults = await dataQuery.orderBy(desc(active.id));
+
+      // Filter for overdue in memory
+      const overdueResults = allResults.filter((r) =>
+        isOverdue(r.nextDateToUpdate)
+      );
+
+      // Apply pagination to filtered results
+      const paginatedResults = overdueResults.slice(
+        offset,
+        offset + ITEMS_PER_PAGE
+      );
+      const totalCount = overdueResults.length;
+      const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+      return {
+        success: true,
+        data: {
+          data: paginatedResults,
+          totalCount,
+          totalPages,
+          currentPage: page,
+        },
+      };
+    }
+
+    // Standard "all" filter - use SQL pagination
     let dataQuery = db.select().from(active);
     let countQuery = db.select({ count: count() }).from(active);
 
-    // Apply search filter if provided
-    if (searchPattern) {
-      const searchCondition = or(
-        like(sql`CAST(${active.ro} AS CHAR)`, searchPattern),
-        like(active.shopName, searchPattern),
-        like(active.part, searchPattern),
-        like(active.serial, searchPattern),
-        like(active.partDescription, searchPattern)
-      );
-
+    if (searchCondition) {
       dataQuery = dataQuery.where(searchCondition) as typeof dataQuery;
       countQuery = countQuery.where(searchCondition) as typeof countQuery;
     }
