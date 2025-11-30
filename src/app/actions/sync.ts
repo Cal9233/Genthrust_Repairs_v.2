@@ -3,7 +3,6 @@
 import { auth } from "@/auth";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { syncRepairOrders } from "@/trigger/excel-sync";
-import type { SyncRepairOrdersPayload } from "@/trigger/excel-sync";
 
 /**
  * Result type per CLAUDE.md Section 4
@@ -22,6 +21,14 @@ export interface TriggerSyncResult {
 }
 
 /**
+ * Payload for triggering sync from UI (userId injected from session)
+ */
+interface TriggerSyncPayload {
+  userId: string;
+  repairOrderIds: number[];
+}
+
+/**
  * triggerSync Server Action
  *
  * Authenticates the user and dispatches the sync-repair-orders task
@@ -30,11 +37,11 @@ export interface TriggerSyncResult {
  * Per CLAUDE.md Section 3A (Write-Behind Pattern):
  * Flow: UI -> Server Action -> MySQL Write -> Push Job to Trigger.dev
  *
- * @param payload - The sync payload containing batchId and repairOrderIds
+ * @param payload - The sync payload containing userId and repairOrderIds
  * @returns Result with runId and publicAccessToken for realtime tracking
  */
 export async function triggerSync(
-  payload: SyncRepairOrdersPayload
+  payload: TriggerSyncPayload
 ): Promise<Result<TriggerSyncResult>> {
   try {
     // ==========================================
@@ -60,13 +67,6 @@ export async function triggerSync(
     // ==========================================
     // VALIDATION
     // ==========================================
-    if (!payload.batchId) {
-      return {
-        success: false,
-        error: "Validation error: batchId is required",
-      };
-    }
-
     if (!payload.repairOrderIds || payload.repairOrderIds.length === 0) {
       return {
         success: false,
@@ -77,9 +77,13 @@ export async function triggerSync(
     // ==========================================
     // TRIGGER THE BACKGROUND TASK
     // ==========================================
+    // Use session userId for security (ignore payload userId)
     const handle = await tasks.trigger<typeof syncRepairOrders>(
       "sync-repair-orders",
-      payload
+      {
+        userId: session.user.id,
+        repairOrderIds: payload.repairOrderIds,
+      }
     );
 
     // Get the public access token for realtime updates
@@ -104,48 +108,18 @@ export async function triggerSync(
 }
 
 /**
- * triggerSyncBatch Server Action
+ * triggerExcelSync Server Action
  *
- * Convenience function to sync all pending repair orders for a given batch.
- * This would typically fetch repair order IDs from the database first.
+ * Convenience function for UI components that takes userId and repairOrderIds
+ * as separate parameters.
  *
- * NOTE: This is a placeholder for Phase 4 when we integrate with the database.
- *
- * @param batchId - The batch ID to sync
+ * @param userId - The user ID (for authentication context)
+ * @param repairOrderIds - Array of repair order IDs to sync
  * @returns Result with runId and publicAccessToken for realtime tracking
  */
-export async function triggerSyncBatch(
-  batchId: string
+export async function triggerExcelSync(
+  userId: string,
+  repairOrderIds: number[]
 ): Promise<Result<TriggerSyncResult>> {
-  try {
-    // Authentication check
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return {
-        success: false,
-        error: "Unauthorized: You must be signed in to sync repair orders",
-      };
-    }
-
-    // TODO: Phase 4 - Fetch pending repair order IDs from database
-    // const pendingOrders = await db
-    //   .select({ id: repairOrders.id })
-    //   .from(repairOrders)
-    //   .where(eq(repairOrders.syncStatus, 'pending'));
-
-    // For now, return an error indicating this needs implementation
-    return {
-      success: false,
-      error: "Not implemented: triggerSyncBatch requires Phase 4 database integration",
-    };
-  } catch (error) {
-    console.error("triggerSyncBatch error:", error);
-    return {
-      success: false,
-      error: error instanceof Error
-        ? error.message
-        : "Failed to trigger batch sync",
-    };
-  }
+  return triggerSync({ userId, repairOrderIds });
 }
