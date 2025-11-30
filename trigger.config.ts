@@ -7,7 +7,7 @@ import { defineConfig } from "@trigger.dev/sdk/v3";
  * Trigger.dev containers, not Vercel functions. No timeouts.
  */
 export default defineConfig({
-  project: "genthrust-repairs-v2",
+  project: "proj_waiuxiavkqsniyemifdg",
   // Tasks located in src/trigger/ per project constraint
   dirs: ["src/trigger"],
   // Maximum task duration (10 minutes for Excel operations)
