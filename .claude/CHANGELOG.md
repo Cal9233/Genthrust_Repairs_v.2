@@ -432,9 +432,114 @@ SHAREPOINT_SITE_ID=hostname,webId,siteId  # From Graph Explorer
 
 ---
 
+## [0.6.0] - 2025-11-30
+
+### Phase 6: UI Revamp - Aerospace Design System
+
+Complete visual redesign with custom GenThrust branding and improved navigation.
+
+### Added
+
+#### Color System (`src/app/globals.css`)
+- **Primary Blues:**
+  - `--primary-deep-blue`: #0c4a6e (sky-900)
+  - `--primary-bright-blue`: #0284c7 (sky-600)
+- **Accent Colors:**
+  - `--accent-electric`: #06b6d4 (cyan-500)
+  - `--accent-sunset`: #f97316 (orange-500)
+- **Semantic Colors:**
+  - `--success-green`: #22c55e
+  - `--warning-amber`: #f59e0b
+  - `--danger-red`: #ef4444
+- Tailwind v4 `@theme inline` mappings for all colors
+
+#### Custom Utilities (`src/app/globals.css`)
+- `.bg-diagonal-lines` - Subtle aerospace-inspired diagonal pattern
+- `.shadow-vibrant` - Layered cyan/blue shadow for cards
+- `.animate-accordion-down` / `.animate-accordion-up` - Radix accordion animations
+
+#### Layout Components
+- **Header** (`src/components/layout/Header.tsx`)
+  - Sticky header with gradient background
+  - Brand logo "GenThrust RO Tracker"
+  - User avatar from Microsoft auth session
+  - Server component with `auth()` session access
+
+- **Navigation** (`src/components/layout/Navigation.tsx`)
+  - Tab bar with Dashboard, Inventory, Shops links
+  - Active state: white pill with shadow
+  - Inactive state: semi-transparent hover
+  - Icons from lucide-react (LayoutDashboard, Package, Building2)
+  - Client component with `usePathname()` for active detection
+
+#### Pages
+- **Shops** (`src/app/(protected)/shops/page.tsx`)
+  - Placeholder page for repair shop management
+  - Coming soon messaging
+
+### Changed
+
+#### Protected Layout (`src/app/(protected)/layout.tsx`)
+- Integrated Header and Navigation as authenticated shell
+- Flex column layout with sticky header
+- Main content area with `flex-1` for proper height
+
+#### Dashboard (`src/app/(protected)/dashboard/page.tsx`)
+- Removed full-page centering (now uses shell layout)
+- 2-column responsive grid layout
+- Simplified user card (avatar now in header)
+- Container-based layout
+
+#### Sign-In Page (`src/app/(auth)/signin/page.tsx`)
+- Added `bg-diagonal-lines` aerospace background pattern
+- Added `shadow-vibrant` to login card
+- Gradient brand text "GenThrust"
+- Updated metadata: title, description
+- Added `export const dynamic = "force-dynamic"` for build compatibility
+
+#### Root Layout (`src/app/layout.tsx`)
+- Updated metadata to "GenThrust RO Tracker"
+
+### Technical Details
+
+#### File Structure Added/Modified
+```
+src/
+├── app/
+│   ├── globals.css                    # Updated with color system
+│   ├── layout.tsx                     # Updated metadata
+│   ├── (auth)/signin/page.tsx         # Visual polish
+│   └── (protected)/
+│       ├── layout.tsx                 # Integrated shell
+│       ├── dashboard/page.tsx         # Grid layout
+│       └── shops/page.tsx             # NEW placeholder
+└── components/
+    └── layout/
+        ├── Header.tsx                 # NEW sticky header
+        └── Navigation.tsx             # NEW tab bar
+```
+
+#### Tailwind v4 Theme Configuration
+```css
+@theme inline {
+  --color-primary-deep-blue: hsl(var(--primary-deep-blue));
+  --color-primary-bright-blue: hsl(var(--primary-bright-blue));
+  --color-accent-electric: hsl(var(--accent-electric));
+  --color-accent-sunset: hsl(var(--accent-sunset));
+  --color-success-green: hsl(var(--success-green));
+  --color-warning-amber: hsl(var(--warning-amber));
+  --color-danger-red: hsl(var(--danger-red));
+}
+```
+
+### Dependencies
+- No new dependencies (uses existing shadcn/ui, lucide-react, Tailwind CSS v4)
+
+---
+
 ## [Unreleased]
 
-### Phase 6: Durable AI Agent Integration
+### Phase 5 Addendum: Durable AI Agent Integration
 
 Integration of Vercel AI SDK with Trigger.dev for durable AI-powered research capabilities.
 
