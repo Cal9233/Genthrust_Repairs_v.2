@@ -1,3 +1,5 @@
+import { Assistant } from "@/components/agent/Assistant";
+
 /**
  * Protected Layout
  *
@@ -12,5 +14,10 @@ export default function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <Assistant />
+    </>
+  );
 }
