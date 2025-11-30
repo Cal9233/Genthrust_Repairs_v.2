@@ -1,7 +1,10 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { signOutAction } from "@/actions/auth";
-import { getDashboardStats } from "@/app/actions/dashboard";
+import {
+  getDashboardStats,
+  type RepairOrderFilter,
+} from "@/app/actions/dashboard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,7 +17,11 @@ import { SyncStatus } from "@/components/sync/SyncStatus";
 import { StatsGrid } from "@/components/dashboard/StatsGrid";
 import { RepairOrderTable } from "@/components/dashboard/RepairOrderTable";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.user) {
@@ -22,6 +29,11 @@ export default async function DashboardPage() {
   }
 
   const { user } = session;
+
+  // Parse filter from searchParams
+  const params = await searchParams;
+  const filter: RepairOrderFilter =
+    params.filter === "overdue" ? "overdue" : "all";
 
   // Fetch dashboard stats on the server
   const statsResult = await getDashboardStats();
@@ -38,7 +50,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPI Stats Grid */}
-      <StatsGrid stats={stats} />
+      <StatsGrid stats={stats} activeFilter={filter} />
 
       {/* Secondary Cards Row */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -86,7 +98,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Repair Orders Table */}
-      <RepairOrderTable />
+      <RepairOrderTable filter={filter} />
     </div>
   );
 }
