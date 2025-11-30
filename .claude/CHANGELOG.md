@@ -432,6 +432,88 @@ SHAREPOINT_SITE_ID=hostname,webId,siteId  # From Graph Explorer
 
 ---
 
+## [Unreleased]
+
+### Phase 6: Durable AI Agent Integration
+
+Integration of Vercel AI SDK with Trigger.dev for durable AI-powered research capabilities.
+
+### Added
+
+#### Dependencies
+- `ai` (v5.0.104) - Vercel AI SDK for LLM integration
+- `@ai-sdk/anthropic` (v2.0.50) - Anthropic provider for Claude models
+- `zod` - Schema validation for tool parameters
+
+#### Trigger.dev Tasks
+
+**AI Tools (`src/trigger/ai-tools.ts`)**
+- `searchInventoryTool` - Searches inventory by part number or description
+- `getRepairOrderTool` - Looks up repair order details by RO number or ID
+- Both tasks run in isolated containers with automatic retry (3 attempts)
+
+**AI Agent (`src/trigger/ai-agent.ts`)**
+- Uses Vercel AI SDK v5 with `generateText()` and `inputSchema` tool definitions
+- Claude claude-sonnet-4-20250514 model via Anthropic provider
+- Durable tool execution via `tasks.triggerAndWait()` (sub-task isolation)
+- Real-time progress metadata updates (thinking, searching_inventory, fetching_repair_order)
+- Supports up to 5 sequential tool calls via `stopWhen: stepCountIs(5)`
+
+#### Server Actions (`src/app/actions/agent.ts`)
+- `askAgent(prompt)` - Triggers research-agent task
+- Returns `runId` and `publicAccessToken` for real-time UI tracking
+- Follows `Result<T>` pattern per CLAUDE.md
+
+#### Hooks (`src/hooks/use-agent-run.ts`)
+- `useAgentRun(runId, accessToken)` - Returns status, progress, output, error
+- Status types: idle, thinking, searching_inventory, fetching_repair_order, completed, failed
+
+#### UI Components
+- `src/components/ui/dialog.tsx` - shadcn/ui Dialog component (Radix UI)
+- `src/components/agent/Assistant.tsx` - Floating AI chat assistant:
+  - Chat bubble button fixed to bottom-right corner
+  - Expandable dialog with message history
+  - Real-time status updates during agent execution
+  - Session-only chat (no database persistence)
+  - Auto-scroll to latest messages
+
+#### Modified Files
+- `src/app/(protected)/layout.tsx` - Added Assistant component to protected routes
+- `package.json` - Added AI SDK dependencies
+
+### Technical Details
+
+#### File Structure Added
+```
+src/
+├── trigger/
+│   ├── ai-tools.ts           # Durable sub-tasks for AI tools
+│   └── ai-agent.ts           # Main research agent task
+├── app/actions/
+│   └── agent.ts              # Server action for AI assistant
+├── hooks/
+│   └── use-agent-run.ts      # React hook for agent status
+└── components/
+    ├── ui/
+    │   └── dialog.tsx        # shadcn Dialog
+    └── agent/
+        └── Assistant.tsx     # Floating chat assistant
+```
+
+#### Environment Variables Required
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+#### Key Patterns Implemented
+- **Sub-task Isolation**: Each AI tool runs as a separate Trigger.dev task for maximum durability
+- **Durable Tool Execution**: Uses `tasks.triggerAndWait()` - if container restarts, execution resumes
+- **AI SDK v5 Compatibility**: Uses `inputSchema` instead of `parameters`, `stopWhen` instead of `maxSteps`
+- **Real-time Progress**: Metadata updates shown via `useAgentRun` hook
+- **Non-blocking UI**: AI runs in background container, UI polls for status
+
+---
+
 ## Notes
 
 ### Architecture Decisions
