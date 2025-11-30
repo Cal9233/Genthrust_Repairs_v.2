@@ -11,6 +11,7 @@ export type SyncStatus =
   | "idle"
   | "starting"
   | "initializing"
+  | "fetching"
   | "processing"
   | "finishing"
   | "completed"
