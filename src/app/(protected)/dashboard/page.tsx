@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { signOutAction } from "@/actions/auth";
+import { getDashboardStats } from "@/app/actions/dashboard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SyncStatus } from "@/components/sync/SyncStatus";
+import { StatsGrid } from "@/components/dashboard/StatsGrid";
+import { RepairOrderTable } from "@/components/dashboard/RepairOrderTable";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -20,15 +23,24 @@ export default async function DashboardPage() {
 
   const { user } = session;
 
+  // Fetch dashboard stats on the server
+  const statsResult = await getDashboardStats();
+  const stats = statsResult.success ? statsResult.data : null;
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
           Welcome back, {user.name ?? user.email}
         </p>
       </div>
 
+      {/* KPI Stats Grid */}
+      <StatsGrid stats={stats} />
+
+      {/* Secondary Cards Row */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* User Session Card */}
         <Card>
@@ -72,6 +84,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Repair Orders Table */}
+      <RepairOrderTable />
     </div>
   );
 }

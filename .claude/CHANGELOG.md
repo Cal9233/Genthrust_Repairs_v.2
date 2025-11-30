@@ -537,6 +537,104 @@ src/
 
 ---
 
+## [0.7.0] - 2025-11-30
+
+### Phase 7: Dashboard Content - KPI Cards & Data Tables
+
+Real business data integration with KPI statistics and paginated repair order table.
+
+### Added
+
+#### Server Actions (`src/app/actions/dashboard.ts`)
+- `getDashboardStats()` - Fetches KPI metrics from `active` table:
+  - **Total Active**: Count of all active repair orders
+  - **Overdue**: Count where `nextDateToUpdate < today`
+  - **Waiting Quote**: Count where status is "WAITING QUOTE"
+  - **Value in Work**: Sum of `estimatedCost` for non-completed orders
+- `getRepairOrders(query, page)` - Paginated repair order list:
+  - 20 items per page with server-side pagination
+  - Fuzzy search on RO#, shop, part, serial, description
+  - Sorted by ID descending (newest first)
+  - Returns `{ data, totalCount, totalPages, currentPage }`
+- `getRepairOrderById(id)` - Single RO lookup
+- `parseDate()` - Multi-format date parser (MM/DD/YYYY, YYYY-MM-DD, Excel serial)
+
+#### UI Components
+
+**StatsGrid (`src/components/dashboard/StatsGrid.tsx`)**
+- 4-card responsive grid (2 cols mobile, 4 cols desktop)
+- Skeleton loading state
+- Currency formatting via `Intl.NumberFormat`
+
+**StatCard (`src/components/dashboard/StatCard.tsx`)**
+- Variants: default, danger, warning, success
+- Icon support via lucide-react
+- Uses `shadow-vibrant` and `bg-diagonal-lines` utilities
+
+**StatusBadge (`src/components/dashboard/StatusBadge.tsx`)**
+- Maps status strings to colored badges:
+  - Amber: WAITING QUOTE, WAITING PARTS, PENDING
+  - Blue/Cyan: APPROVED, IN WORK, SHIPPED
+  - Green: RECEIVED, COMPLETE, PAID
+  - Red: BER, RAI, RETURNED, CANCELLED
+- Uses semantic color variables from globals.css
+
+**RepairOrderTable (`src/components/dashboard/RepairOrderTable.tsx`)**
+- Client component with debounced search
+- Paginated with page numbers
+- Columns: RO#, Shop, Part/Serial, Status, Next Update, Est. Cost
+- Loading overlay with spinner
+- Empty state handling
+
+**Pagination (`src/components/ui/pagination.tsx`)**
+- Previous/Next buttons
+- Page number buttons with ellipsis for large page counts
+- Disabled states at bounds
+
+**Badge (`src/components/ui/badge.tsx`)**
+- shadcn/ui Badge component
+- Variants: default, secondary, destructive, outline
+
+### Changed
+
+#### Dashboard Page (`src/app/(protected)/dashboard/page.tsx`)
+- Added StatsGrid at top of page
+- Added RepairOrderTable below existing cards
+- Server-side stats fetching via `getDashboardStats()`
+- Maintained existing Session Info and Excel Sync cards
+
+### Technical Details
+
+#### File Structure Added
+```
+src/
+├── app/
+│   └── actions/
+│       └── dashboard.ts              # NEW: Dashboard server actions
+├── components/
+│   ├── dashboard/
+│   │   ├── index.ts                  # NEW: Barrel export
+│   │   ├── StatCard.tsx              # NEW: KPI card component
+│   │   ├── StatsGrid.tsx             # NEW: KPI grid layout
+│   │   ├── StatusBadge.tsx           # NEW: Status color mapper
+│   │   └── RepairOrderTable.tsx      # NEW: Paginated table
+│   └── ui/
+│       ├── badge.tsx                 # NEW: shadcn Badge
+│       └── pagination.tsx            # NEW: Page navigation
+```
+
+#### Date Parsing Strategy
+- Handles multiple formats from legacy Excel data
+- MM/DD/YYYY (US format)
+- YYYY-MM-DD (ISO format)
+- Excel serial numbers (days since 1899-12-30)
+- Returns `null` for invalid/empty dates (graceful degradation)
+
+### Dependencies Added
+- None (uses existing shadcn/ui infrastructure)
+
+---
+
 ## [Unreleased]
 
 ### Phase 5 Addendum: Durable AI Agent Integration
