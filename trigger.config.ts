@@ -29,6 +29,8 @@ export default defineConfig({
     external: [
       "isomorphic-fetch",
       "@microsoft/microsoft-graph-client",
+      "ai",
+      "@ai-sdk/anthropic",
     ],
     // Extensions to add additional packages to the container
     extensions: [
@@ -36,6 +38,8 @@ export default defineConfig({
         packages: [
           "isomorphic-fetch",
           "@microsoft/microsoft-graph-client",
+          "ai",
+          "@ai-sdk/anthropic",
         ],
       }),
     ],

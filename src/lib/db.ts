@@ -18,19 +18,30 @@ const globalForDb = globalThis as unknown as {
 // Helper to get SSL config safely
 function getSSLConfig() {
   try {
-    const certPath = path.join(process.cwd(), "certs", "ca.pem");
-    // check if file exists
-    if (fs.existsSync(certPath)) {
-      return { 
-        ca: fs.readFileSync(certPath).toString(),
-        rejectUnauthorized: true 
+    // Priority 1: Environment variable (for containerized environments like Trigger.dev)
+    if (process.env.DATABASE_CA_CERT) {
+      return {
+        ca: process.env.DATABASE_CA_CERT,
+        rejectUnauthorized: true,
       };
     }
+
+    // Priority 2: File-based cert (for local development)
+    const certPath = path.join(process.cwd(), "certs", "ca.pem");
+    if (fs.existsSync(certPath)) {
+      return {
+        ca: fs.readFileSync(certPath).toString(),
+        rejectUnauthorized: true,
+      };
+    }
+
     console.warn("SSL Cert not found at " + certPath);
-    return { rejectUnauthorized: true }; // Fallback
+    // Fallback: This is unsafe in production, but allows non-SSL local dev to run
+    return { rejectUnauthorized: true };
   } catch (e) {
     console.warn("Could not load CA cert for SSL connection", e);
-    return { rejectUnauthorized: true }; // Fallback
+    // Fallback
+    return { rejectUnauthorized: true };
   }
 }
 

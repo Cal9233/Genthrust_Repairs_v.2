@@ -10,8 +10,14 @@ import {
   primaryKey,
   boolean,
   index,
+  json,
 } from "drizzle-orm/mysql-core";
 import { relations, sql } from "drizzle-orm";
+import type {
+  NotificationType,
+  NotificationStatus,
+  NotificationPayload,
+} from "./types/notification";
 
 // ==========================================
 // EXISTING INVENTORY TABLES (from introspection)
@@ -505,3 +511,51 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
+
+// ==========================================
+// NOTIFICATION QUEUE TABLE
+// ==========================================
+
+export const notificationQueue = mysqlTable(
+  "notification_queue",
+  {
+    // Optimized PK: uses .primaryKey() for idiomatic Drizzle/MySQL auto-increment
+    id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+    repairOrderId: bigint("repair_order_id", { mode: "number" })
+      .notNull()
+      .references(() => active.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 20 }).$type<NotificationType>().notNull(),
+    status: varchar("status", { length: 20 })
+      .$type<NotificationStatus>()
+      .default("PENDING_APPROVAL")
+      .notNull(),
+    payload: json("payload").$type<NotificationPayload>().notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    scheduledFor: timestamp("scheduled_for", { mode: "date" }).notNull(),
+  },
+  (table) => [
+    index("idx_notification_status").on(table.status),
+    index("idx_notification_user").on(table.userId),
+  ]
+);
+
+export const notificationQueueRelations = relations(
+  notificationQueue,
+  ({ one }) => ({
+    repairOrder: one(active, {
+      fields: [notificationQueue.repairOrderId],
+      references: [active.id],
+    }),
+    user: one(users, {
+      fields: [notificationQueue.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+// Notification queue type exports
+export type NotificationQueueItem = typeof notificationQueue.$inferSelect;
+export type NewNotificationQueueItem = typeof notificationQueue.$inferInsert;

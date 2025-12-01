@@ -1,5 +1,22 @@
-import { mysqlTable, mysqlSchema, AnyMySqlColumn, primaryKey, bigint, double, varchar, timestamp, datetime, index, int, text } from "drizzle-orm/mysql-core"
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, foreignKey, primaryKey, varchar, text, int, bigint, double, timestamp, unique, datetime, index, json } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
+
+export const accounts = mysqlTable("accounts", {
+	userId: varchar({ length: 255 }).notNull().references(() => users.id, { onDelete: "cascade" } ),
+	type: varchar({ length: 255 }).notNull(),
+	provider: varchar({ length: 255 }).notNull(),
+	providerAccountId: varchar({ length: 255 }).notNull(),
+	refreshToken: text("refresh_token"),
+	accessToken: text("access_token"),
+	expiresAt: int("expires_at"),
+	tokenType: varchar("token_type", { length: 255 }),
+	scope: varchar({ length: 255 }),
+	idToken: text("id_token"),
+	sessionState: varchar("session_state", { length: 255 }),
+},
+(table) => [
+	primaryKey({ columns: [table.provider, table.providerAccountId], name: "accounts_provider_providerAccountId"}),
+]);
 
 export const active = mysqlTable("active", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
@@ -24,16 +41,31 @@ export const active = mysqlTable("active", {
 	notes: varchar("NOTES", { length: 500 }),
 	lastDateUpdated: varchar("LAST_DATE_UPDATED", { length: 500 }),
 	nextDateToUpdate: varchar("NEXT_DATE_TO_UPDATE", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "active_id"}),
 ]);
 
+export const authenticators = mysqlTable("authenticators", {
+	credentialId: varchar({ length: 255 }).notNull(),
+	userId: varchar({ length: 255 }).notNull().references(() => users.id, { onDelete: "cascade" } ),
+	providerAccountId: varchar({ length: 255 }).notNull(),
+	credentialPublicKey: text().notNull(),
+	counter: int().notNull(),
+	credentialDeviceType: varchar({ length: 255 }).notNull(),
+	credentialBackedUp: tinyint().notNull(),
+	transports: varchar({ length: 255 }),
+},
+(table) => [
+	primaryKey({ columns: [table.userId, table.credentialId], name: "authenticators_userId_credentialID"}),
+	unique("authenticators_credentialID_unique").on(table.credentialId),
+]);
+
 export const bERRAI = mysqlTable("b_e_r_r_a_i", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	pnBERRAI: varchar("PN_B_E_R_R_A_I", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "b_e_r_r_a_i_id"}),
@@ -53,7 +85,7 @@ export const binsInventoryActual = mysqlTable("bins_inventory_actual", {
 	suggestedSellPriceMax302: double("SUGGESTED_SELL_PRICE_MAX_30_2"),
 	coment: varchar("COMENT", { length: 500 }),
 	column1: varchar("Column1", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "bins_inventory_actual_id"}),
@@ -62,7 +94,7 @@ export const binsInventoryActual = mysqlTable("bins_inventory_actual", {
 export const deltaApa = mysqlTable("delta_apa", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	deltaApa: varchar("DELTA_APA", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "delta_apa_id"}),
@@ -82,7 +114,7 @@ export const hold = mysqlTable("hold", {
 	waitingQuote: varchar("WAITING_QUOTE", { length: 500 }),
 	"202508260000001": varchar("2025_08_26_00_00_00_1", { length: 500 }),
 	"202508260000002": varchar("2025_08_26_00_00_00_2", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "hold_id"}),
@@ -118,7 +150,7 @@ export const logs = mysqlTable("logs", {
 	durationMs: double("Duration_ms"),
 	success: varchar("Success", { length: 500 }),
 	error: varchar("Error", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "logs_id"}),
@@ -147,10 +179,24 @@ export const net = mysqlTable("net", {
 	notes: varchar("NOTES", { length: 500 }),
 	lastDateUpdated: varchar("LAST_DATE_UPDATED", { length: 500 }),
 	nextDateToUpdate: varchar("NEXT_DATE_TO_UPDATE", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "net_id"}),
+]);
+
+export const notificationQueue = mysqlTable("notification_queue", {
+	id: bigint({ mode: "number" }).autoincrement().notNull(),
+	repairOrderId: bigint("repair_order_id", { mode: "number" }).notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	type: varchar({ length: 20 }).notNull(),
+	status: varchar({ length: 20 }).default('PENDING_APPROVAL').notNull(),
+	payload: json().notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`).notNull(),
+	scheduledFor: timestamp("scheduled_for", { mode: 'string' }).notNull(),
+},
+(table) => [
+	primaryKey({ columns: [table.id], name: "notification_queue_id"}),
 ]);
 
 export const paid = mysqlTable("paid", {
@@ -176,7 +222,7 @@ export const paid = mysqlTable("paid", {
 	notes: varchar("NOTES", { length: 500 }),
 	lastDateUpdated: varchar("LAST_DATE_UPDATED", { length: 500 }),
 	nextDateToUpdate: varchar("NEXT_DATE_TO_UPDATE", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "paid_id"}),
@@ -185,7 +231,7 @@ export const paid = mysqlTable("paid", {
 export const partesArAsia = mysqlTable("partes_ar_asia", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	pnApa: varchar("PN_APA", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "partes_ar_asia_id"}),
@@ -194,7 +240,7 @@ export const partesArAsia = mysqlTable("partes_ar_asia", {
 export const partesArAsiaSanford = mysqlTable("partes_ar_asia_sanford", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	pnApaSanford: varchar("PN_APA_SANFORD", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "partes_ar_asia_sanford_id"}),
@@ -203,7 +249,7 @@ export const partesArAsiaSanford = mysqlTable("partes_ar_asia_sanford", {
 export const partesBolivia = mysqlTable("partes_bolivia", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	pnBolivia: varchar("PN_BOLIVIA", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "partes_bolivia_id"}),
@@ -219,7 +265,7 @@ export const pnNoReparadas727 = mysqlTable("pn_no_reparadas_727", {
 	location: varchar("LOCATION", { length: 500 }),
 	comment: varchar("COMMENT", { length: 500 }),
 	sistema: varchar("SISTEMA", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "pn_no_reparadas_727_id"}),
@@ -236,7 +282,7 @@ export const pnNoReparadasMd82 = mysqlTable("pn_no_reparadas_md82", {
 	bin: varchar("BIN", { length: 500 }),
 	comment: varchar("COMMENT", { length: 500 }),
 	sistema: varchar("SISTEMA", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "pn_no_reparadas_md82_id"}),
@@ -265,10 +311,19 @@ export const returns = mysqlTable("returns", {
 	notes: varchar("NOTES", { length: 500 }),
 	lastDateUpdated: varchar("LAST_DATE_UPDATED", { length: 500 }),
 	nextDateToUpdate: varchar("NEXT_DATE_TO_UPDATE", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "returns_id"}),
+]);
+
+export const sessions = mysqlTable("sessions", {
+	sessionToken: varchar({ length: 255 }).notNull(),
+	userId: varchar({ length: 255 }).notNull().references(() => users.id, { onDelete: "cascade" } ),
+	expires: timestamp({ mode: 'string' }).notNull(),
+},
+(table) => [
+	primaryKey({ columns: [table.sessionToken], name: "sessions_sessionToken"}),
 ]);
 
 export const shops = mysqlTable("shops", {
@@ -293,7 +348,7 @@ export const shops = mysqlTable("shops", {
 	ilsCode: varchar("ILS_Code", { length: 500 }),
 	lastSaleDate: varchar("Last_Sale_Date", { length: 500 }),
 	ytdSales: double("YTD_Sales"),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "shops_id"}),
@@ -302,7 +357,7 @@ export const shops = mysqlTable("shops", {
 export const stockRoomActual = mysqlTable("stock_room_actual", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	genthrustXviiInventory: varchar("GENTHRUST_XVII_INVENTORY", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "stock_room_actual_id"}),
@@ -318,8 +373,31 @@ export const terra = mysqlTable("terra", {
 	location: varchar("LOCATION", { length: 500 }),
 	comment: varchar("COMMENT", { length: 500 }),
 	sistema: varchar("SISTEMA", { length: 500 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`(now())`),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "terra_id"}),
+]);
+
+export const users = mysqlTable("users", {
+	id: varchar({ length: 255 }).notNull(),
+	name: varchar({ length: 255 }),
+	email: varchar({ length: 255 }),
+	emailVerified: timestamp({ fsp: 3, mode: 'string' }),
+	image: text(),
+	createdAt: timestamp({ mode: 'string' }).default(sql`(now())`),
+	updatedAt: timestamp({ mode: 'string' }).default(sql`(now())`),
+},
+(table) => [
+	primaryKey({ columns: [table.id], name: "users_id"}),
+	unique("users_email_unique").on(table.email),
+]);
+
+export const verificationTokens = mysqlTable("verificationTokens", {
+	identifier: varchar({ length: 255 }).notNull(),
+	token: varchar({ length: 255 }).notNull(),
+	expires: timestamp({ mode: 'string' }).notNull(),
+},
+(table) => [
+	primaryKey({ columns: [table.identifier, table.token], name: "verificationTokens_identifier_token"}),
 ]);
