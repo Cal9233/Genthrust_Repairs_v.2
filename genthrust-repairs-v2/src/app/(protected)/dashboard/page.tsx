@@ -1,6 +1,10 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { signOutAction } from "@/actions/auth";
+import {
+  getDashboardStats,
+  type RepairOrderFilter,
+} from "@/app/actions/dashboard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,9 +13,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SyncStatus } from "@/components/sync/SyncStatus";
+import { StatsGrid } from "@/components/dashboard/StatsGrid";
+import { RepairOrderTable } from "@/components/dashboard/RepairOrderTable";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.user) {
@@ -19,49 +29,76 @@ export default async function DashboardPage() {
   }
 
   const { user } = session;
-  const initials = user.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase() ?? "U";
+
+  // Parse filter from searchParams
+  const params = await searchParams;
+  const filter: RepairOrderFilter =
+    params.filter === "overdue" ? "overdue" : "all";
+
+  // Fetch dashboard stats on the server
+  const statsResult = await getDashboardStats();
+  const stats = statsResult.success ? statsResult.data : null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
-              <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
-            </Avatar>
-          </div>
-          <CardTitle className="text-2xl">Welcome back!</CardTitle>
-          <CardDescription>
-            You are signed in as {user.name ?? user.email}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-md bg-muted p-4 text-sm">
-            <p>
-              <strong>Email:</strong> {user.email}
-            </p>
-            <p>
-              <strong>User ID:</strong> {user.id}
-            </p>
-          </div>
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome back, {user.name ?? user.email}
+        </p>
+      </div>
 
-          <form
-            action={async () => {
-              "use server";
-              await signOutAction();
-            }}
-          >
-            <Button type="submit" variant="outline" className="w-full">
-              Sign out
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      {/* KPI Stats Grid */}
+      <StatsGrid stats={stats} activeFilter={filter} />
+
+      {/* Secondary Cards Row */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* User Session Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Session Info</CardTitle>
+            <CardDescription>Your current session details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md bg-muted p-4 text-sm">
+              <p>
+                <strong>Email:</strong> {user.email}
+              </p>
+              <p>
+                <strong>User ID:</strong> {user.id}
+              </p>
+            </div>
+
+            <form
+              action={async () => {
+                "use server";
+                await signOutAction();
+              }}
+            >
+              <Button type="submit" variant="outline" className="w-full">
+                Sign out
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Excel Sync Status Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Excel Sync Status</CardTitle>
+            <CardDescription>
+              Sync repair orders to SharePoint Excel
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SyncStatus userId={user.id} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Repair Orders Table */}
+      <RepairOrderTable filter={filter} />
     </div>
   );
 }

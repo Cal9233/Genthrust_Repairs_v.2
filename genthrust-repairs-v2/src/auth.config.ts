@@ -18,9 +18,19 @@ export default {
         params: {
           // CRITICAL: offline_access required for refresh_token
           // This allows background workers to act on behalf of users
-          scope: "openid profile email User.Read offline_access",
-          // Force consent screen to ensure refresh token is returned
-          prompt: "consent",
+          //
+          // Excel Sync scopes:
+          // - Files.ReadWrite.All: Read/write files in OneDrive/SharePoint
+          // - Sites.ReadWrite.All: Access SharePoint sites for Excel sync
+          //
+          // Notification feature scopes:
+          // - Calendars.ReadWrite: Create Outlook Calendar events
+          // - Tasks.ReadWrite: Create Microsoft To Do items
+          // - Mail.Send: Send emails on behalf of user
+          // - Mail.ReadWrite: Create draft emails in user's mailbox
+          scope: "openid profile email User.Read offline_access Files.ReadWrite.All Sites.ReadWrite.All Calendars.ReadWrite Tasks.ReadWrite Mail.Send Mail.ReadWrite",
+          // Allow user to select account; admin consent already granted tenant-wide
+          prompt: "select_account",
         },
       },
     }),

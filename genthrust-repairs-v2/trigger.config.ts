@@ -1,4 +1,5 @@
 import { defineConfig } from "@trigger.dev/sdk/v3";
+import { additionalPackages } from "@trigger.dev/build/extensions/core";
 
 /**
  * Trigger.dev v3 Configuration
@@ -7,7 +8,7 @@ import { defineConfig } from "@trigger.dev/sdk/v3";
  * Trigger.dev containers, not Vercel functions. No timeouts.
  */
 export default defineConfig({
-  project: "genthrust-repairs-v2",
+  project: "proj_waiuxiavkqsniyemifdg",
   // Tasks located in src/trigger/ per project constraint
   dirs: ["src/trigger"],
   // Maximum task duration (10 minutes for Excel operations)
@@ -21,5 +22,26 @@ export default defineConfig({
       maxTimeoutInMs: 10000,
       factor: 2,
     },
+  },
+  // Build configuration
+  build: {
+    // Externalize packages that shouldn't be bundled (installed at runtime)
+    external: [
+      "isomorphic-fetch",
+      "@microsoft/microsoft-graph-client",
+      "ai",
+      "@ai-sdk/anthropic",
+    ],
+    // Extensions to add additional packages to the container
+    extensions: [
+      additionalPackages({
+        packages: [
+          "isomorphic-fetch",
+          "@microsoft/microsoft-graph-client",
+          "ai",
+          "@ai-sdk/anthropic",
+        ],
+      }),
+    ],
   },
 });

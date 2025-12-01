@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 certs/
+
+# git worktrees
+.worktrees/
+
+# Trigger.dev
+.trigger/
