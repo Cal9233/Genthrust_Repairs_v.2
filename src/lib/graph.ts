@@ -54,7 +54,8 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> 
     grant_type: "refresh_token",
     refresh_token: refreshToken,
     // Sites.ReadWrite.All for SharePoint access
-    scope: "openid profile email User.Read Files.ReadWrite.All Sites.ReadWrite.All offline_access",
+    // Calendars/Tasks/Mail scopes for notification features (Phase 2)
+    scope: "openid profile email User.Read Files.ReadWrite.All Sites.ReadWrite.All Calendars.ReadWrite Tasks.ReadWrite Mail.Send Mail.ReadWrite offline_access",
   });
 
   const response = await fetch(tokenEndpoint, {

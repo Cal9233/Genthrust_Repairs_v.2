@@ -721,6 +721,168 @@ Visual highlighting of overdue items and clickable KPI cards for filtering.
 
 ---
 
+## [1.0.0] - 2025-11-30
+
+### Phase 10: High-Density UI Polish
+
+Toolbar and filter enhancements for improved user workflow.
+
+### Added
+
+#### Toolbar Components
+- **RepairOrderToolbar** (`src/components/dashboard/RepairOrderToolbar.tsx`)
+  - Search input with debouncing
+  - View toggle (active/all)
+  - "+ New RO" placeholder button
+
+- **RepairOrderFilters** (`src/components/dashboard/RepairOrderFilters.tsx`)
+  - Filter chips: Overdue, Due This Week, High Value ($10k+), Waiting Quote
+  - Status-based filtering
+
+- **DashboardContent** (`src/components/dashboard/DashboardContent.tsx`)
+  - State coordination wrapper for toolbar, filters, and table
+  - ViewMode (active/all) status-based filtering
+
+### Changed
+- RepairOrderTable refactored with Tooltips and reduced padding
+- Toast notifications via Sonner for status changes
+
+---
+
+## [1.1.0] - 2025-11-30
+
+### Phase 11: Notification Queue Infrastructure
+
+Complete infrastructure for automated email drafting, human-in-the-loop approval, and durable workflow execution.
+
+### Added
+
+#### Database Schema
+- `notification_queue` table with status tracking (PENDING_APPROVAL, APPROVED, REJECTED, SENT)
+- Foreign keys to `active` (repair orders) and `users` tables
+- Indexes on `status` and `userId` for query performance
+- VARCHAR + `.$type<T>()` pattern for enums (not MySQL ENUM)
+
+#### Type Definitions (`src/lib/types/notification.ts`)
+- `NotificationType`: 'EMAIL_DRAFT' | 'TASK_REMINDER'
+- `NotificationStatus`: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'SENT'
+- `EmailDraftPayload` and `TaskReminderPayload` interfaces
+
+#### Server Actions (`src/app/actions/notifications.ts`)
+- `getPendingNotifications()` - Fetch pending approvals for current user
+- `approveNotification(id)` - Approve and dispatch to Trigger.dev
+- `rejectNotification(id)` - Mark as rejected
+- `createNotification()` - Queue new notification
+- `getAllNotifications(limit)` - Fetch all notifications (for history)
+
+#### Pure Drizzle Functions (`src/lib/data/notifications.ts`)
+- `insertNotificationCore(data)` - Used by background tasks without auth
+- `getNotificationById(id)` - Fetch single notification
+- `updateNotificationStatus(id, status)` - Update status
+
+#### Microsoft Graph Productivity Helpers (`src/lib/graph/productivity.ts`)
+- `createCalendarEvent()` - Create Outlook calendar events
+- `createToDoTask()` - Create Microsoft To Do tasks
+- `sendEmail()` - Send emails via Graph API
+- `createDraftEmail()` - Create draft emails in Drafts folder
+
+#### Trigger.dev Durable Tasks
+- **`send-approved-email`** (`src/trigger/send-approved-email.ts`)
+  - Processes approved notifications with retry logic
+  - Sends email via Graph API, updates status to SENT
+
+- **`handle-ro-status-change`** (`src/trigger/ro-lifecycle-flow.ts`)
+  - Triggers when RO enters tracked statuses (WAITING QUOTE, APPROVED, IN WORK, etc.)
+  - Creates Calendar event and To Do task immediately
+  - 7-day durable wait via `wait.for({ days: 7 })`
+  - Re-checks status after wake-up
+  - Drafts follow-up email if still waiting
+
+- **`check-overdue-ros`** (`src/trigger/check-overdue-ros.ts`)
+  - Daily cron at 8:00 AM UTC
+  - Finds ROs in WAITING QUOTE > 7 days
+  - Generates email drafts for approval
+
+#### UI Components
+- **NotificationBell** (`src/components/layout/NotificationBell.tsx`)
+  - Bell icon in header with pending count badge
+  - Tabbed interface: "Pending" and "History"
+  - Approve/Reject buttons with loading states
+  - History tab with status-colored badges
+
+- **shadcn/ui Components Added**
+  - `src/components/ui/sheet.tsx` - Slide-out sidebar
+  - `src/components/ui/tabs.tsx` - Tabbed interface
+  - `src/components/ui/select.tsx` - Status dropdown
+
+#### Status Change Integration (`src/app/actions/repair-orders.ts`)
+- `updateRepairOrderStatus()` - Updates MySQL and triggers lifecycle flow
+- Follows Write-Behind pattern: UI → Server Action → MySQL → Trigger.dev
+
+#### RODetailDialog Status Editing
+- Status dropdown with 11 status options
+- Triggers lifecycle flow for tracked statuses
+- Toast notifications for success/error
+
+#### SSL Certificate Resilience (`src/lib/db.ts`)
+- `DATABASE_CA_CERT` environment variable fallback
+- Priority: env var → file-based cert → fallback
+- Enables Trigger.dev container database access
+
+### Fixed
+
+#### RODetailDialog Theme Bug
+- **Problem**: Dialog showed dark background with invisible text in light mode
+- **Cause**: Hardcoded `!bg-white dark:!bg-slate-950` doesn't work without `.dark` class on HTML
+- **Fix**: Changed to `bg-background` which uses CSS variable from `globals.css`
+
+#### Table Refresh After Status Change
+- **Problem**: Table showed old status after changing in dialog (revalidatePath didn't work)
+- **Cause**: `revalidatePath` only revalidates server-rendered content, not client-side `useState`
+- **Fix**: Implemented callback pattern:
+  - Added `onStatusChanged?: () => void` prop to RODetailDialog
+  - Added `refreshTrigger` state to RepairOrderTable
+  - Table passes `onStatusChanged={() => setRefreshTrigger(x => x + 1)}` to dialog
+  - Dialog calls `onStatusChanged?.()` on successful status update
+  - Table's useEffect includes `refreshTrigger` in dependencies
+
+### Changed
+- `src/auth.config.ts` - Added Graph API scopes: Calendars.ReadWrite, Tasks.ReadWrite, Mail.Send, Mail.ReadWrite
+- `src/lib/graph.ts` - Updated `refreshAccessToken` with new scopes
+- `src/components/layout/Header.tsx` - Added NotificationBell component
+- `trigger.config.ts` - Added AI SDK packages to build
+
+### Technical Details
+
+#### Files Added
+```
+src/
+├── lib/
+│   ├── types/notification.ts      # Type definitions
+│   ├── data/notifications.ts      # Pure Drizzle functions
+│   └── graph/productivity.ts      # Graph API helpers
+├── trigger/
+│   ├── send-approved-email.ts     # Email sender task
+│   ├── ro-lifecycle-flow.ts       # 7-day durable waiter
+│   └── check-overdue-ros.ts       # Daily cron safety net
+├── app/actions/
+│   ├── notifications.ts           # CRUD server actions
+│   └── repair-orders.ts           # Status update action
+└── components/
+    ├── layout/NotificationBell.tsx # Approval UI
+    ├── ui/sheet.tsx               # Slide-out panel
+    ├── ui/tabs.tsx                # Tabbed interface
+    └── ui/select.tsx              # Status dropdown
+```
+
+#### Key Patterns
+- **Write-Behind Pattern**: UI → Server Action → MySQL → Trigger.dev
+- **Human-in-the-Loop**: AI drafts emails, humans approve before sending
+- **Durable Execution**: 7-day waits survive container restarts
+- **Callback Pattern**: Client-side state refresh via prop callbacks (not revalidatePath)
+
+---
+
 ## [Unreleased]
 
 ### Phase 5 Addendum: Durable AI Agent Integration

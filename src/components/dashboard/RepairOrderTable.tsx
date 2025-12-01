@@ -77,10 +77,11 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
   const [totalCount, setTotalCount] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [selectedRoId, setSelectedRoId] = useState<number | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const debouncedQuery = useDebounce(query, 300);
 
-  // Fetch data when query, page, or filter changes
+  // Fetch data when query, page, filter, or refreshTrigger changes
   useEffect(() => {
     startTransition(async () => {
       const result = await getRepairOrders(debouncedQuery, page, filter);
@@ -93,7 +94,7 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
         setData([]);
       }
     });
-  }, [debouncedQuery, page, filter]);
+  }, [debouncedQuery, page, filter, refreshTrigger]);
 
   // Reset to page 1 when search query or filter changes
   useEffect(() => {
@@ -212,6 +213,7 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
         onOpenChange={(open) => {
           if (!open) setSelectedRoId(null);
         }}
+        onStatusChanged={() => setRefreshTrigger((x) => x + 1)}
       />
     </Card>
   );

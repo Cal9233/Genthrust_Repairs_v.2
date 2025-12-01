@@ -8,8 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { StatusBadge } from "./StatusBadge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getRepairOrderById, type RepairOrder } from "@/app/actions/dashboard";
+import { updateRepairOrderStatus } from "@/app/actions/repair-orders";
+import { toast } from "sonner";
 import {
   Building2,
   Calendar,
@@ -26,7 +34,23 @@ interface RODetailDialogProps {
   roId: number | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStatusChanged?: () => void;
 }
+
+// Status options for the dropdown
+const STATUS_OPTIONS = [
+  "WAITING QUOTE",
+  "APPROVED",
+  "IN WORK",
+  "IN PROGRESS",
+  "SHIPPED",
+  "IN TRANSIT",
+  "RECEIVED",
+  "COMPLETE",
+  "BER",
+  "RAI",
+  "CANCELLED",
+];
 
 /**
  * Format a date string for display
@@ -136,10 +160,30 @@ export function RODetailDialog({
   roId,
   open,
   onOpenChange,
+  onStatusChanged,
 }: RODetailDialogProps) {
   const [data, setData] = useState<RepairOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Handle status change
+  const handleStatusChange = async (newStatus: string) => {
+    if (!data) return;
+    setIsUpdatingStatus(true);
+    const result = await updateRepairOrderStatus(data.id, newStatus);
+    if (result.success) {
+      setData({ ...data, curentStatus: newStatus });
+      toast.success("Status updated");
+      if (result.data.runId) {
+        toast.info("Follow-up reminder scheduled");
+      }
+      onStatusChanged?.();
+    } else {
+      toast.error(result.error);
+    }
+    setIsUpdatingStatus(false);
+  };
 
   // Fetch data when roId changes
   useEffect(() => {
@@ -169,7 +213,7 @@ export function RODetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="shadow-vibrant bg-white dark:bg-slate-950 sm:max-w-2xl">
+      <DialogContent className="shadow-vibrant bg-background sm:max-w-2xl">
         {/* Always render DialogHeader with Title for accessibility */}
         <DialogHeader>
           <div className="flex items-center gap-3">
@@ -183,7 +227,22 @@ export function RODetailDialog({
                     : "Repair Order"}
             </DialogTitle>
             {data && (
-              <StatusBadge status={data.curentStatus} className="text-sm" />
+              <Select
+                value={data.curentStatus || ""}
+                onValueChange={handleStatusChange}
+                disabled={isUpdatingStatus || loading}
+              >
+                <SelectTrigger className="w-[160px] h-8 text-sm">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
           <DialogDescription className="sr-only">

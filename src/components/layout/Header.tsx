@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NotificationBell } from "./NotificationBell";
 
 export async function Header() {
   const session = await auth();
@@ -21,8 +22,9 @@ export async function Header() {
           <span className="text-sm text-white/70">RO Tracker</span>
         </div>
 
-        {/* Right: User Avatar */}
-        <div className="flex items-center">
+        {/* Right: Notifications + User Avatar */}
+        <div className="flex items-center gap-3">
+          {user && <NotificationBell />}
           {user && (
             <Avatar className="h-9 w-9 ring-2 ring-white/20">
               <AvatarImage
