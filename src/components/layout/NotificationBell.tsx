@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Bell, X, Loader2, Check, Mail, Clock, CheckCircle, XCircle, Send } from "lucide-react";
+import { Bell, X, Loader2, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,8 @@ import {
   rejectNotification,
   getAllNotifications,
 } from "@/app/actions/notifications";
+import { EmailThreadView } from "@/components/notifications/EmailThreadView";
+import { EmailPreviewDialog } from "@/components/notifications/EmailPreviewDialog";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type { EmailDraftPayload, NotificationStatus } from "@/lib/types/notification";
 
@@ -45,6 +47,7 @@ export function NotificationBell() {
   const [isHistoryPending, startHistoryTransition] = useTransition();
   const [actioningId, setActioningId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
+  const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
 
   // Fetch notifications on mount and when sheet opens
   useEffect(() => {
@@ -87,6 +90,7 @@ export function NotificationBell() {
     const result = await approveNotification(id);
     if (result.success) {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setPreviewNotification(null); // Close preview dialog if open
     }
     setActioningId(null);
   };
@@ -96,6 +100,7 @@ export function NotificationBell() {
     const result = await rejectNotification(id);
     if (result.success) {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setPreviewNotification(null); // Close preview dialog if open
     }
     setActioningId(null);
   };
@@ -166,10 +171,18 @@ export function NotificationBell() {
                         </p>
                       </div>
                       <Badge variant="outline" className="shrink-0">
-                        {notification.type}
+                        {notification.type === "EMAIL_DRAFT" ? "Email Draft" : notification.type}
                       </Badge>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="px-2"
+                        onClick={() => setPreviewNotification(notification)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button
                         size="sm"
                         className="flex-1 bg-success-green hover:bg-success-green/90"
@@ -202,48 +215,104 @@ export function NotificationBell() {
             )}
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4 space-y-3 overflow-y-auto max-h-[calc(100vh-200px)]">
+          <TabsContent value="history" className="mt-4 space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
             {historyNotifications.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 No notification history
               </p>
             ) : (
-              historyNotifications.map((notification) => {
-                const payload = notification.payload as EmailDraftPayload;
-                const status = notification.status as NotificationStatus;
-                const config = statusConfig[status];
-                const StatusIcon = config.icon;
+              <>
+                {/* Email Threads Section - Group sent emails by RO */}
+                {(() => {
+                  const sentEmails = historyNotifications.filter(
+                    (n) => n.type === "EMAIL_DRAFT" && n.status === "SENT"
+                  );
+                  const uniqueROs = [...new Set(sentEmails.map((n) => n.repairOrderId))];
 
-                return (
-                  <div
-                    key={notification.id}
-                    className="rounded-lg border p-3 space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-muted-foreground font-mono">
-                            RO #{notification.repairOrderId}
-                          </p>
-                          <Badge className={`${config.className} text-xs px-1.5 py-0 h-5`}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {config.label}
-                          </Badge>
-                        </div>
-                        <p className="font-medium text-sm line-clamp-1">
-                          {payload.subject}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(notification.createdAt)}
-                        </p>
+                  if (uniqueROs.length === 0) return null;
+
+                  return (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-muted-foreground px-1">
+                        Email Threads
+                      </h3>
+                      <div className="space-y-2">
+                        {uniqueROs.map((roId) => (
+                          <EmailThreadView
+                            key={roId}
+                            repairOrderId={roId}
+                            roNumber={roId}
+                          />
+                        ))}
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })()}
+
+                {/* Other Activity Section - Non-sent notifications */}
+                {(() => {
+                  const otherNotifications = historyNotifications.filter(
+                    (n) => !(n.type === "EMAIL_DRAFT" && n.status === "SENT")
+                  );
+
+                  if (otherNotifications.length === 0) return null;
+
+                  return (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-muted-foreground px-1">
+                        Other Activity
+                      </h3>
+                      <div className="space-y-2">
+                        {otherNotifications.map((notification) => {
+                          const payload = notification.payload as EmailDraftPayload;
+                          const status = notification.status as NotificationStatus;
+                          const config = statusConfig[status];
+                          const StatusIcon = config.icon;
+
+                          return (
+                            <div
+                              key={notification.id}
+                              className="rounded-lg border p-3 space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-1 flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs text-muted-foreground font-mono">
+                                      RO #{notification.repairOrderId}
+                                    </p>
+                                    <Badge className={`${config.className} text-xs px-1.5 py-0 h-5`}>
+                                      <StatusIcon className="h-3 w-3 mr-1" />
+                                      {config.label}
+                                    </Badge>
+                                  </div>
+                                  <p className="font-medium text-sm line-clamp-1">
+                                    {payload.subject}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatDate(notification.createdAt)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
             )}
           </TabsContent>
         </Tabs>
+
+        <EmailPreviewDialog
+          notification={previewNotification}
+          open={!!previewNotification}
+          onOpenChange={(open) => !open && setPreviewNotification(null)}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isActioning={!!actioningId}
+        />
       </SheetContent>
     </Sheet>
   );

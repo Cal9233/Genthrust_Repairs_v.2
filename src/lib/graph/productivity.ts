@@ -5,8 +5,28 @@
 import { Client } from "@microsoft/microsoft-graph-client";
 import { getGraphClient } from "../graph";
 import { TokenRefreshError, UserNotConnectedError } from "../types/graph";
+import type { SentEmailResult, GraphMessage } from "../types/notification";
 
 // --- Utility Functions ---
+
+/**
+ * Returns the mailbox path for Graph API calls.
+ * Supports shared mailboxes via MS_GRAPH_SHARED_MAILBOX env var.
+ *
+ * @example
+ * // If MS_GRAPH_SHARED_MAILBOX=repairs@genthrust.com
+ * getMailboxPath() // returns "/users/repairs@genthrust.com"
+ *
+ * // If MS_GRAPH_SHARED_MAILBOX is not set
+ * getMailboxPath() // returns "/me"
+ */
+export function getMailboxPath(): string {
+  const sharedMailbox = process.env.MS_GRAPH_SHARED_MAILBOX;
+  if (sharedMailbox) {
+    return `/users/${sharedMailbox}`;
+  }
+  return "/me";
+}
 
 /**
  * Ensures Graph API errors (e.g., 401 Unauthorized) are handled gracefully
@@ -150,30 +170,51 @@ export async function createToDoTask(
 
 /**
  * 3. Sends an email immediately from the user's account.
+ * Supports email threading via In-Reply-To header when replyToMessageId is provided.
+ *
+ * @param userId - The user ID for Graph API authentication
+ * @param to - Recipient email address
+ * @param subject - Email subject line
+ * @param body - HTML email body
+ * @param replyToMessageId - Optional internetMessageId for threading (In-Reply-To header)
+ * @returns SentEmailResult with message IDs for thread tracking
  */
 export async function sendEmail(
   userId: string,
   to: string,
   subject: string,
-  body: string
-): Promise<void> {
+  body: string,
+  replyToMessageId?: string
+): Promise<SentEmailResult> {
   const graphClient = await getGraphClient(userId);
+  const sendTimestamp = new Date().toISOString(); // Capture BEFORE send
 
-  const email = {
-    message: {
-      subject: `[GenThrust Follow-Up] ${subject}`,
-      body: {
-        contentType: "HTML",
-        content: body,
-      },
-      toRecipients: [{ emailAddress: { address: to } }],
+  // Build message payload
+  const message: Record<string, unknown> = {
+    subject: `[GenThrust Follow-Up] ${subject}`,
+    body: {
+      contentType: "HTML",
+      content: body,
     },
-    saveToSentItems: true,
+    toRecipients: [{ emailAddress: { address: to } }],
   };
+
+  // Add threading headers if replying to existing thread
+  if (replyToMessageId) {
+    message.internetMessageHeaders = [
+      { name: "In-Reply-To", value: replyToMessageId },
+      { name: "References", value: replyToMessageId },
+    ];
+  }
 
   try {
     // Use /me/ because we're using delegated auth with user's access token
-    await graphClient.api("/me/sendMail").post(email);
+    await graphClient.api("/me/sendMail").post({ message, saveToSentItems: true });
+
+    // SAFER QUERY: Filter by time, match recipient in TypeScript memory
+    const sentMessage = await findSentMessage(graphClient, to, sendTimestamp);
+
+    return sentMessage;
   } catch (error) {
     throw handleGraphError(
       error,
@@ -183,7 +224,98 @@ export async function sendEmail(
 }
 
 /**
- * 4. Creates an email draft in the user's mailbox.
+ * Helper: Safe SentItems lookup with retry and exponential backoff.
+ * Filters by createdDateTime (safe OData filter) and matches recipient in TypeScript.
+ * Does NOT filter by subject (brittle with special characters).
+ * Uses getMailboxPath() for shared mailbox support.
+ */
+async function findSentMessage(
+  client: Client,
+  toAddress: string,
+  afterTimestamp: string,
+  maxRetries = 3
+): Promise<SentEmailResult> {
+  const delays = [1000, 2000, 4000]; // Exponential backoff
+  const mailboxPath = getMailboxPath();
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    await new Promise((r) => setTimeout(r, delays[attempt]));
+
+    try {
+      // Query by createdDateTime only (safe OData filter - ISO timestamp has no special chars)
+      const response = await client
+        .api(`${mailboxPath}/mailFolders/SentItems/messages`)
+        .filter(`createdDateTime ge ${afterTimestamp}`)
+        .orderby("createdDateTime desc")
+        .top(10)
+        .select("id,conversationId,internetMessageId,toRecipients,createdDateTime")
+        .get();
+
+      // Match toRecipient in TypeScript (avoids OData escaping issues with email addresses)
+      const match = response.value?.find(
+        (msg: {
+          toRecipients?: Array<{ emailAddress?: { address?: string } }>;
+        }) =>
+          msg.toRecipients?.some(
+            (r) =>
+              r.emailAddress?.address?.toLowerCase() === toAddress.toLowerCase()
+          )
+      );
+
+      if (match) {
+        return {
+          messageId: match.id,
+          conversationId: match.conversationId,
+          internetMessageId: match.internetMessageId,
+        };
+      }
+    } catch (error) {
+      console.warn(`findSentMessage attempt ${attempt + 1} failed:`, error);
+      // Continue to next retry
+    }
+  }
+
+  throw new Error(`Sent message not found after ${maxRetries} retries`);
+}
+
+/**
+ * 4. Fetches all messages in a conversation thread.
+ * Returns messages from both sent and inbox folders.
+ * Used for displaying full email thread history (inbound + outbound).
+ *
+ * @param userId - The user ID for Graph API authentication
+ * @param conversationId - The Outlook conversation ID to fetch
+ * @returns Array of GraphMessage objects ordered by sentDateTime ascending
+ */
+export async function getConversationMessages(
+  userId: string,
+  conversationId: string
+): Promise<GraphMessage[]> {
+  const graphClient = await getGraphClient(userId);
+  const mailboxPath = getMailboxPath();
+
+  try {
+    const response = await graphClient
+      .api(`${mailboxPath}/messages`)
+      .filter(`conversationId eq '${conversationId}'`)
+      .select(
+        "id,conversationId,internetMessageId,subject,bodyPreview,from,toRecipients,sentDateTime,webLink,isDraft"
+      )
+      .orderby("sentDateTime asc")
+      .top(50)
+      .get();
+
+    return response.value || [];
+  } catch (error) {
+    throw handleGraphError(
+      error,
+      `Failed to fetch conversation messages for user ${userId}`
+    );
+  }
+}
+
+/**
+ * 5. Creates an email draft in the user's mailbox.
  */
 export async function createDraftEmail(
   userId: string,

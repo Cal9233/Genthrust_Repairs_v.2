@@ -1,0 +1,2 @@
+-- Placeholder migration (already applied to database)
+-- This migration was created to sync state with the database

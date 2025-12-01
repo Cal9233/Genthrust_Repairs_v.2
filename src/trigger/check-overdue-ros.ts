@@ -74,10 +74,12 @@ export const checkOverdueRos = schedules.task({
         const roNumber = ro.ro ?? ro.id;
         const partNumber = ro.part ?? "Unknown Part";
 
-        const subject = `Follow-up: RO# G${roNumber} - ${partNumber}`;
+        const subject = `Follow-up: RO# G${roNumber}`;
         const body = `Hi Team,
 
-Just checking in on RO# G${roNumber} for part ${partNumber} - we'd love an update on the quote when you have a moment.
+Just checking in on RO# G${roNumber} for part ${partNumber}.
+
+We'd love an update on the quote when you have a moment.
 
 Thanks!
 GenThrust`;

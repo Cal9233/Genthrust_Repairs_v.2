@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   getNotificationById,
   updateNotificationStatus,
+  getEmailThreadForRO,
+  updateNotificationOutlookIds,
 } from "../lib/data/notifications";
 import { sendEmail, createToDoTask, createCalendarEvent } from "../lib/graph/productivity";
 import type { EmailDraftPayload, TaskReminderPayload } from "../lib/types/notification";
@@ -120,20 +122,42 @@ export const sendApprovedEmail = task({
 
       if (notification.type === "EMAIL_DRAFT") {
         const emailPayload = notificationPayload as EmailDraftPayload;
+
+        // Step 3a: Look up existing thread for this RO
+        const existingMessageId = await getEmailThreadForRO(notification.repairOrderId);
+
         logger.info("Sending email", {
           notificationId,
           to: emailPayload.toAddress,
           subject: emailPayload.subject,
+          hasExistingThread: !!existingMessageId,
         });
 
-        await sendEmail(
+        // Step 3b: Send with threading if we have a prior message
+        const result = await sendEmail(
           userId,
           emailPayload.toAddress,
           emailPayload.subject,
-          emailPayload.body
+          emailPayload.body,
+          existingMessageId ?? undefined // internetMessageId for In-Reply-To header
         );
 
-        logger.info("Email sent successfully", { notificationId });
+        // Step 3c: Store Outlook IDs in schema columns (not JSON)
+        const idsUpdated = await updateNotificationOutlookIds(
+          notificationId,
+          result.internetMessageId, // Store internetMessageId (used for threading)
+          result.conversationId
+        );
+
+        if (!idsUpdated) {
+          logger.warn("Failed to update Outlook IDs, but email was sent", { notificationId });
+        }
+
+        logger.info("Email sent and tracked", {
+          notificationId,
+          conversationId: result.conversationId,
+          hasThread: !!existingMessageId,
+        });
       } else if (notification.type === "TASK_REMINDER") {
         const taskPayload = notificationPayload as TaskReminderPayload;
         const dueDate = new Date(taskPayload.dueDate);

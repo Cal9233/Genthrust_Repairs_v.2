@@ -53,12 +53,14 @@ type StatusConfig = {
 const STATUS_CONFIGS: Record<string, StatusConfig> = {
   "WAITING QUOTE": {
     waitDays: 7,
-    emailSubject: (roNumber, partNumber) =>
-      `Follow-up: RO# G${roNumber} - ${partNumber}`,
+    emailSubject: (roNumber, _partNumber) =>
+      `Follow-up: RO# G${roNumber}`,
     emailBody: (roNumber, partNumber) =>
 `Hi Team,
 
-Just checking in on RO# G${roNumber} for part ${partNumber} - we'd love an update on the quote when you have a moment.
+Just checking in on RO# G${roNumber} for part ${partNumber}.
+
+We'd love an update on the quote when you have a moment.
 
 Thanks!
 GenThrust`,
@@ -76,12 +78,14 @@ Follow up with the shop for a quote.`,
 
   "APPROVED": {
     waitDays: 10,
-    emailSubject: (roNumber, partNumber) =>
-      `Repair Status: RO# G${roNumber} - ${partNumber}`,
+    emailSubject: (roNumber, _partNumber) =>
+      `Repair Status: RO# G${roNumber}`,
     emailBody: (roNumber, partNumber) =>
 `Hi Team,
 
-Just checking in on RO# G${roNumber} (part ${partNumber}) - how's the repair progressing?
+Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
+
+Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
 GenThrust`,
@@ -99,12 +103,14 @@ Follow up on repair progress.`,
 
   "IN WORK": {
     waitDays: 10,
-    emailSubject: (roNumber, partNumber) =>
-      `Repair Status: RO# G${roNumber} - ${partNumber}`,
+    emailSubject: (roNumber, _partNumber) =>
+      `Repair Status: RO# G${roNumber}`,
     emailBody: (roNumber, partNumber) =>
 `Hi Team,
 
-Just checking in on RO# G${roNumber} (part ${partNumber}) - how's the repair progressing?
+Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
+
+Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
 GenThrust`,
@@ -122,12 +128,14 @@ Follow up on repair progress.`,
 
   "IN PROGRESS": {
     waitDays: 10,
-    emailSubject: (roNumber, partNumber) =>
-      `Repair Status: RO# G${roNumber} - ${partNumber}`,
+    emailSubject: (roNumber, _partNumber) =>
+      `Repair Status: RO# G${roNumber}`,
     emailBody: (roNumber, partNumber) =>
 `Hi Team,
 
-Just checking in on RO# G${roNumber} (part ${partNumber}) - how's the repair progressing?
+Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
+
+Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
 GenThrust`,
@@ -145,12 +153,12 @@ Follow up on repair progress.`,
 
   "SHIPPED": {
     waitDays: 5,
-    emailSubject: (roNumber, partNumber) =>
-      `Tracking: RO# G${roNumber} - ${partNumber}`,
+    emailSubject: (roNumber, _partNumber) =>
+      `Tracking: RO# G${roNumber}`,
     emailBody: (roNumber, partNumber) =>
 `Hi Team,
 
-Checking on RO# G${roNumber} (part ${partNumber}) - do you have tracking info for the shipment?
+Could you please provide tracking information for RO# G${roNumber}, part ${partNumber}?
 
 Thanks!
 GenThrust`,
@@ -168,12 +176,12 @@ Follow up on shipment tracking.`,
 
   "IN TRANSIT": {
     waitDays: 5,
-    emailSubject: (roNumber, partNumber) =>
-      `Tracking: RO# G${roNumber} - ${partNumber}`,
+    emailSubject: (roNumber, _partNumber) =>
+      `Tracking: RO# G${roNumber}`,
     emailBody: (roNumber, partNumber) =>
 `Hi Team,
 
-Checking on RO# G${roNumber} (part ${partNumber}) - do you have tracking info for the shipment?
+Could you please provide tracking information for RO# G${roNumber}, part ${partNumber}?
 
 Thanks!
 GenThrust`,

@@ -4,7 +4,7 @@
 
 import { db } from "@/lib/db";
 import { notificationQueue } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, desc, isNotNull } from "drizzle-orm";
 import type { NewNotificationQueueItem, NotificationQueueItem } from "@/lib/schema";
 
 /**
@@ -81,6 +81,68 @@ export async function updateNotificationStatus(
     return true;
   } catch (error) {
     console.error("Error updating notification status:", error);
+    return false;
+  }
+}
+
+/**
+ * Find the internetMessageId from the most recent sent email for an RO.
+ * Used to thread new emails with existing conversation via In-Reply-To header.
+ *
+ * @param repairOrderId - The RO ID to find thread for
+ * @returns The internetMessageId (outlook_message_id) or null if no prior sent email
+ */
+export async function getEmailThreadForRO(
+  repairOrderId: number
+): Promise<string | null> {
+  try {
+    const [sent] = await db
+      .select({ outlookMessageId: notificationQueue.outlookMessageId })
+      .from(notificationQueue)
+      .where(
+        and(
+          eq(notificationQueue.repairOrderId, repairOrderId),
+          eq(notificationQueue.type, "EMAIL_DRAFT"),
+          eq(notificationQueue.status, "SENT"),
+          isNotNull(notificationQueue.outlookMessageId)
+        )
+      )
+      .orderBy(desc(notificationQueue.createdAt))
+      .limit(1);
+
+    return sent?.outlookMessageId ?? null;
+  } catch (error) {
+    console.error("Error fetching email thread for RO:", error);
+    return null;
+  }
+}
+
+/**
+ * Update notification with Outlook IDs after successful send.
+ * Uses schema columns (not JSON payload) for data integrity.
+ *
+ * @param notificationId - The notification ID to update
+ * @param messageId - The internetMessageId from Graph API (used for In-Reply-To)
+ * @param conversationId - The conversationId from Graph API (used for UI grouping)
+ * @returns True if update succeeded
+ */
+export async function updateNotificationOutlookIds(
+  notificationId: number,
+  messageId: string,
+  conversationId: string
+): Promise<boolean> {
+  try {
+    await db
+      .update(notificationQueue)
+      .set({
+        outlookMessageId: messageId,
+        outlookConversationId: conversationId,
+      })
+      .where(eq(notificationQueue.id, notificationId));
+
+    return true;
+  } catch (error) {
+    console.error("Error updating notification Outlook IDs:", error);
     return false;
   }
 }
