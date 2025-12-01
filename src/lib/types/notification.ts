@@ -43,3 +43,59 @@ export function isTaskReminderPayload(
 ): payload is TaskReminderPayload {
   return "title" in payload && "dueDate" in payload;
 }
+
+// Result type for sendEmail() - used for email threading
+export interface SentEmailResult {
+  messageId: string;           // Graph API message ID
+  conversationId: string;      // Thread grouping ID (outlook_conversation_id)
+  internetMessageId: string;   // RFC 2822 ID for In-Reply-To header
+}
+
+// Graph API message type - returned from getConversationMessages()
+export interface GraphMessage {
+  id: string;
+  conversationId: string;
+  internetMessageId: string;
+  subject: string;
+  bodyPreview: string;
+  from: {
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  };
+  toRecipients: Array<{
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  }>;
+  sentDateTime: string;
+  webLink: string;
+  isDraft: boolean;
+}
+
+// Unified thread message type - used by EmailThreadView
+export interface ThreadMessage {
+  id: string;
+  internetMessageId?: string;
+  subject: string;
+  bodyPreview: string;
+  sender: {
+    name: string;
+    email: string;
+  };
+  sentDateTime: Date;
+  direction: "inbound" | "outbound";
+  webLink?: string;
+  isDraft: boolean;
+  // DB-only fields (for outbound messages from notification_queue)
+  dbStatus?: NotificationStatus;
+  dbId?: number;
+}
+
+// Result type for getFullThreadHistory server action
+export interface ThreadHistoryResult {
+  messages: ThreadMessage[];
+  graphError?: boolean; // True if Graph API call failed (graceful degradation)
+}

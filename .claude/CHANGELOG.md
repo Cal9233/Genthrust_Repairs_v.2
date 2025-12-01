@@ -883,6 +883,92 @@ src/
 
 ---
 
+## [1.2.0] - 2025-12-01
+
+### Phase 12: Email Thread History & Conversation View
+
+Extension of the notification system to display full email conversation threads per repair order.
+
+### Added
+
+#### Type Definitions (`src/lib/types/notification.ts`)
+- `ThreadMessage` - Unified type for both DB and Graph messages with direction (inbound/outbound)
+- `SentEmailResult` - Structure returned when emails are sent (messageId, conversationId, internetMessageId)
+- `GraphMessage` - Graph API message structure with full email metadata
+- `ThreadHistoryResult` - Return type with graceful degradation flag
+
+#### UI Components
+- **EmailThreadView** (`src/components/notifications/EmailThreadView.tsx`)
+  - Client component displaying threaded email conversation
+  - Collapsible thread view with message count badges
+  - Shows inbound/outbound message counts
+  - Refresh button and loading states
+  - Graceful error handling for Graph API failures
+
+#### Server Actions (`src/app/actions/notifications.ts`)
+- `getFullThreadHistory(repairOrderId)` - Hybrid DB + Graph API fetching
+  - Combines notification_queue records with Outlook conversation
+  - Graceful degradation: returns DB records if Graph fails
+  - Mock mode support for UI testing
+
+#### Mock System (`src/lib/mocks/thread-messages.ts`)
+- `generateMockThreadMessages()` - Generates realistic 5-message conversation
+  - Shows typical RO flow: quote request → shop response → approval → confirmation → follow-up
+  - Enabled via `MOCK_EMAIL_THREADS=true` (development only)
+- Mock mode restricted to development: `NODE_ENV !== "production"`
+
+#### Graph API Helpers (`src/lib/graph/productivity.ts`)
+- `getConversationMessages(userId, conversationId)` - Fetches full Outlook conversation
+- `updateNotificationOutlookIds()` - Stores messageId/conversationId after send
+
+#### Trigger.dev Tasks
+- **send-approved-email.ts** - Enhanced with email threading
+  - Looks up previous message via `getEmailThreadForRO()`
+  - Passes In-Reply-To header for conversation threading
+  - Updates notification with Outlook IDs after send
+
+### Changed
+- `NotificationBell.tsx` - Integrated EmailThreadView component
+- `send-approved-email.ts` - Now threads emails using previous message ID
+
+### Database
+- Added `outlookMessageId` column to `notification_queue` - Stores Graph API message ID
+- Added `outlookConversationId` column to `notification_queue` - Stores Outlook conversation ID
+- New migrations:
+  - `drizzle/0001_solid_randall_flagg.sql`
+  - `drizzle/0002_narrow_victor_mancha.sql`
+
+### Environment Variables
+```env
+# Optional - Development only
+MOCK_EMAIL_THREADS=true  # Enable mock email threads for UI testing
+```
+
+### Technical Details
+
+#### File Structure Added
+```
+src/
+├── lib/
+│   ├── types/notification.ts     # Extended with thread types
+│   ├── mocks/
+│   │   └── thread-messages.ts    # Mock data generator
+│   └── data/notifications.ts     # Extended with thread helpers
+├── components/
+│   └── notifications/
+│       └── EmailThreadView.tsx   # Thread visualization
+└── app/actions/
+    └── notifications.ts          # Extended with getFullThreadHistory
+```
+
+#### Key Patterns
+- **Hybrid Data Source**: Combines DB (internal state) with Graph API (external thread)
+- **Graceful Degradation**: Graph API failures don't break UI
+- **Email Threading**: RFC 2822 `In-Reply-To` headers for Outlook conversation threading
+- **Mock-Driven Development**: Realistic mock data without Graph API dependency
+
+---
+
 ## [Unreleased]
 
 ### Phase 5 Addendum: Durable AI Agent Integration

@@ -535,10 +535,14 @@ export const notificationQueue = mysqlTable(
     payload: json("payload").$type<NotificationPayload>().notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     scheduledFor: timestamp("scheduled_for", { mode: "date" }).notNull(),
+    // Outlook threading columns (populated after successful send)
+    outlookMessageId: varchar("outlook_message_id", { length: 255 }),
+    outlookConversationId: varchar("outlook_conversation_id", { length: 255 }),
   },
   (table) => [
     index("idx_notification_status").on(table.status),
     index("idx_notification_user").on(table.userId),
+    index("idx_notification_outlook_message").on(table.outlookMessageId),
   ]
 );
 
