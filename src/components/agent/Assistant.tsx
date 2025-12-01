@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MessageCircle, Send, Loader2, Bot, User } from "lucide-react";
+import { MessageCircle, Send, Bot, User } from "lucide-react";
+import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { askAgent } from "@/app/actions/agent";
 import { useAgentRun, type AgentStatus } from "@/hooks/use-agent-run";
 
@@ -197,13 +198,13 @@ export function Assistant() {
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : msg.status === "error"
-                      ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
+                      ? "bg-danger/10 text-danger dark:bg-danger/20"
                       : "bg-muted"
                   }`}
                 >
                   {msg.status === "pending" ? (
                     <div className="flex items-center gap-2 text-sm">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <TurbineSpinner size="sm" />
                       <span>{getStatusText(status)}</span>
                     </div>
                   ) : (
@@ -240,7 +241,7 @@ export function Assistant() {
               aria-label="Send message"
             >
               {isProcessing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <TurbineSpinner size="sm" />
               ) : (
                 <Send className="h-4 w-4" />
               )}

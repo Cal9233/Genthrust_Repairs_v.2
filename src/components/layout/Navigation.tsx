@@ -15,7 +15,7 @@ export function Navigation() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-t border-white/10 bg-gradient-to-r from-primary-deep-blue to-primary-bright-blue">
+    <nav className="border-t border-header-foreground/10 bg-header-gradient">
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-1 py-2">
           {navItems.map((item) => {
@@ -30,8 +30,8 @@ export function Navigation() {
                 className={cn(
                   "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-white text-primary-deep-blue shadow-sm"
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                    ? "bg-nav-active-bg text-nav-active-text shadow-sm"
+                    : "text-header-foreground/80 hover:bg-header-hover hover:text-header-foreground"
                 )}
               >
                 <Icon className="h-4 w-4" />

@@ -26,9 +26,9 @@ import {
   DollarSign,
   Wrench,
   Hash,
-  Loader2,
   ExternalLink,
 } from "lucide-react";
+import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 
 interface RODetailDialogProps {
   roId: number | null;
@@ -143,7 +143,7 @@ function DetailRow({
             href={value.startsWith("http") ? value : `https://${value}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-primary-bright-blue hover:underline flex items-center gap-1"
+            className="text-sm font-medium text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
           >
             {displayValue}
             <ExternalLink className="h-3 w-3" />
@@ -261,7 +261,7 @@ export function RODetailDialog({
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <TurbineSpinner size="lg" className="text-muted-foreground" />
           </div>
         )}
 
@@ -361,7 +361,7 @@ export function RODetailDialog({
                   <span className="text-sm text-muted-foreground">
                     Final Cost:
                   </span>
-                  <span className="font-semibold tabular-nums text-success-green">
+                  <span className="font-semibold tabular-nums text-success">
                     {formatCurrency(data.finalCost)}
                   </span>
                 </div>

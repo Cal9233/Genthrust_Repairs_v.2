@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Package, AlertTriangle, Clock, DollarSign } from "lucide-react";
+import { Package, AlertTriangle, Clock, DollarSign, Truck, Calendar, FileCheck } from "lucide-react";
+import { HeroStatCard } from "./HeroStatCard";
 import { StatCard } from "./StatCard";
 import type { DashboardStats, RepairOrderFilter } from "@/app/actions/dashboard";
 
@@ -23,49 +23,82 @@ function formatCurrency(value: number): string {
 export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
   if (!stats) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
-          <div
-            key={i}
-            className="h-24 rounded-xl bg-muted animate-pulse"
-          />
-        ))}
+      <div className="space-y-4">
+        {/* Hero skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="h-32 rounded-2xl bg-muted animate-pulse"
+            />
+          ))}
+        </div>
+        {/* Secondary skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <Link href="/dashboard" className="block transition-opacity hover:opacity-80">
-        <StatCard
+    <div className="space-y-4">
+      {/* Hero Row - 3 large gradient cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <HeroStatCard
           title="Total Active"
           value={stats.totalActive}
           icon={Package}
-          variant="default"
-          className={activeFilter === "all" ? "ring-2 ring-primary-bright-blue" : ""}
+          variant="primary"
+          href="/dashboard"
+          isActive={activeFilter === "all"}
         />
-      </Link>
-      <Link href="/dashboard?filter=overdue" className="block transition-opacity hover:opacity-80">
-        <StatCard
+        <HeroStatCard
           title="Overdue"
           value={stats.overdue}
           icon={AlertTriangle}
           variant="danger"
-          className={activeFilter === "overdue" ? "ring-2 ring-danger-red" : ""}
+          href="/dashboard?filter=overdue"
+          isActive={activeFilter === "overdue"}
+          subtitle="Requires attention"
         />
-      </Link>
-      <StatCard
-        title="Waiting Quote"
-        value={stats.waitingQuote}
-        icon={Clock}
-        variant="warning"
-      />
-      <StatCard
-        title="Value in Work"
-        value={formatCurrency(stats.valueInWork)}
-        icon={DollarSign}
-        variant="success"
-      />
+        <HeroStatCard
+          title="Value in Work"
+          value={formatCurrency(stats.valueInWork)}
+          icon={DollarSign}
+          variant="success"
+        />
+      </div>
+
+      {/* Secondary Row - 4 smaller cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          title="Waiting Quote"
+          value={stats.waitingQuote}
+          icon={Clock}
+          variant="warning"
+        />
+        <StatCard
+          title="Approved"
+          value={stats.approved}
+          icon={FileCheck}
+          variant="default"
+        />
+        <StatCard
+          title="Shipped"
+          value={stats.shipped}
+          icon={Truck}
+          variant="default"
+        />
+        <StatCard
+          title="NET 30"
+          value={stats.net30}
+          icon={Calendar}
+          variant="default"
+        />
+      </div>
     </div>
   );
 }

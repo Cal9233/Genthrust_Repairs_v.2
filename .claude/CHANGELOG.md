@@ -969,6 +969,108 @@ src/
 
 ---
 
+## [1.3.0] - 2025-12-01
+
+### Phase 12.5: Dark Mode & Design System Refinement
+
+Complete dark mode support with theme toggle, refined color tokens, and aerospace-themed UI components.
+
+### Added
+
+#### Theme System
+- **ThemeProvider** (`src/components/providers/ThemeProvider.tsx`)
+  - Wraps app with `next-themes` for dark/light mode
+  - Uses `attribute="class"` for Tailwind dark mode
+  - Persistent theme via `storageKey="genthrust-theme"`
+  - System preference disabled (explicit user choice)
+
+- **ThemeToggle** (`src/components/layout/ThemeToggle.tsx`)
+  - Sun/Moon icon toggle button in header
+  - Hydration-safe with `mounted` state check
+  - Uses semantic header tokens for styling
+
+#### New Components
+- **HeroStatCard** (`src/components/dashboard/HeroStatCard.tsx`)
+  - Large gradient stat cards for hero metrics
+  - Three variants: `primary` (sky blue), `danger` (red/orange), `success` (green)
+  - Background decoration with subtle icon watermark
+  - Optional link wrapping and active state ring
+
+- **TurbineSpinner** (`src/components/ui/TurbineSpinner.tsx`)
+  - Custom aerospace-themed SVG loading spinner
+  - Animated turbine blades with `@keyframes turbine-spin`
+  - Three sizes: `sm` (16px), `md` (24px), `lg` (32px)
+  - Replaces generic `Loader2` throughout app
+
+#### Color System Overhaul (`src/app/globals.css`)
+- **Full `.dark` mode palette** with adjusted colors for dark backgrounds
+- **Sky blue scale** (sky-50 to sky-900) for both light/dark modes
+- **Semantic tokens**:
+  - `--header-bg-start`, `--header-bg-end` for gradient headers
+  - `--header-foreground`, `--header-hover` for header elements
+  - `--nav-active-bg`, `--nav-active-text` for navigation states
+- **Hero gradients**: `bg-hero-primary`, `bg-hero-danger`, `bg-hero-success`
+- **Turbine animation**: `@keyframes turbine-spin` with `.animate-turbine` utility
+
+### Changed
+
+#### Dashboard Redesign
+- **StatsGrid** - Two-tier layout:
+  - Top row: 3 large HeroStatCards (Total Active, Overdue, Value in Work)
+  - Bottom row: 4 smaller StatCards (Waiting Quote, Approved, Shipped, NET 30)
+- **StatCard** - Refined with semantic color tokens and icon backgrounds
+
+#### Component Updates
+- **Header** - Integrated ThemeToggle, uses `bg-header-gradient` token
+- **Navigation** - Uses semantic nav tokens for active/hover states
+- **NotificationBell** - TurbineSpinner for loading, semantic color tokens
+- **RepairOrderTable** - TurbineSpinner in search, danger color for overdue
+- **RODetailDialog** - TurbineSpinner for loading state
+- **SyncStatus** - TurbineSpinner replaces Loader2
+- **Assistant** - TurbineSpinner for AI processing states
+- **StatusBadge** - Dark mode support with `/30` opacity variants
+
+#### Root Layout
+- Wrapped app in `ThemeProvider`
+- Added `suppressHydrationWarning` to `<html>` for theme hydration
+
+### Fixed
+- **DashboardStats bug** - Replaced undefined `waitingParts` with `net30` placeholder
+
+### Dependencies Added
+- `next-themes` - Theme management with SSR support
+
+### Technical Details
+
+#### File Structure Added
+```
+src/
+├── components/
+│   ├── providers/
+│   │   └── ThemeProvider.tsx      # Theme context provider
+│   ├── layout/
+│   │   └── ThemeToggle.tsx        # Dark/light toggle
+│   ├── dashboard/
+│   │   └── HeroStatCard.tsx       # Gradient stat cards
+│   └── ui/
+│       └── TurbineSpinner.tsx     # Aerospace loading spinner
+└── app/
+    └── globals.css                 # Extended with dark mode
+```
+
+#### Tailwind v4 Theme Tokens
+```css
+@theme inline {
+  --color-header-bg-start: hsl(var(--header-bg-start));
+  --color-header-bg-end: hsl(var(--header-bg-end));
+  --color-header-foreground: hsl(var(--header-foreground));
+  --color-nav-active-bg: hsl(var(--nav-active-bg));
+  /* ... */
+}
+```
+
+---
+
 ## [Unreleased]
 
 ### Phase 5 Addendum: Durable AI Agent Integration

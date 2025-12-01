@@ -3,9 +3,10 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { useTriggerRun, type SyncStatus as SyncStatusType } from "@/hooks/use-trigger-run";
 import { triggerExcelSync } from "@/app/actions/sync";
-import { RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { RefreshCw, CheckCircle, XCircle } from "lucide-react";
 
 interface SyncStatusProps {
   /** User ID for authenticating with Microsoft Graph */
@@ -47,14 +48,14 @@ function getStatusText(status: SyncStatusType, progress: number): string {
  */
 function StatusIcon({ status, isRunning }: { status: SyncStatusType; isRunning: boolean }) {
   if (isRunning) {
-    return <Loader2 className="h-4 w-4 animate-spin" />;
+    return <TurbineSpinner size="sm" />;
   }
 
   switch (status) {
     case "completed":
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return <CheckCircle className="h-4 w-4 text-success" />;
     case "failed":
-      return <XCircle className="h-4 w-4 text-red-500" />;
+      return <XCircle className="h-4 w-4 text-danger" />;
     default:
       return <RefreshCw className="h-4 w-4" />;
   }
@@ -141,13 +142,13 @@ export function SyncStatus({ userId, repairOrderIds = [] }: SyncStatusProps) {
 
       {/* Success Output */}
       {status === "completed" && output && (
-        <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-200">
+        <div className="mb-4 rounded-md bg-success/10 p-3 text-sm text-success dark:bg-success/20">
           <p className="font-medium">Sync completed successfully!</p>
           <ul className="mt-1 text-xs space-y-0.5">
             <li>Rows updated: {output.rowsUpdated}</li>
             <li>Rows added: {output.rowsAdded}</li>
             {output.failedCount > 0 && (
-              <li className="text-amber-600">Failed: {output.failedCount}</li>
+              <li className="text-warning">Failed: {output.failedCount}</li>
             )}
           </ul>
         </div>
@@ -155,7 +156,7 @@ export function SyncStatus({ userId, repairOrderIds = [] }: SyncStatusProps) {
 
       {/* Error Display */}
       {errorMessage && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+        <div className="mb-4 rounded-md bg-danger/10 p-3 text-sm text-danger dark:bg-danger/20">
           <p className="font-medium">Error</p>
           <p className="text-xs mt-1">{errorMessage}</p>
         </div>
@@ -176,7 +177,7 @@ export function SyncStatus({ userId, repairOrderIds = [] }: SyncStatusProps) {
           >
             {isRunning ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <TurbineSpinner size="sm" className="mr-2" />
                 Syncing...
               </>
             ) : (

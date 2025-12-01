@@ -21,7 +21,8 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "./StatusBadge";
 import { RODetailDialog } from "./RODetailDialog";
-import { Search, Loader2, AlertCircle } from "lucide-react";
+import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
+import { Search, AlertCircle } from "lucide-react";
 
 /**
  * Format a number as RO# display
@@ -125,7 +126,7 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
             />
             {isPending && (
               <div className="absolute right-2 top-2.5">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <TurbineSpinner size="sm" className="text-muted-foreground" />
               </div>
             )}
           </div>
@@ -180,7 +181,7 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
                     </TableCell>
                     <TableCell className="tabular-nums">
                       {isOverdue(ro.nextDateToUpdate) ? (
-                        <span className="text-danger-red flex items-center gap-1 font-medium">
+                        <span className="text-danger flex items-center gap-1 font-medium">
                           <AlertCircle className="h-4 w-4" />
                           {formatDate(ro.nextDateToUpdate)}
                         </span>

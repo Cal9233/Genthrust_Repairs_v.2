@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Bell, X, Loader2, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye } from "lucide-react";
+import { Bell, X, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import {
   Sheet,
   SheetContent,
@@ -24,10 +25,10 @@ import type { NotificationQueueItem } from "@/lib/schema";
 import type { EmailDraftPayload, NotificationStatus } from "@/lib/types/notification";
 
 const statusConfig: Record<NotificationStatus, { label: string; className: string; icon: typeof Clock }> = {
-  PENDING_APPROVAL: { label: "Pending", className: "bg-warning-amber text-white", icon: Clock },
-  APPROVED: { label: "Approved", className: "bg-success-green text-white", icon: CheckCircle },
-  REJECTED: { label: "Rejected", className: "bg-danger-red text-white", icon: XCircle },
-  SENT: { label: "Sent", className: "bg-primary-bright-blue text-white", icon: Send },
+  PENDING_APPROVAL: { label: "Pending", className: "bg-warning text-warning-foreground", icon: Clock },
+  APPROVED: { label: "Approved", className: "bg-success text-success-foreground", icon: CheckCircle },
+  REJECTED: { label: "Rejected", className: "bg-danger text-danger-foreground", icon: XCircle },
+  SENT: { label: "Sent", className: "bg-sky-500 text-sky-50", icon: Send },
 };
 
 function formatDate(date: Date | string): string {
@@ -110,10 +111,10 @@ export function NotificationBell() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative text-white hover:bg-white/10">
+        <Button variant="ghost" size="icon" className="relative text-header-foreground hover:bg-header-hover">
           <Bell className="h-5 w-5" />
           {count > 0 && (
-            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-danger-red p-0 text-xs flex items-center justify-center">
+            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-danger text-danger-foreground p-0 text-xs flex items-center justify-center">
               {count}
             </Badge>
           )}
@@ -135,11 +136,11 @@ export function NotificationBell() {
                   {count}
                 </Badge>
               )}
-              {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+              {isPending && <TurbineSpinner size="sm" />}
             </TabsTrigger>
             <TabsTrigger value="history" className="gap-1">
               History
-              {isHistoryPending && <Loader2 className="h-3 w-3 animate-spin" />}
+              {isHistoryPending && <TurbineSpinner size="sm" />}
             </TabsTrigger>
           </TabsList>
 
@@ -185,12 +186,12 @@ export function NotificationBell() {
                       </Button>
                       <Button
                         size="sm"
-                        className="flex-1 bg-success-green hover:bg-success-green/90"
+                        className="flex-1 bg-success text-success-foreground hover:bg-success/90"
                         onClick={() => handleApprove(notification.id)}
                         disabled={isActioning}
                       >
                         {isActioning ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <TurbineSpinner size="sm" />
                         ) : (
                           <>
                             <Check className="h-4 w-4 mr-1" />
@@ -201,7 +202,7 @@ export function NotificationBell() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-danger-red border-danger-red hover:bg-danger-red/10"
+                        className="flex-1 text-danger border-danger hover:bg-danger/10"
                         onClick={() => handleReject(notification.id)}
                         disabled={isActioning}
                       >

@@ -17,6 +17,10 @@ export type DashboardStats = {
   overdue: number;
   waitingQuote: number;
   valueInWork: number;
+  inWork: number;
+  shipped: number;
+  net30: number;
+  approved: number;
 };
 
 // Paginated response type
@@ -47,6 +51,10 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     let overdue = 0;
     let waitingQuote = 0;
     let valueInWork = 0;
+    let inWork = 0;
+    let shipped = 0;
+    let net30 = 0; // Placeholder for NET 30 tracking
+    let approved = 0;
 
     const excludedStatuses = ["PAID", "BER", "RAI", "RETURNED"];
 
@@ -69,10 +77,25 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
         overdue++;
       }
 
-      // Count waiting quote
+      // Count waiting quote (includes PENDING)
       const status = record.curentStatus?.toUpperCase()?.trim() || "";
-      if (status === "WAITING QUOTE" || status === "WAITING FOR QUOTE") {
+      if (status === "WAITING QUOTE" || status === "WAITING FOR QUOTE" || status === "AWAITING QUOTE" || status === "PENDING") {
         waitingQuote++;
+      }
+
+      // Count in work
+      if (status === "IN WORK" || status === "IN PROGRESS" || status === "WORKING") {
+        inWork++;
+      }
+
+      // Count shipped (actual DB values: CURRENTLY BEING SHIPPED, SHIPPING)
+      if (status === "SHIPPED" || status === "IN TRANSIT" || status === "CURRENTLY BEING SHIPPED" || status === "SHIPPING") {
+        shipped++;
+      }
+
+      // Count approved (handles "APPROVED >>>>" variant)
+      if (status.startsWith("APPROVED")) {
+        approved++;
       }
 
       // Sum value in work (excluding completed/closed statuses)
@@ -88,7 +111,7 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
       );
     }
     console.log(
-      `[getDashboardStats] Total: ${allRecords.length}, Overdue: ${overdue}, WaitingQuote: ${waitingQuote}, ValueInWork: $${valueInWork}`
+      `[getDashboardStats] Total: ${allRecords.length}, Overdue: ${overdue}, WaitingQuote: ${waitingQuote}, Approved: ${approved}, Shipped: ${shipped}, ValueInWork: $${valueInWork}`
     );
 
     return {
@@ -98,6 +121,10 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
         overdue,
         waitingQuote,
         valueInWork,
+        inWork,
+        shipped,
+        net30,
+        approved,
       },
     };
   } catch (error) {

@@ -14,23 +14,23 @@ type StatCardProps = {
 
 const variantStyles: Record<StatCardVariant, { icon: string; value: string; card: string }> = {
   default: {
-    icon: "text-primary-bright-blue",
+    icon: "text-sky-500",
     value: "text-foreground",
     card: "bg-diagonal-lines",
   },
   danger: {
-    icon: "text-danger-red",
-    value: "text-danger-red",
+    icon: "text-danger",
+    value: "text-danger",
     card: "",
   },
   warning: {
-    icon: "text-warning-amber",
-    value: "text-warning-amber",
+    icon: "text-warning",
+    value: "text-warning",
     card: "",
   },
   success: {
-    icon: "text-success-green",
-    value: "text-success-green",
+    icon: "text-success",
+    value: "text-success",
     card: "",
   },
 };

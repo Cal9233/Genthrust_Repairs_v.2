@@ -38,7 +38,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <CardHeader className="text-center">
           {/* Brand with gradient text */}
           <div className="mb-2">
-            <span className="bg-gradient-to-r from-primary-deep-blue to-primary-bright-blue bg-clip-text text-3xl font-bold text-transparent">
+            <span className="bg-gradient-to-r from-sky-700 to-sky-500 dark:from-sky-400 dark:to-sky-300 bg-clip-text text-3xl font-bold text-transparent">
               GenThrust
             </span>
           </div>
