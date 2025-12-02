@@ -563,3 +563,126 @@ export const notificationQueueRelations = relations(
 // Notification queue type exports
 export type NotificationQueueItem = typeof notificationQueue.$inferSelect;
 export type NewNotificationQueueItem = typeof notificationQueue.$inferInsert;
+
+// ==========================================
+// RO STATUS HISTORY TABLE
+// ==========================================
+
+export const roStatusHistory = mysqlTable(
+  "ro_status_history",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+    repairOrderId: bigint("repair_order_id", { mode: "number" })
+      .notNull()
+      .references(() => active.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 100 }).notNull(),
+    previousStatus: varchar("previous_status", { length: 100 }),
+    changedBy: varchar("changed_by", { length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { mode: "date" }).defaultNow().notNull(),
+    notes: text("notes"),
+  },
+  (table) => [
+    index("idx_status_history_ro").on(table.repairOrderId),
+    index("idx_status_history_date").on(table.changedAt),
+  ]
+);
+
+export const roStatusHistoryRelations = relations(roStatusHistory, ({ one }) => ({
+  repairOrder: one(active, {
+    fields: [roStatusHistory.repairOrderId],
+    references: [active.id],
+  }),
+  user: one(users, {
+    fields: [roStatusHistory.changedBy],
+    references: [users.id],
+  }),
+}));
+
+export type RoStatusHistory = typeof roStatusHistory.$inferSelect;
+export type NewRoStatusHistory = typeof roStatusHistory.$inferInsert;
+
+// ==========================================
+// RO ACTIVITY LOG TABLE (Full Audit Trail)
+// ==========================================
+
+export const roActivityLog = mysqlTable(
+  "ro_activity_log",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+    repairOrderId: bigint("repair_order_id", { mode: "number" })
+      .notNull()
+      .references(() => active.id, { onDelete: "cascade" }),
+    action: varchar("action", { length: 50 }).notNull(), // 'CREATE', 'UPDATE', 'STATUS_CHANGE', 'NOTE_ADDED', 'DOCUMENT_UPLOADED', 'DOCUMENT_DELETED'
+    field: varchar("field", { length: 100 }), // Which field changed (null for non-field actions)
+    oldValue: text("old_value"),
+    newValue: text("new_value"),
+    userId: varchar("user_id", { length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_activity_log_ro").on(table.repairOrderId),
+    index("idx_activity_log_date").on(table.createdAt),
+  ]
+);
+
+export const roActivityLogRelations = relations(roActivityLog, ({ one }) => ({
+  repairOrder: one(active, {
+    fields: [roActivityLog.repairOrderId],
+    references: [active.id],
+  }),
+  user: one(users, {
+    fields: [roActivityLog.userId],
+    references: [users.id],
+  }),
+}));
+
+export type RoActivityLog = typeof roActivityLog.$inferSelect;
+export type NewRoActivityLog = typeof roActivityLog.$inferInsert;
+
+// ==========================================
+// RO RELATIONS TABLE (Link Related ROs)
+// ==========================================
+
+export const roRelationsTable = mysqlTable(
+  "ro_relations",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+    sourceRoId: bigint("source_ro_id", { mode: "number" })
+      .notNull()
+      .references(() => active.id, { onDelete: "cascade" }),
+    targetRoId: bigint("target_ro_id", { mode: "number" })
+      .notNull()
+      .references(() => active.id, { onDelete: "cascade" }),
+    relationType: varchar("relation_type", { length: 50 }).notNull(), // 'SAME_PART', 'SAME_SHOP', 'REPLACEMENT', 'RELATED'
+    createdBy: varchar("created_by", { length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_ro_relations_source").on(table.sourceRoId),
+    index("idx_ro_relations_target").on(table.targetRoId),
+  ]
+);
+
+export const roRelationsTableRelations = relations(roRelationsTable, ({ one }) => ({
+  sourceRo: one(active, {
+    fields: [roRelationsTable.sourceRoId],
+    references: [active.id],
+  }),
+  targetRo: one(active, {
+    fields: [roRelationsTable.targetRoId],
+    references: [active.id],
+  }),
+  createdByUser: one(users, {
+    fields: [roRelationsTable.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export type RoRelation = typeof roRelationsTable.$inferSelect;
+export type NewRoRelation = typeof roRelationsTable.$inferInsert;

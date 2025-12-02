@@ -1073,6 +1073,192 @@ src/
 
 ## [1.4.0] - 2025-12-01
 
+### Phase 13: Enhanced RO Detail View
+
+Complete redesign of the Repair Order detail view with a comprehensive slide-out panel, tabbed navigation, and improved data display.
+
+### Added
+
+#### Component Architecture (`src/components/ro-detail/`)
+New modular component folder with 14 specialized components:
+
+- **RODetailPanel.tsx** - Main container using shadcn Sheet (slide-out panel)
+  - 5 tabbed sections: Details, Status, Docs, Emails, Activity
+  - Responsive width (2xl on mobile, 4xl on desktop)
+  - Accessibility-compliant with always-visible SheetTitle
+
+- **RODetailHeader.tsx** - Header with status dropdown
+  - Edit mode toggle with save/cancel buttons
+  - Status badge with inline editing
+  - Loading state with TurbineSpinner
+
+- **ROInfoGrid.tsx** - Organized field display with 5 sections
+  - Basic Information: RO#, Date Made, Part, Serial, Description, Required Work
+  - Shop Information: Shop Name, Reference, Status, Terms
+  - Dates: Date Dropped Off, Est. Delivery, Status Date, Last Updated, Next Update
+  - Costs: Estimated Cost, Final Cost (currency formatted)
+  - Shipping: Tracking Number
+  - Human-readable date formatting (Nov 21, 2025)
+  - Markdown symbol stripping for clean display
+  - Improved spacing and typography
+
+- **ROStatusFlowchart.tsx** - Visual status progression
+  - Linear flow: Waiting Quote → Approved → In Work → Shipped → Received → Complete
+  - Branch statuses: BER, RAI, Cancelled, Returned (shown separately)
+  - Checkmarks for completed steps, highlighted current step
+
+- **ROStatusTimeline.tsx** - Status change history
+  - Chronological list from ro_status_history table
+  - Shows timestamp, previous → new status, user
+
+- **ROActivityLog.tsx** - Full audit trail
+  - Icons per action type (edit, status, document, note)
+  - User attribution with timestamps
+  - Field-level change display (old → new)
+
+- **ROTrackingPopup.tsx** - FedEx/UPS tracking integration
+  - Carrier auto-detection based on tracking number format
+  - External links to carrier tracking pages
+
+- **RODocuments.tsx** - SharePoint document management
+  - Drag-drop file upload with 10MB validation
+  - File list with name, size, date, actions
+  - Open in SharePoint, Download, Delete buttons
+
+- **RONotes.tsx** - Notes display and editor
+  - Timestamped note entries with user attribution
+  - Collapsible add note form
+  - Markdown stripping for clean display
+
+- **RORelatedOrders.tsx** - Linked ROs management
+  - Relation types: Same Part, Same Shop, Replacement, Related
+  - Search and link dialog
+  - Click to open related RO in new panel
+
+- **RODueDateAlert.tsx** - Overdue/due soon banner
+  - Three states: Overdue (red), Due Soon (amber), On Track (green)
+  - Pulsing animation for overdue items
+  - Visible at top of panel when applicable
+
+- **useRODetail.ts** - State management hook
+  - Manages: data, loading, error, editMode, editedFields, saving
+  - Fetches: statusHistory, activityLog, relatedROs, documents, emailThreads
+  - Calculates dueDateStatus from nextDateToUpdate
+
+- **index.ts** - Barrel export for clean imports
+
+#### Database Schema (`src/lib/schema.ts`)
+Three new tables for enhanced tracking:
+
+- **ro_status_history** - Status change audit trail
+  - repairOrderId, status, previousStatus, changedBy, changedAt, notes
+  - Indexes on repairOrderId and changedAt
+
+- **ro_activity_log** - Full action audit trail
+  - Actions: CREATE, UPDATE, STATUS_CHANGE, NOTE_ADDED, DOCUMENT_UPLOADED, DOCUMENT_DELETED
+  - field, oldValue, newValue tracking
+  - User attribution and timestamps
+
+- **ro_relations** - RO-to-RO linking
+  - sourceRoId, targetRoId, relationType
+  - Supports bidirectional queries
+
+#### Server Actions
+
+**repair-orders.ts extensions:**
+- `updateRepairOrder(id, fields)` - Updates MySQL, logs activity, triggers Excel sync
+- `getROStatusHistory(id)` - Fetches status timeline
+- `getROActivityLog(id)` - Fetches activity audit trail
+- `getRelatedROs(id)` - Fetches linked repair orders
+- `linkROs(sourceId, targetId, type)` - Creates relation
+- `unlinkROs(relationId)` - Removes relation
+- `appendRONote(id, note)` - Adds timestamped note
+
+**documents.ts (new):**
+- `uploadDocument(roNumber, repairOrderId, fileName, fileBase64)` - SharePoint upload
+- `getDocuments(roNumber)` - Lists RO folder contents
+- `deleteDocument(fileId, fileName, repairOrderId)` - Removes from SharePoint
+- `getDownloadUrl(fileId)` - Gets temporary download URL
+
+#### Graph API (`src/lib/graph/files.ts`)
+SharePoint file operations:
+- `ensureROFolder(userId, roNumber)` - Creates `/Repair Orders/RO-{roNumber}/`
+- `uploadRODocumentBase64(userId, roNumber, fileName, base64)` - Simple upload
+- `listRODocuments(userId, roNumber)` - Returns SharePointFile[]
+- `deleteRODocument(userId, fileId)` - Deletes by ID
+- `getDocumentDownloadUrl(userId, fileId)` - Temporary download URL
+
+### Changed
+
+#### RepairOrderTable.tsx
+- Replaced RODetailDialog modal with RODetailPanel slide-out
+- Import from `@/components/ro-detail`
+- Added `onDataChanged` callback for refresh after edits
+
+#### Date Formatting
+- Added `formatDate()` function for human-readable dates
+- Converts ISO 8601 to "Nov 21, 2025" format
+- Applied across all date fields in ROInfoGrid
+
+#### Spacing & Typography
+- Increased section spacing (`space-y-6` → `space-y-8`)
+- Increased internal padding (`p-4` → `p-5`)
+- Larger grid gaps (`gap-4` → `gap-x-6 gap-y-5`)
+- Uppercase labels with letter-spacing
+- More breathing room around values
+
+#### Markdown Cleanup
+- Added `.replace(/\*\*/g, "")` to strip bold markers
+- Applied to: formatValue(), status fields, notes content
+- Ensures clean display of AI-generated text
+
+### Fixed
+
+#### Sheet Accessibility Error
+- **Problem**: Console error "DialogContent requires a DialogTitle for the component to be accessible"
+- **Cause**: SheetHeader was conditionally rendered only when data loaded
+- **Fix**: Always render SheetHeader with SheetTitle, show "Repair Order Details" during loading
+
+### Dependencies
+- No new dependencies (uses existing shadcn/ui, Graph API infrastructure)
+
+### Technical Details
+
+#### File Structure Added
+```
+src/components/ro-detail/
+├── index.ts                   # Barrel export
+├── RODetailPanel.tsx          # Main container
+├── RODetailHeader.tsx         # Header with status
+├── ROInfoGrid.tsx             # Field display grid
+├── ROStatusFlowchart.tsx      # Visual status flow
+├── ROStatusTimeline.tsx       # Status history
+├── ROActivityLog.tsx          # Audit trail
+├── ROTrackingPopup.tsx        # FedEx/UPS tracking
+├── RODocuments.tsx            # SharePoint docs
+├── RONotes.tsx                # Notes editor
+├── RORelatedOrders.tsx        # Linked ROs
+├── RODueDateAlert.tsx         # Overdue alerts
+└── useRODetail.ts             # State hook
+
+src/lib/graph/
+└── files.ts                   # SharePoint operations
+
+src/app/actions/
+└── documents.ts               # Document server actions
+```
+
+#### Key Patterns
+- **Tabbed Interface**: Details | Status | Docs | Emails | Activity
+- **Edit Mode**: Toggle between view/edit with optimistic updates
+- **Human-Readable Formatting**: Dates, currency, markdown-free text
+- **Accessibility**: Always-present titles, semantic HTML
+- **Write-Behind Pattern**: UI → MySQL → Trigger.dev → Excel
+
+---
+
+## [1.5.0] - 2025-12-01
+
 ### Phase 14: Multi-Sheet Excel Sync
 
 Complete implementation of multi-sheet Excel routing based on repair order status and payment terms.

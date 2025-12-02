@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "./StatusBadge";
-import { RODetailDialog } from "./RODetailDialog";
+import { RODetailPanel } from "@/components/ro-detail";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { Search, AlertCircle } from "lucide-react";
 
@@ -208,13 +208,13 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
         </div>
       </CardContent>
 
-      <RODetailDialog
+      <RODetailPanel
         roId={selectedRoId}
         open={!!selectedRoId}
         onOpenChange={(open) => {
           if (!open) setSelectedRoId(null);
         }}
-        onStatusChanged={() => setRefreshTrigger((x) => x + 1)}
+        onDataChanged={() => setRefreshTrigger((x) => x + 1)}
       />
     </Card>
   );
