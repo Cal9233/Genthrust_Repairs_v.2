@@ -9,17 +9,24 @@ import { revalidatePath } from "next/cache";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
+// Default source sheet name (from env or fallback)
+const DEFAULT_SOURCE_SHEET = process.env.EXCEL_WORKSHEET_NAME ?? "Active";
+
 /**
  * Updates a repair order's status in MySQL and optionally triggers
  * the ro-lifecycle-flow task for specific statuses.
+ *
+ * If destinationSheet is provided, also triggers the move-ro-sheet task
+ * to move the RO from Active sheet to the destination sheet (NET, Paid, Returns).
  *
  * Per CLAUDE.md Write-Behind Pattern:
  * UI -> Server Action -> MySQL Write -> Push Job to Trigger.dev
  */
 export async function updateRepairOrderStatus(
   repairOrderId: number,
-  newStatus: string
-): Promise<Result<{ runId?: string }>> {
+  newStatus: string,
+  destinationSheet?: string
+): Promise<Result<{ runId?: string; moveRunId?: string }>> {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -64,6 +71,7 @@ export async function updateRepairOrderStatus(
     // Trigger ro-lifecycle-flow for tracked statuses
     // This starts the durable wait + email drafting flow
     let runId: string | undefined;
+    let moveRunId: string | undefined;
     const normalizedNew = newStatus.toUpperCase().trim();
     const normalizedOld = oldStatus.toUpperCase().trim();
 
@@ -77,7 +85,19 @@ export async function updateRepairOrderStatus(
       runId = handle.id;
     }
 
-    return { success: true, data: { runId } };
+    // If destinationSheet is provided, trigger the move-ro-sheet task
+    // This moves the RO from Active sheet to NET/Paid/Returns
+    if (destinationSheet) {
+      const moveHandle = await tasks.trigger("move-ro-sheet", {
+        userId: session.user.id,
+        roId: repairOrderId,
+        fromSheet: DEFAULT_SOURCE_SHEET,
+        toSheet: destinationSheet,
+      });
+      moveRunId = moveHandle.id;
+    }
+
+    return { success: true, data: { runId, moveRunId } };
   } catch (error) {
     return {
       success: false,

@@ -2,7 +2,7 @@ import { task, metadata, logger } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { db } from "../lib/db";
 import { active } from "../lib/schema";
-import { inArray } from "drizzle-orm";
+import { inArray, and, notInArray } from "drizzle-orm";
 import {
   getGraphClient,
   createExcelSession,
@@ -133,11 +133,30 @@ export const syncRepairOrders = task({
       await metadata.set("status", "fetching");
       logger.info("Phase 2: Fetching repair order data from database");
 
+      // Statuses that belong to OTHER sheets (not Active)
+      // These are managed by move-ro-sheet task, not this sync task
+      const ARCHIVED_STATUSES = [
+        "COMPLETE",
+        "NET",
+        "PAID",
+        "RETURNS",
+        "BER",
+        "RAI",
+        "CANCELLED",
+      ];
+
       // Fetch repair orders from MySQL
+      // SAFETY: Exclude archived statuses to prevent "zombie rows"
+      // (rows that get re-created on Active sheet after being moved)
       const repairOrders = await db
         .select()
         .from(active)
-        .where(inArray(active.id, repairOrderIds));
+        .where(
+          and(
+            inArray(active.id, repairOrderIds),
+            notInArray(active.curentStatus, ARCHIVED_STATUSES)
+          )
+        );
 
       if (repairOrders.length === 0) {
         logger.warn("No repair orders found for given IDs", { repairOrderIds });

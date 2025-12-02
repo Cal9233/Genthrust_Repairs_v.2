@@ -56,4 +56,4 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 11 Complete - Notification Queue Infrastructure with automated email drafting, human-in-the-loop approval via NotificationBell (tabbed Pending/History UI), Trigger.dev durable tasks (send-approved-email, handle-ro-status-change, check-overdue-ros cron), Microsoft Graph productivity helpers, and status change integration.
+**[Current Status]:** Phase 14 Complete - Multi-Sheet Excel Sync with Net Terms routing (COMPLETE → NET/Paid sheet), buildDeleteRowRequest for row removal, move-ro-sheet Trigger.dev task, dashboard status filtering (ARCHIVED_STATUSES), NET 30 count, and connection pool ETIMEDOUT fix.

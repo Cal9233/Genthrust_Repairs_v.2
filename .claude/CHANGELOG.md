@@ -1071,6 +1071,92 @@ src/
 
 ---
 
+## [1.4.0] - 2025-12-01
+
+### Phase 14: Multi-Sheet Excel Sync
+
+Complete implementation of multi-sheet Excel routing based on repair order status and payment terms.
+
+### Added
+
+#### Graph API - Delete Row Capability (`src/lib/graph/batch.ts`)
+- `buildDeleteRowRequest()` - Creates POST request to `/delete` endpoint
+- Uses `{ shift: "Up" }` body to shift cells up after deletion
+- Enables "add-then-delete" pattern for moving rows between sheets
+
+#### Trigger.dev Task - Move RO Sheet (`src/trigger/move-ro-sheet.ts`)
+- New durable task for moving ROs between Excel sheets
+- 3-step safety pattern: Find → Add → Delete (only if Add succeeds)
+- Payload: `{ userId, roId, fromSheet, toSheet }`
+- Returns: `{ success, roNumber, fromSheet, toSheet, fromRow, toRow, error? }`
+
+#### Net Terms Detection & Routing (`src/components/dashboard/RODetailDialog.tsx`)
+- `hasNetTerms()` helper - Detects "Net" prefix in `terms` column
+- Confirmation modal when completing Net Terms ROs
+- Routes to NET sheet (Net Terms) or Paid sheet (standard customers)
+- Displays terms info in modal: "This customer is on Net Terms (Net 30)"
+
+#### Server Action - Destination Sheet (`src/app/actions/repair-orders.ts`)
+- `updateRepairOrderStatus(id, status, destinationSheet)` - Added optional destinationSheet parameter
+- Triggers `move-ro-sheet` task when COMPLETE status with destination
+
+#### Dashboard Status Filtering (`src/app/actions/dashboard.ts`)
+- `ARCHIVED_STATUSES` constant: COMPLETE, NET, PAID, RETURNS, BER, RAI, CANCELLED
+- `getDashboardStats()` - Filters archived statuses from Total Active count
+- `getRepairOrders()` - Excludes archived statuses from Active view
+- NET 30 count - Queries COMPLETE status with Net Terms
+
+#### Excel Sync Zombie Row Prevention (`src/trigger/excel-sync.ts`)
+- Added `ARCHIVED_STATUSES` filter to prevent re-syncing completed ROs
+- Completed ROs stay in destination sheet, not re-created on Active
+
+### Fixed
+
+#### Connection Pool ETIMEDOUT (`src/lib/db.ts`)
+- **Problem**: Clicking on RO shows "read ETIMEDOUT" after loading spinner
+- **Cause**: MySQL pool returns stale connections that Aiven closed server-side (~600s timeout)
+- **Fix**: Added `idleTimeout: 60000` (60s) and `maxIdle: 5` to pool config
+
+#### Dashboard Status Filtering
+- **Problem**: NET 30 card showed "0", completed ROs still visible in Active view
+- **Cause**: `net30 = 0` was hardcoded placeholder, no status filter on queries
+- **Fix**: Implemented proper NET 30 count query and ARCHIVED_STATUSES filter
+
+#### SSL Certificate for Trigger.dev Workers
+- **Problem**: Workers couldn't read `certs/ca.pem` (different process.cwd)
+- **Fix**: Added `DATABASE_CA_CERT` env var with embedded certificate
+
+### Technical Details
+
+#### File Structure Added/Modified
+```
+src/
+├── lib/
+│   ├── db.ts                      # Connection pool settings
+│   └── graph/
+│       └── batch.ts               # Added buildDeleteRowRequest
+├── trigger/
+│   ├── excel-sync.ts              # Added ARCHIVED_STATUSES filter
+│   └── move-ro-sheet.ts           # NEW: Sheet transfer task
+├── app/actions/
+│   ├── dashboard.ts               # Status filtering + NET 30 count
+│   └── repair-orders.ts           # destinationSheet parameter
+└── components/dashboard/
+    └── RODetailDialog.tsx         # Net Terms detection + routing
+```
+
+#### Business Logic
+1. **RECEIVED** = interim status (unit arrived, not finished) - no sheet routing
+2. **COMPLETE** = triggers Net Terms check → routes to NET or Paid sheet
+3. **BER/RAI/CANCELLED** = future: "Did we receive the unit?" prompt → Returns
+4. **Net Terms detection** = parse `terms` column for "Net" prefix
+5. **Excel rows** = DELETE from Active after copy to destination (safety pattern)
+
+### Dependencies
+- No new dependencies
+
+---
+
 ## [Unreleased]
 
 ### Phase 5 Addendum: Durable AI Agent Integration

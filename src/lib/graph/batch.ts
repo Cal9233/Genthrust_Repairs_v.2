@@ -122,6 +122,35 @@ export function buildBatchUpdateRequests(
 }
 
 /**
+ * Build a POST request to delete a single Excel row
+ *
+ * Uses the Graph API range/delete endpoint with shift: "Up" to remove the row
+ * and shift remaining rows up to fill the gap.
+ *
+ * @param id - Unique request ID within the batch
+ * @param workbookId - Workbook item ID
+ * @param worksheetName - Worksheet name
+ * @param rowNumber - 1-based row number to delete
+ * @returns BatchRequestItem for deleting the row
+ */
+export function buildDeleteRowRequest(
+  id: string,
+  workbookId: string,
+  worksheetName: string,
+  rowNumber: number
+): BatchRequestItem {
+  const lastCol = getColumnLetter(EXCEL_COLUMNS.length - 1); // "U"
+  const worksheetPath = getWorksheetPath(workbookId, worksheetName);
+  return {
+    id,
+    method: "POST",
+    url: `${worksheetPath}/range(address='A${rowNumber}:${lastCol}${rowNumber}')/delete`,
+    headers: { "Content-Type": "application/json" },
+    body: { shift: "Up" },
+  };
+}
+
+/**
  * Analyze batch response results
  */
 export function analyzeBatchResponse(response: BatchResponse): {

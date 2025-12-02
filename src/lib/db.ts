@@ -57,8 +57,11 @@ const createPool = () => {
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
+    // Connection lifecycle - prevent stale connections from Aiven timeout (~600s)
+    idleTimeout: 60000, // Close idle connections after 60s
+    maxIdle: 5, // Reduce idle connection count
     // SSL configuration for Aiven MySQL
-    ssl: getSSLConfig(), // <--- CHANGED: Actually calling the function now
+    ssl: getSSLConfig(),
   });
 };
 

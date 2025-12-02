@@ -167,16 +167,51 @@ export function RODetailDialog({
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  // Handle status change
+  /**
+   * Check if the terms column indicates Net Terms (e.g., "Net 30", "Net 60")
+   */
+  const hasNetTerms = (terms: string | null | undefined): boolean => {
+    if (!terms) return false;
+    return terms.toLowerCase().includes("net");
+  };
+
+  /**
+   * Handle status change with Net Terms routing logic
+   *
+   * When status is set to COMPLETE:
+   * - Check if customer has Net Terms
+   * - Show confirmation dialog
+   * - Route to NET or Paid sheet accordingly
+   */
   const handleStatusChange = async (newStatus: string) => {
     if (!data) return;
+
+    let destinationSheet: string | undefined;
+
+    // Intercept COMPLETE status to determine sheet routing
+    if (newStatus === "COMPLETE") {
+      if (hasNetTerms(data.terms)) {
+        // Customer has Net Terms - confirm before moving to NET sheet
+        const confirmed = window.confirm(
+          `This customer is on Net Terms (${data.terms}).\n\nMove to NET sheet?`
+        );
+        destinationSheet = confirmed ? "NET" : "Paid";
+      } else {
+        // No Net Terms - move directly to Paid sheet
+        destinationSheet = "Paid";
+      }
+    }
+
     setIsUpdatingStatus(true);
-    const result = await updateRepairOrderStatus(data.id, newStatus);
+    const result = await updateRepairOrderStatus(data.id, newStatus, destinationSheet);
     if (result.success) {
       setData({ ...data, curentStatus: newStatus });
       toast.success("Status updated");
       if (result.data.runId) {
         toast.info("Follow-up reminder scheduled");
+      }
+      if (result.data.moveRunId) {
+        toast.success(`Moving to ${destinationSheet} sheet...`);
       }
       onStatusChanged?.();
     } else {

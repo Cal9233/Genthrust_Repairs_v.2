@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { active } from "@/lib/schema";
-import { like, or, sql, count, desc } from "drizzle-orm";
+import { like, or, sql, count, desc, notInArray, and, eq } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
 
 // Result type per CLAUDE.md
@@ -33,6 +33,18 @@ export type PaginatedRepairOrders = {
 
 const ITEMS_PER_PAGE = 20;
 
+// Statuses that belong to other sheets (not Active dashboard)
+// These are filtered out from the main Active view
+const ARCHIVED_STATUSES = [
+  "COMPLETE",
+  "NET",
+  "PAID",
+  "RETURNS",
+  "BER",
+  "RAI",
+  "CANCELLED",
+];
+
 // Filter type for repair orders
 export type RepairOrderFilter = "all" | "overdue";
 
@@ -41,9 +53,23 @@ export type RepairOrderFilter = "all" | "overdue";
  */
 export async function getDashboardStats(): Promise<Result<DashboardStats>> {
   try {
-    // Get all active records for client-side calculations
+    // Get active records (exclude archived statuses) for client-side calculations
     // (needed for date parsing which can't be done in SQL with string dates)
-    const allRecords = await db.select().from(active);
+    const allRecords = await db
+      .select()
+      .from(active)
+      .where(notInArray(active.curentStatus, ARCHIVED_STATUSES));
+
+    // Count NET 30 items (COMPLETE status with Net Terms)
+    const net30Result = await db
+      .select({ count: count() })
+      .from(active)
+      .where(
+        and(
+          eq(active.curentStatus, "COMPLETE"),
+          like(active.terms, "%Net%")
+        )
+      );
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -53,7 +79,7 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     let valueInWork = 0;
     let inWork = 0;
     let shipped = 0;
-    let net30 = 0; // Placeholder for NET 30 tracking
+    let net30 = net30Result[0]?.count ?? 0; // Count of COMPLETE ROs with Net Terms
     let approved = 0;
 
     const excludedStatuses = ["PAID", "BER", "RAI", "RETURNED"];
@@ -165,12 +191,17 @@ export async function getRepairOrders(
     // If filtering for overdue, we need to fetch all and filter in memory
     // (date parsing can't be done in SQL with string dates)
     if (filter === "overdue") {
-      let dataQuery = db.select().from(active);
-      if (searchCondition) {
-        dataQuery = dataQuery.where(searchCondition) as typeof dataQuery;
-      }
+      // Base condition: exclude archived statuses
+      const baseCondition = notInArray(active.curentStatus, ARCHIVED_STATUSES);
+      const whereCondition = searchCondition
+        ? and(baseCondition, searchCondition)
+        : baseCondition;
 
-      const allResults = await dataQuery.orderBy(desc(active.id));
+      const allResults = await db
+        .select()
+        .from(active)
+        .where(whereCondition)
+        .orderBy(desc(active.id));
 
       // Filter for overdue in memory
       const overdueResults = allResults.filter((r) =>
@@ -197,13 +228,14 @@ export async function getRepairOrders(
     }
 
     // Standard "all" filter - use SQL pagination
-    let dataQuery = db.select().from(active);
-    let countQuery = db.select({ count: count() }).from(active);
+    // Always exclude archived statuses from Active view
+    const baseCondition = notInArray(active.curentStatus, ARCHIVED_STATUSES);
+    const whereCondition = searchCondition
+      ? and(baseCondition, searchCondition)
+      : baseCondition;
 
-    if (searchCondition) {
-      dataQuery = dataQuery.where(searchCondition) as typeof dataQuery;
-      countQuery = countQuery.where(searchCondition) as typeof countQuery;
-    }
+    const dataQuery = db.select().from(active).where(whereCondition);
+    const countQuery = db.select({ count: count() }).from(active).where(whereCondition);
 
     // Execute queries in parallel
     const [results, countResult] = await Promise.all([
