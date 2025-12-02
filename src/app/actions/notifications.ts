@@ -455,3 +455,33 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * Get all notifications for a specific repair order
+ */
+export async function getNotificationsForRO(
+  repairOrderId: number
+): Promise<Result<NotificationQueueItem[]>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const notifications = await db
+      .select()
+      .from(notificationQueue)
+      .where(eq(notificationQueue.repairOrderId, repairOrderId))
+      .orderBy(desc(notificationQueue.createdAt));
+
+    return { success: true, data: notifications };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch notifications",
+    };
+  }
+}
