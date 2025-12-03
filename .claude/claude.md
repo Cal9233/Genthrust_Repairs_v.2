@@ -56,4 +56,28 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 16 Complete - Add RO Feature (AddRODialog + createRepairOrder server action), AI Assistant expanded with 4 new tools (create/update/archive RO, email drafts), User Profile Dropdown with sign-out/switch account, ExcelDropdownButton for Import/Sync operations, UI consistency improvements (cursor-pointer on interactive elements).
+**[Current Status]:** Phase 17 Complete - Priority Feed Summary Tab replacing Shops placeholder. Smart urgency sorting (Overdue → Action Required → Arriving Soon → Standard WIP), time-aware template summaries, no AI/LLM required. New files: summary-generator.ts, SummaryCard.tsx, SummaryList.tsx, summary page. Navigation updated.
+
+---
+
+## Changelog
+
+### Phase 17 - Priority Feed Summary (2025-12-03)
+- **New Feature:** Priority Feed tab replacing "Shops" placeholder
+- **Smart Sorting:** ROs sorted by urgency (P1: Overdue, P2: Action Required, P3: Arriving Soon, P4: Standard WIP)
+- **Time-Aware Summaries:** Template-based text that changes based on days in status
+- **Files Created:**
+  - `/src/lib/summary-generator.ts` - Priority calculation + time-aware templates
+  - `/src/lib/date-utils.ts` - Added `daysSince()`, `daysUntil()`, `formatRelativeDate()`
+  - `/src/app/actions/summary.ts` - Server action for fetching ROs
+  - `/src/components/summary/SummaryCard.tsx` - Priority-styled card component
+  - `/src/components/summary/SummaryList.tsx` - Grouped priority feed
+  - `/src/app/(protected)/summary/page.tsx` - Summary page
+- **Files Modified:** Navigation.tsx (Shops → Summary)
+- **Files Deleted:** `/src/app/(protected)/shops/page.tsx`
+
+### Phase 16 - Add RO & AI Tools (Previous)
+- AddRODialog + createRepairOrder server action
+- AI Assistant expanded with 4 new tools
+- User Profile Dropdown with sign-out/switch account
+- ExcelDropdownButton for Import/Sync operations

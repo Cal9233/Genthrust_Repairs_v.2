@@ -58,3 +58,62 @@ export function isOverdue(dateString: string | null | undefined): boolean {
 
   return date < today;
 }
+
+/**
+ * Calculate days since a date (for time-aware summaries)
+ * Returns positive number for past dates, null if date is invalid
+ */
+export function daysSince(dateString: string | null | undefined): number | null {
+  const date = parseDate(dateString);
+  if (!date) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  date.setHours(0, 0, 0, 0);
+
+  const diffMs = today.getTime() - date.getTime();
+  return Math.floor(diffMs / 86400000);
+}
+
+/**
+ * Calculate days until a date (for ETA checks)
+ * Returns positive for future dates, negative for past dates, null if invalid
+ */
+export function daysUntil(dateString: string | null | undefined): number | null {
+  const date = parseDate(dateString);
+  if (!date) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  date.setHours(0, 0, 0, 0);
+
+  const diffMs = date.getTime() - today.getTime();
+  return Math.floor(diffMs / 86400000);
+}
+
+/**
+ * Format date as human-readable relative or absolute
+ * Examples: "today", "yesterday", "tomorrow", "15 Jan", "Dec 3, 2025"
+ */
+export function formatRelativeDate(dateString: string | null | undefined): string {
+  const date = parseDate(dateString);
+  if (!date) return "unknown date";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  date.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((date.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays === 0) return "today";
+  if (diffDays === -1) return "yesterday";
+  if (diffDays === 1) return "tomorrow";
+
+  // Format as "15 Jan" for dates within current year
+  const options: Intl.DateTimeFormatOptions =
+    date.getFullYear() === today.getFullYear()
+      ? { day: "numeric", month: "short" }
+      : { day: "numeric", month: "short", year: "numeric" };
+
+  return new Intl.DateTimeFormat("en-US", options).format(date);
+}
