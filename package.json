@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "dev:trigger": "npx trigger.dev@latest dev"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.50",

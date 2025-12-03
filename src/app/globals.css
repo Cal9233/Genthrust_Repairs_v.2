@@ -224,6 +224,40 @@
   .bg-hero-success {
     background: linear-gradient(to bottom right, hsl(var(--success)), hsl(160 70% 35%));
   }
+
+  /* Colored Hover Shadows */
+  .hover-shadow-sky:hover {
+    box-shadow:
+      0 20px 25px -5px hsl(var(--sky-500) / 0.3),
+      0 8px 10px -6px hsl(var(--sky-500) / 0.2);
+  }
+
+  .hover-shadow-red:hover {
+    box-shadow:
+      0 20px 25px -5px hsl(0 84% 60% / 0.35),
+      0 8px 10px -6px hsl(0 84% 60% / 0.25);
+  }
+
+  .hover-shadow-emerald:hover {
+    box-shadow:
+      0 20px 25px -5px hsl(152 82% 39% / 0.3),
+      0 8px 10px -6px hsl(152 82% 39% / 0.2);
+  }
+
+  .hover-shadow-amber:hover {
+    box-shadow:
+      0 20px 25px -5px hsl(38 92% 50% / 0.3),
+      0 8px 10px -6px hsl(38 92% 50% / 0.2);
+  }
+
+  /* Status Glow Effects (for Excel sync button in header) */
+  .glow-success {
+    box-shadow: 0 0 16px 6px hsl(152 82% 50% / 0.7);
+  }
+
+  .glow-error {
+    box-shadow: 0 0 16px 6px hsl(0 84% 60% / 0.7);
+  }
 }
 
 @theme inline {

@@ -15,13 +15,22 @@ type HeroStatCardProps = {
   className?: string;
 };
 
-const variantStyles: Record<HeroVariant, string> = {
+const variantStyles: Record<HeroVariant, { bg: string; hoverShadow: string }> = {
   // Primary (Total Active) - Sky blue gradient
-  primary: "bg-hero-primary",
+  primary: {
+    bg: "bg-hero-primary",
+    hoverShadow: "hover-shadow-sky",
+  },
   // Danger (Overdue) - Red/orange gradient for attention
-  danger: "bg-hero-danger",
+  danger: {
+    bg: "bg-hero-danger",
+    hoverShadow: "hover-shadow-red",
+  },
   // Success (Value in Work) - Green gradient
-  success: "bg-hero-success",
+  success: {
+    bg: "bg-hero-success",
+    hoverShadow: "hover-shadow-emerald",
+  },
 };
 
 export function HeroStatCard({
@@ -34,15 +43,16 @@ export function HeroStatCard({
   isActive,
   className,
 }: HeroStatCardProps) {
-  const gradientClass = variantStyles[variant];
+  const styles = variantStyles[variant];
 
   const content = (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl p-6 shadow-lg transition-all h-full",
-        gradientClass,
+        "relative overflow-hidden rounded-2xl p-6 shadow-lg transition-all h-full cursor-pointer",
+        styles.bg,
         isActive && "ring-2 ring-inset ring-white/50",
-        href && "hover:shadow-xl hover:scale-[1.02]",
+        "hover:scale-[1.02]",
+        styles.hoverShadow,
         className
       )}
     >
@@ -54,7 +64,7 @@ export function HeroStatCard({
       {/* Content */}
       <div className="relative z-10">
         <p className="text-sm font-medium text-white/80">{title}</p>
-        <p className="mt-2 text-4xl font-bold text-white tabular-nums">
+        <p className="mt-2 text-4xl font-bold text-white tabular-nums select-none">
           {value}
         </p>
         {subtitle && (

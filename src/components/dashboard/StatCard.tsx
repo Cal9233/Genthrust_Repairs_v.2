@@ -12,26 +12,30 @@ type StatCardProps = {
   className?: string;
 };
 
-const variantStyles: Record<StatCardVariant, { icon: string; value: string; card: string }> = {
+const variantStyles: Record<StatCardVariant, { icon: string; value: string; card: string; hoverShadow: string }> = {
   default: {
     icon: "text-sky-500",
     value: "text-foreground",
     card: "bg-diagonal-lines",
+    hoverShadow: "hover-shadow-sky",
   },
   danger: {
     icon: "text-danger",
     value: "text-danger",
     card: "",
+    hoverShadow: "hover-shadow-red",
   },
   warning: {
     icon: "text-warning",
     value: "text-warning",
     card: "",
+    hoverShadow: "hover-shadow-amber",
   },
   success: {
     icon: "text-success",
     value: "text-success",
     card: "",
+    hoverShadow: "hover-shadow-emerald",
   },
 };
 
@@ -45,12 +49,17 @@ export function StatCard({
   const styles = variantStyles[variant];
 
   return (
-    <Card className={cn("shadow-vibrant", styles.card, className)}>
+    <Card className={cn(
+      "shadow-vibrant cursor-pointer transition-all hover:scale-[1.02]",
+      styles.card,
+      styles.hoverShadow,
+      className
+    )}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className={cn("text-2xl font-bold tabular-nums", styles.value)}>
+            <p className={cn("text-2xl font-bold tabular-nums select-none", styles.value)}>
               {value}
             </p>
           </div>

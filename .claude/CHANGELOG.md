@@ -1345,6 +1345,63 @@ src/
 
 ## [Unreleased]
 
+### Phase 15: Dashboard UI Refinements & Header Excel Sync
+
+Improved stat card interactions and moved Excel sync to a header badge button.
+
+### Added
+
+#### ExcelSyncButton Component (`src/components/layout/ExcelSyncButton.tsx`)
+- New header badge button for Excel sync (like theme toggle and notification bell)
+- FileSpreadsheet icon from lucide-react
+- TurbineSpinner animation during sync
+- Green glow effect on success, red glow on failure (fades after 3 seconds)
+- No hover color effect (minimal design)
+
+#### CSS Utilities (`src/app/globals.css`)
+- `.hover-shadow-sky` - Blue hover shadow for stat cards
+- `.hover-shadow-red` - Red hover shadow for stat cards
+- `.hover-shadow-emerald` - Green hover shadow for stat cards
+- `.hover-shadow-amber` - Amber hover shadow for stat cards
+- `.glow-success` - Green glow effect for sync success
+- `.glow-error` - Red glow effect for sync failure
+
+### Changed
+
+#### Stat Card Hover Effects
+- **HeroStatCard**: Added cursor-pointer, hover scale effect, colored hover shadows per variant
+- **StatCard**: Added cursor-pointer, hover scale effect, colored hover shadows per variant
+- Both cards now have `select-none` on values to prevent text selection cursor
+
+#### Header (`src/components/layout/Header.tsx`)
+- Added ExcelSyncButton before ThemeToggle
+- Order: Excel Sync → Theme Toggle → Notifications → Avatar
+
+#### Dashboard (`src/app/(protected)/dashboard/page.tsx`)
+- Removed "Session Info" card (was for testing)
+- Removed "Excel Sync Status" card (moved to header)
+- Cleaner layout with just Stats Grid and Repair Orders Table
+
+### Technical Details
+
+#### Files Modified
+```
+src/
+├── app/
+│   ├── globals.css                    # Added hover shadows and glow utilities
+│   └── (protected)/
+│       └── dashboard/page.tsx         # Removed cards
+├── components/
+│   ├── dashboard/
+│   │   ├── HeroStatCard.tsx          # Added hover effects
+│   │   └── StatCard.tsx              # Added hover effects
+│   └── layout/
+│       ├── Header.tsx                 # Added ExcelSyncButton
+│       └── ExcelSyncButton.tsx        # NEW: Header sync button
+```
+
+---
+
 ### Phase 5 Addendum: Durable AI Agent Integration
 
 Integration of Vercel AI SDK with Trigger.dev for durable AI-powered research capabilities.

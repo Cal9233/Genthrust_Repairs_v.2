@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ExcelSyncButton } from "./ExcelSyncButton";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -23,8 +24,9 @@ export async function Header() {
           <span className="text-sm text-header-foreground/70">RO Tracker</span>
         </div>
 
-        {/* Right: Theme Toggle + Notifications + User Avatar */}
+        {/* Right: Excel Sync + Theme Toggle + Notifications + User Avatar */}
         <div className="flex items-center gap-3">
+          {user && <ExcelSyncButton userId={user.id} />}
           <ThemeToggle />
           {user && <NotificationBell />}
           {user && (
