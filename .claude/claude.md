@@ -56,11 +56,33 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 17 Complete - Priority Feed Summary Tab replacing Shops placeholder. Smart urgency sorting (Overdue → Action Required → Arriving Soon → Standard WIP), time-aware template summaries, no AI/LLM required. New files: summary-generator.ts, SummaryCard.tsx, SummaryList.tsx, summary page. Navigation updated.
+**[Current Status]:** Phase 18 Complete - Responsive UI for mobile and tablet devices. Mobile-first design with hamburger navigation, card-based table views, touch-friendly spacing. Tested breakpoints: iPhone SE (375px) to iPad Pro (1024px+).
 
 ---
 
 ## Changelog
+
+### Phase 18 - Responsive UI for Mobile & Tablet (2025-12-03)
+- **New Feature:** Mobile-first responsive design across all major components
+- **Navigation:** Hamburger menu with Sheet overlay for mobile, horizontal tabs for desktop
+- **RepairOrderTable:** Card-based view on mobile (`MobileROCard`), table on desktop
+- **Summary Components:** Touch-friendly padding, responsive font sizes, line-clamp on mobile
+- **RODetailPanel:** Full-screen on mobile, responsive tabs with icon-only on small screens
+- **Header:** Compact layout on mobile with reduced height and gaps
+- **Stats Components:** Responsive sizing for HeroStatCard, StatCard, StatsGrid
+- **Breakpoints Supported:**
+  - Base (< 640px): iPhone SE, iPhone 14/15, Pixel 7, Galaxy S23
+  - sm (640px+): Large phones landscape
+  - md (768px+): iPad Mini, iPad Air
+  - lg (1024px+): iPad Pro, desktop
+- **Files Modified:**
+  - `Navigation.tsx` - Added mobile hamburger menu
+  - `RepairOrderTable.tsx` - Added MobileROCard component
+  - `SummaryCard.tsx` - Touch-friendly adjustments
+  - `SummaryList.tsx` - Mobile spacing, removed duplicate title
+  - `RODetailPanel.tsx` - Full-screen mobile, responsive tabs
+  - `Header.tsx` - Compact mobile layout
+  - `StatsGrid.tsx`, `HeroStatCard.tsx`, `StatCard.tsx` - Responsive sizing
 
 ### Phase 17 - Priority Feed Summary (2025-12-03)
 - **New Feature:** Priority Feed tab replacing "Shops" placeholder
