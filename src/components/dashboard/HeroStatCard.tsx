@@ -48,7 +48,7 @@ export function HeroStatCard({
   const content = (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl p-6 shadow-lg transition-all h-full cursor-pointer",
+        "relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg transition-all h-full cursor-pointer",
         styles.bg,
         isActive && "ring-2 ring-inset ring-white/50",
         "hover:scale-[1.02]",
@@ -58,17 +58,17 @@ export function HeroStatCard({
     >
       {/* Background decoration - subtle icon */}
       <div className="absolute right-0 top-0 opacity-10">
-        <Icon className="h-32 w-32 -translate-y-4 translate-x-4 text-white" />
+        <Icon className="h-20 w-20 sm:h-32 sm:w-32 -translate-y-4 translate-x-4 text-white" />
       </div>
 
       {/* Content */}
       <div className="relative z-10">
-        <p className="text-sm font-medium text-white/80">{title}</p>
-        <p className="mt-2 text-4xl font-bold text-white tabular-nums select-none">
+        <p className="text-xs sm:text-sm font-medium text-white/80">{title}</p>
+        <p className="mt-1 sm:mt-2 text-2xl sm:text-4xl font-bold text-white tabular-nums select-none">
           {value}
         </p>
         {subtitle && (
-          <p className="mt-1 text-sm text-white/70">{subtitle}</p>
+          <p className="mt-1 text-xs sm:text-sm text-white/70">{subtitle}</p>
         )}
       </div>
     </div>

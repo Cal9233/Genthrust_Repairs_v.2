@@ -25,7 +25,7 @@ import { SheetFilterDropdown } from "./SheetFilterDropdown";
 import { AddRODialog } from "./AddRODialog";
 import { RODetailPanel } from "@/components/ro-detail";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
-import { Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, ChevronRight } from "lucide-react";
 import { useRefresh } from "@/contexts/RefreshContext";
 
 /**
@@ -88,6 +88,65 @@ const getSheetDisplayName = (sheet: SheetFilter): string => {
   return names[sheet];
 };
 
+/**
+ * Mobile card component for a single repair order
+ */
+function MobileROCard({
+  ro,
+  onClick,
+}: {
+  ro: NormalizedRepairOrder;
+  onClick: () => void;
+}) {
+  const overdueStatus = isOverdue(ro.nextDateToUpdate);
+
+  return (
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors min-h-[72px] active:bg-muted"
+    >
+      <div className="flex-1 min-w-0 space-y-1">
+        {/* Row 1: RO# and Shop */}
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-sm">
+            RO-{formatRO(ro.ro)}
+          </span>
+          <span className="text-muted-foreground text-sm truncate">
+            {ro.shopName || "-"}
+          </span>
+        </div>
+
+        {/* Row 2: Part and Status */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+            {ro.part || "-"}
+          </span>
+          <StatusBadge status={ro.curentStatus} className="text-xs" />
+        </div>
+
+        {/* Row 3: Next Update (if overdue, highlight) */}
+        {ro.nextDateToUpdate && (
+          <div className="flex items-center gap-1 text-xs">
+            {overdueStatus ? (
+              <span className="text-danger flex items-center gap-1 font-medium">
+                <AlertCircle className="h-3 w-3" />
+                Overdue: {formatDate(ro.nextDateToUpdate)}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Next: {formatDate(ro.nextDateToUpdate)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Chevron indicator */}
+      <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0 ml-2" />
+    </div>
+  );
+}
+
 export function RepairOrderTable({
   filter = "all",
   sheet = "active",
@@ -135,31 +194,33 @@ export function RepairOrderTable({
 
   return (
     <Card className="shadow-vibrant">
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div>
-              <CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
                 {getSheetDisplayName(sheet)} Repair Orders
               </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 {totalCount} total records{" "}
                 {filter === "overdue" && "(Overdue)"}
               </p>
             </div>
-            <SheetFilterDropdown currentSheet={sheet} />
-            <AddRODialog />
+            <div className="flex items-center gap-2">
+              <SheetFilterDropdown currentSheet={sheet} />
+              <AddRODialog />
+            </div>
           </div>
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search RO, shop, part, serial..."
+              placeholder="Search RO, shop, part..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-8"
+              className="pl-9 h-10"
             />
             {isPending && (
-              <div className="absolute right-2 top-2.5">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <TurbineSpinner size="sm" className="text-muted-foreground" />
               </div>
             )}
@@ -167,7 +228,8 @@ export function RepairOrderTable({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
+        {/* Desktop Table View - hidden on mobile */}
+        <div className="hidden sm:block rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -233,7 +295,25 @@ export function RepairOrderTable({
           </Table>
         </div>
 
-        <div className="mt-4 flex justify-end">
+        {/* Mobile Card View - visible only on mobile */}
+        <div className="sm:hidden space-y-2">
+          {data.length === 0 && !isPending ? (
+            <div className="py-12 text-center text-muted-foreground">
+              No results found.
+            </div>
+          ) : (
+            data.map((ro) => (
+              <MobileROCard
+                key={ro.id}
+                ro={ro}
+                onClick={() => setSelectedRoId(Number(ro.id))}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        <div className="mt-4 flex justify-center sm:justify-end">
           <Pagination
             currentPage={page}
             totalPages={totalPages}

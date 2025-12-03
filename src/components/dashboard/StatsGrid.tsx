@@ -23,20 +23,20 @@ function formatCurrency(value: number): string {
 export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
   if (!stats) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Hero skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="h-32 rounded-2xl bg-muted animate-pulse"
+              className="h-24 sm:h-32 rounded-xl sm:rounded-2xl bg-muted animate-pulse"
             />
           ))}
         </div>
         {/* Secondary skeleton */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
+            <div key={i} className="h-16 sm:h-20 rounded-lg sm:rounded-xl bg-muted animate-pulse" />
           ))}
         </div>
       </div>
@@ -44,9 +44,9 @@ export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Hero Row - 3 large gradient cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <HeroStatCard
           title="Total Active"
           value={stats.totalActive}
@@ -73,7 +73,7 @@ export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
       </div>
 
       {/* Secondary Row - 4 smaller cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         <StatCard
           title="Waiting Quote"
           value={stats.waitingQuote}

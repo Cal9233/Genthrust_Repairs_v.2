@@ -75,14 +75,14 @@ export function RODetailPanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-2xl lg:max-w-4xl overflow-y-auto bg-background p-6"
+        className="w-full sm:max-w-2xl lg:max-w-4xl overflow-y-auto bg-background p-4 sm:p-6"
       >
         {/* Always render header for accessibility */}
-        <SheetHeader className="pb-4 border-b border-border mb-4">
-          <SheetTitle className="text-xl font-bold">
+        <SheetHeader className="pb-3 sm:pb-4 border-b border-border mb-3 sm:mb-4">
+          <SheetTitle className="text-lg sm:text-xl font-bold">
             {data ? `RO# G${data.ro}` : "Repair Order Details"}
           </SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="text-sm">
             {data
               ? `${data.shopName} - ${data.partDescription || data.part}`
               : "Loading repair order information..."}
@@ -126,8 +126,8 @@ export function RODetailPanel({
             />
 
             {/* Tabbed Content */}
-            <Tabs defaultValue="details" className="mt-6">
-              <TabsList className="grid w-full grid-cols-5 bg-muted">
+            <Tabs defaultValue="details" className="mt-4 sm:mt-6">
+              <TabsList className="grid w-full grid-cols-5 bg-muted h-10 sm:h-9">
                 <TabsTrigger
                   value="details"
                   className="flex items-center gap-1.5 text-xs sm:text-sm"
@@ -176,7 +176,7 @@ export function RODetailPanel({
               </TabsList>
 
               {/* Details Tab */}
-              <TabsContent value="details" className="mt-4 space-y-6">
+              <TabsContent value="details" className="mt-3 sm:mt-4 space-y-4 sm:space-y-6">
                 <ROInfoGrid
                   data={data}
                   editMode={editMode}
@@ -196,13 +196,13 @@ export function RODetailPanel({
               </TabsContent>
 
               {/* Status Tab */}
-              <TabsContent value="status" className="mt-4 space-y-6">
+              <TabsContent value="status" className="mt-3 sm:mt-4 space-y-4 sm:space-y-6">
                 <ROStatusFlowchart currentStatus={data.curentStatus} />
                 <ROStatusTimeline history={statusHistory} />
               </TabsContent>
 
               {/* Documents Tab */}
-              <TabsContent value="documents" className="mt-4">
+              <TabsContent value="documents" className="mt-3 sm:mt-4">
                 <RODocuments
                   repairOrderId={data.id}
                   roNumber={data.ro}
@@ -212,7 +212,7 @@ export function RODetailPanel({
               </TabsContent>
 
               {/* Emails Tab */}
-              <TabsContent value="emails" className="mt-4">
+              <TabsContent value="emails" className="mt-3 sm:mt-4">
                 <div className="text-center text-muted-foreground py-8">
                   <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Email history coming soon</p>
@@ -223,7 +223,7 @@ export function RODetailPanel({
               </TabsContent>
 
               {/* Activity Tab */}
-              <TabsContent value="activity" className="mt-4">
+              <TabsContent value="activity" className="mt-3 sm:mt-4">
                 <ROActivityLog activities={activityLog} />
               </TabsContent>
             </Tabs>

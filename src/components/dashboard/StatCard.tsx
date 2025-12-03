@@ -55,21 +55,21 @@ export function StatCard({
       styles.hoverShadow,
       className
     )}>
-      <CardContent className="p-4">
+      <CardContent className="p-3 sm:p-4">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className={cn("text-2xl font-bold tabular-nums select-none", styles.value)}>
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground">{title}</p>
+            <p className={cn("text-xl sm:text-2xl font-bold tabular-nums select-none", styles.value)}>
               {value}
             </p>
           </div>
           <div
             className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-full bg-muted/50",
+              "flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-muted/50",
               styles.icon
             )}
           >
-            <Icon className="h-6 w-6" />
+            <Icon className="h-4 w-4 sm:h-6 sm:w-6" />
           </div>
         </div>
       </CardContent>
