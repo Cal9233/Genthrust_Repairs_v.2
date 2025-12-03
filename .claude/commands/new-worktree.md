@@ -2,7 +2,7 @@ Create a new git worktree for parallel development. Follow these steps:
 
 1. First, pull the latest changes from main:
    ```bash
-   cd /Users/cal/Documents/GitHub/Genthrust_Repairs_v.2/genthrust-repairs-v2
+   cd "$(git rev-parse --show-toplevel)"
    git pull origin main
    ```
 
