@@ -50,6 +50,7 @@ const STATUS_OPTIONS = [
   "BER",
   "RAI",
   "CANCELLED",
+  "SCRAP",
 ];
 
 /**
@@ -176,19 +177,32 @@ export function RODetailDialog({
   };
 
   /**
-   * Handle status change with Net Terms routing logic
+   * Handle status change with sheet routing logic
    *
    * When status is set to COMPLETE:
    * - Check if customer has Net Terms
    * - Show confirmation dialog
    * - Route to NET or Paid sheet accordingly
+   *
+   * When status is set to SCRAP:
+   * - Auto-route to Returns sheet (shop keeps the unit, no prompt needed)
+   *
+   * When status is set to BER/RAI/CANCELLED:
+   * - Prompt "Did we receive the unit?"
+   * - If Yes: Route to Returns
+   * - If No: Keep in Active
    */
   const handleStatusChange = async (newStatus: string) => {
     if (!data) return;
 
     let destinationSheet: string | undefined;
 
-    // Intercept COMPLETE status to determine sheet routing
+    // SCRAP status: Auto-route to Returns (shop keeps the unit, no prompt needed)
+    if (newStatus === "SCRAP") {
+      destinationSheet = "Returns";
+    }
+
+    // COMPLETE status: Check for Net Terms
     if (newStatus === "COMPLETE") {
       if (hasNetTerms(data.terms)) {
         // Customer has Net Terms - confirm before moving to NET sheet
@@ -199,6 +213,19 @@ export function RODetailDialog({
       } else {
         // No Net Terms - move directly to Paid sheet
         destinationSheet = "Paid";
+      }
+    }
+
+    // BER/RAI/CANCELLED: Prompt for unit received (SCRAP already handled above)
+    const RETURNS_STATUSES = ["BER", "RAI", "CANCELLED"];
+    if (RETURNS_STATUSES.includes(newStatus)) {
+      const received = window.confirm(
+        `Did we receive the unit back?\n\n` +
+        `Click "OK" to move to Returns sheet.\n` +
+        `Click "Cancel" to keep in Active (shop has unit).`
+      );
+      if (received) {
+        destinationSheet = "Returns";
       }
     }
 

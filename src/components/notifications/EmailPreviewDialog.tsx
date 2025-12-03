@@ -51,7 +51,7 @@ export function EmailPreviewDialog({
         <div className="space-y-4 flex-1 overflow-hidden">
           {/* Email Header Fields */}
           <div className="space-y-2 border-b pb-4">
-            <Field label="To:" value={payload.toAddress} />
+            <Field label="To:" value={payload.to || payload.toAddress || "-"} />
             {payload.cc && <Field label="CC:" value={payload.cc} />}
             <Field label="Subject:" value={payload.subject} />
           </div>

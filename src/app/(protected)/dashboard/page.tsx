@@ -3,14 +3,18 @@ import { redirect } from "next/navigation";
 import {
   getDashboardStats,
   type RepairOrderFilter,
+  type SheetFilter,
 } from "@/app/actions/dashboard";
 import { StatsGrid } from "@/components/dashboard/StatsGrid";
 import { RepairOrderTable } from "@/components/dashboard/RepairOrderTable";
 
+// Valid sheet filter values
+const VALID_SHEETS: SheetFilter[] = ["active", "net", "paid", "returns"];
+
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; sheet?: string }>;
 }) {
   const session = await auth();
 
@@ -20,10 +24,13 @@ export default async function DashboardPage({
 
   const { user } = session;
 
-  // Parse filter from searchParams
+  // Parse filter and sheet from searchParams
   const params = await searchParams;
   const filter: RepairOrderFilter =
     params.filter === "overdue" ? "overdue" : "all";
+  const sheet: SheetFilter = VALID_SHEETS.includes(params.sheet as SheetFilter)
+    ? (params.sheet as SheetFilter)
+    : "active";
 
   // Fetch dashboard stats on the server
   const statsResult = await getDashboardStats();
@@ -43,7 +50,7 @@ export default async function DashboardPage({
       <StatsGrid stats={stats} activeFilter={filter} />
 
       {/* Repair Orders Table */}
-      <RepairOrderTable filter={filter} />
+      <RepairOrderTable filter={filter} sheet={sheet} />
     </div>
   );
 }

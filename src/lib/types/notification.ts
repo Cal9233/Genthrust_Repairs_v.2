@@ -14,10 +14,13 @@ export type NotificationStatus = (typeof NotificationStatuses)[number];
 
 // Payload structure for EMAIL_DRAFT notifications
 export interface EmailDraftPayload {
-  toAddress: string;
+  toAddress?: string;  // Deprecated, use 'to' instead
+  to?: string;         // Recipient email address
   subject: string;
   body: string;
   cc?: string;
+  draftMessageId?: string;   // Outlook draft message ID
+  draftWebLink?: string;     // Link to open draft in Outlook
 }
 
 // Payload structure for TASK_REMINDER notifications

@@ -3,9 +3,10 @@
 import { useState, useEffect, useTransition } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
-  getRepairOrders,
-  type RepairOrder,
+  getRepairOrdersBySheet,
+  type NormalizedRepairOrder,
   type RepairOrderFilter,
+  type SheetFilter,
 } from "@/app/actions/dashboard";
 import { isOverdue } from "@/lib/date-utils";
 import { Input } from "@/components/ui/input";
@@ -20,9 +21,12 @@ import {
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "./StatusBadge";
+import { SheetFilterDropdown } from "./SheetFilterDropdown";
+import { AddRODialog } from "./AddRODialog";
 import { RODetailPanel } from "@/components/ro-detail";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { Search, AlertCircle } from "lucide-react";
+import { useRefresh } from "@/contexts/RefreshContext";
 
 /**
  * Format a number as RO# display
@@ -68,12 +72,29 @@ const formatDate = (dateStr: string | null) => {
 
 type RepairOrderTableProps = {
   filter?: RepairOrderFilter;
+  sheet?: SheetFilter;
 };
 
-export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
+/**
+ * Get the sheet display name for the table title
+ */
+const getSheetDisplayName = (sheet: SheetFilter): string => {
+  const names: Record<SheetFilter, string> = {
+    active: "Active",
+    net: "Net",
+    paid: "Paid",
+    returns: "Returns",
+  };
+  return names[sheet];
+};
+
+export function RepairOrderTable({
+  filter = "all",
+  sheet = "active",
+}: RepairOrderTableProps) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<RepairOrder[]>([]);
+  const [data, setData] = useState<NormalizedRepairOrder[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -81,11 +102,17 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const debouncedQuery = useDebounce(query, 300);
+  const { refreshKey } = useRefresh();
 
-  // Fetch data when query, page, filter, or refreshTrigger changes
+  // Fetch data when query, page, filter, sheet, refreshTrigger, or refreshKey changes
   useEffect(() => {
     startTransition(async () => {
-      const result = await getRepairOrders(debouncedQuery, page, filter);
+      const result = await getRepairOrdersBySheet(
+        sheet,
+        debouncedQuery,
+        page,
+        filter
+      );
       if (result.success) {
         setData(result.data.data);
         setTotalPages(result.data.totalPages);
@@ -95,12 +122,12 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
         setData([]);
       }
     });
-  }, [debouncedQuery, page, filter, refreshTrigger]);
+  }, [debouncedQuery, page, filter, sheet, refreshTrigger, refreshKey]);
 
-  // Reset to page 1 when search query or filter changes
+  // Reset to page 1 when search query, filter, or sheet changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, filter]);
+  }, [debouncedQuery, filter, sheet]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -110,11 +137,18 @@ export function RepairOrderTable({ filter = "all" }: RepairOrderTableProps) {
     <Card className="shadow-vibrant">
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>Repair Orders</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {totalCount} total records {filter === "overdue" && "(Overdue)"}
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div>
+              <CardTitle>
+                {getSheetDisplayName(sheet)} Repair Orders
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {totalCount} total records{" "}
+                {filter === "overdue" && "(Overdue)"}
+              </p>
+            </div>
+            <SheetFilterDropdown currentSheet={sheet} />
+            <AddRODialog />
           </div>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />

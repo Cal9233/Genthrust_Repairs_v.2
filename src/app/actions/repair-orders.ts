@@ -12,7 +12,7 @@ import {
   type RoActivityLog,
   type RoRelation,
 } from "@/lib/schema";
-import { eq, or, desc, and, sql } from "drizzle-orm";
+import { eq, or, desc, and, sql, max } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { revalidatePath } from "next/cache";
 
@@ -58,6 +58,88 @@ export interface ActivityLogEntry {
   userId: string | null;
   createdAt: Date;
   userName?: string | null;
+}
+
+/**
+ * Create a new repair order
+ *
+ * Generates the next RO number, inserts into MySQL, and triggers Excel sync.
+ * Follows Write-Behind pattern: MySQL -> Trigger.dev -> Excel
+ */
+export async function createRepairOrder(data: {
+  shopName: string;
+  part: string;
+  serial?: string;
+  partDescription?: string;
+  reqWork?: string;
+  estimatedCost?: number;
+}): Promise<Result<{ id: number; ro: number }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Validate required fields
+    if (!data.shopName || !data.part) {
+      return { success: false, error: "Shop name and part number are required" };
+    }
+
+    // Generate next RO number (max + 1)
+    const [maxRO] = await db
+      .select({ maxRo: max(active.ro) })
+      .from(active);
+
+    const nextRO = Math.floor((maxRO?.maxRo ?? 0) + 1);
+
+    // Prepare the insert data
+    const today = new Date().toISOString().split("T")[0];
+    const insertData = {
+      ro: nextRO,
+      dateMade: today,
+      shopName: data.shopName,
+      part: data.part,
+      serial: data.serial ?? null,
+      partDescription: data.partDescription ?? null,
+      reqWork: data.reqWork ?? null,
+      estimatedCost: data.estimatedCost ?? null,
+      curentStatus: "WAITING QUOTE",
+      curentStatusDate: today,
+      lastDateUpdated: today,
+      nextDateToUpdate: today, // Will be updated by lifecycle flow
+    };
+
+    // Insert into MySQL
+    const [result] = await db.insert(active).values(insertData).$returningId() as [{ id: number }];
+
+    // Log activity
+    await db.insert(roActivityLog).values({
+      repairOrderId: result.id,
+      action: "CREATE",
+      newValue: `Created RO #${nextRO}`,
+      userId: session.user.id,
+    });
+
+    // Trigger Excel sync
+    try {
+      await tasks.trigger("sync-repair-orders", {
+        userId: session.user.id,
+        repairOrderIds: [result.id],
+      });
+    } catch {
+      // Excel sync failure shouldn't fail the create
+      console.error("Failed to trigger Excel sync for new RO");
+    }
+
+    revalidatePath("/dashboard");
+
+    return { success: true, data: { id: result.id, ro: nextRO } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create repair order",
+    };
+  }
 }
 
 /**

@@ -16,7 +16,6 @@ import type {
 } from "@/lib/types/notification";
 import { insertNotificationCore } from "@/lib/data/notifications";
 import { getConversationMessages } from "@/lib/graph/productivity";
-import { generateMockThreadMessages } from "@/lib/mocks/thread-messages";
 import { active } from "@/lib/schema";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -282,25 +281,6 @@ export async function getFullThreadHistory(
     const session = await auth();
     if (!session?.user?.id || !session?.user?.email) {
       return { success: false, error: "Unauthorized" };
-    }
-
-    // MOCK MODE: Return mock data for UI testing (development only)
-    if (process.env.NODE_ENV !== "production" && process.env.MOCK_EMAIL_THREADS === "true") {
-      // Get RO number from active table for realistic mock data
-      const [roRecord] = await db
-        .select({ ro: active.ro })
-        .from(active)
-        .where(eq(active.id, repairOrderId))
-        .limit(1);
-
-      const roNumber = roRecord?.ro ?? repairOrderId;
-      return {
-        success: true,
-        data: {
-          messages: generateMockThreadMessages(roNumber),
-          graphError: false,
-        },
-      };
     }
 
     // 1. Get conversation ID from a sent email for this RO

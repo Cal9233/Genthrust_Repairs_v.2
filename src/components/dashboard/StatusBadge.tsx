@@ -132,6 +132,13 @@ function getStatusConfig(status: string): {
           "bg-danger/20 text-danger dark:bg-danger/30",
       };
 
+    case "SCRAP":
+      return {
+        label: "Scrap",
+        colorClasses:
+          "bg-danger/20 text-danger dark:bg-danger/30",
+      };
+
     // Default - Neutral gray
     default:
       return {

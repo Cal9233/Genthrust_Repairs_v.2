@@ -1345,6 +1345,80 @@ src/
 
 ## [Unreleased]
 
+### Phase 16: Add RO Feature, AI Assistant Tools & User Profile Menu
+
+Enhanced dashboard with Add RO functionality, expanded AI assistant capabilities, and user profile dropdown.
+
+### Added
+
+#### Add Repair Order Feature
+- **AddRODialog** (`src/components/dashboard/AddRODialog.tsx`) - NEW
+  - Form dialog with 6 essential fields: Shop Name, Part Number, Serial, Description, Requested Work, Estimated Cost
+  - Auto-generates next RO number using `max(ro) + 1`
+  - Triggers Excel sync via `sync-repair-orders` task after creation
+  - Refreshes table via RefreshContext on success
+  - Toast notifications for success/error
+
+- **createRepairOrder()** (`src/app/actions/repair-orders.ts`)
+  - Server action to create new repair orders
+  - Inserts into MySQL with default status "WAITING QUOTE"
+  - Logs activity to `ro_activity_log`
+  - Follows Write-Behind pattern: MySQL → Trigger.dev → Excel
+
+- **Add RO Button** - Added to RepairOrderTable header next to SheetFilterDropdown
+
+#### AI Assistant Tool Expansion
+Four new tools added to the research agent (`src/trigger/ai-tools.ts`, `src/trigger/ai-agent.ts`):
+
+1. **create_repair_order** - Creates new RO in MySQL + triggers Excel sync
+2. **update_repair_order** - Updates status, notes, costs, dates + Excel sync
+3. **archive_repair_order** - Moves RO to Returns/Paid/Net sheet via `move-ro-sheet` task
+4. **create_email_draft** - Creates draft in Outlook + logs to notification queue for approval
+
+- Updated system prompt with new capabilities
+- Increased step count from 5 to 8 for complex workflows
+- Added Zod schemas for all tool parameters
+
+#### User Profile Dropdown
+- **UserProfileDropdown** (`src/components/layout/UserProfileDropdown.tsx`) - NEW
+  - Dropdown menu on avatar click
+  - Shows user name and email at top
+  - "Switch Account" → signs out and redirects to sign-in page
+  - "Sign Out" → signs out and redirects to home (destructive red styling)
+
+- **Header.tsx** - Replaced static Avatar with UserProfileDropdown component
+
+#### Excel Dropdown Button
+- **ExcelDropdownButton** (`src/components/layout/ExcelDropdownButton.tsx`) - NEW
+  - Combined Import/Sync dropdown for Excel operations
+  - "Import from Excel" (Excel → MySQL)
+  - "Sync to Excel" (MySQL → Excel)
+  - TurbineSpinner during operations
+  - Success/error glow effects
+
+#### UI Consistency
+- Added `cursor-pointer` to Add RO button
+- Added `cursor-pointer` to UserProfileDropdown trigger
+- Consistent hover states across interactive elements
+
+### Changed
+
+- **EmailDraftPayload** type - Extended with `to`, `draftMessageId`, `draftWebLink` fields
+- **EmailPreviewDialog** - Updated to handle both `to` and legacy `toAddress` fields
+- **send-approved-email.ts** - Updated to support new payload structure
+
+### Removed
+
+- **Mock email thread file** (`src/lib/mocks/thread-messages.ts`) - Deleted
+- Removed mock import and usage from `notifications.ts`
+
+### Fixed
+
+- `$returningId()` type assertions in repair-orders.ts and ai-tools.ts
+- Type compatibility for EmailDraftPayload changes
+
+---
+
 ### Phase 15: Dashboard UI Refinements & Header Excel Sync
 
 Improved stat card interactions and moved Excel sync to a header badge button.

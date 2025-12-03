@@ -28,6 +28,7 @@ const STATUS_OPTIONS = [
   "BER",
   "RAI",
   "CANCELLED",
+  "SCRAP",
 ] as const;
 
 interface RODetailHeaderProps {

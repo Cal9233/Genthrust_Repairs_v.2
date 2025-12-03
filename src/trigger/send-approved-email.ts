@@ -126,9 +126,15 @@ export const sendApprovedEmail = task({
         // Step 3a: Look up existing thread for this RO
         const existingMessageId = await getEmailThreadForRO(notification.repairOrderId);
 
+        // Get recipient address (support both 'to' and legacy 'toAddress' fields)
+        const recipientAddress = emailPayload.to || emailPayload.toAddress;
+        if (!recipientAddress) {
+          throw new Error("No recipient address found in email payload");
+        }
+
         logger.info("Sending email", {
           notificationId,
-          to: emailPayload.toAddress,
+          to: recipientAddress,
           subject: emailPayload.subject,
           hasExistingThread: !!existingMessageId,
         });
@@ -136,7 +142,7 @@ export const sendApprovedEmail = task({
         // Step 3b: Send with threading if we have a prior message
         const result = await sendEmail(
           userId,
-          emailPayload.toAddress,
+          recipientAddress,
           emailPayload.subject,
           emailPayload.body,
           existingMessageId ?? undefined // internetMessageId for In-Reply-To header

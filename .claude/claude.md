@@ -56,4 +56,4 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 14 Complete - Multi-Sheet Excel Sync with Net Terms routing (COMPLETE → NET/Paid sheet), buildDeleteRowRequest for row removal, move-ro-sheet Trigger.dev task, dashboard status filtering (ARCHIVED_STATUSES), NET 30 count, and connection pool ETIMEDOUT fix.
+**[Current Status]:** Phase 16 Complete - Add RO Feature (AddRODialog + createRepairOrder server action), AI Assistant expanded with 4 new tools (create/update/archive RO, email drafts), User Profile Dropdown with sign-out/switch account, ExcelDropdownButton for Import/Sync operations, UI consistency improvements (cursor-pointer on interactive elements).
