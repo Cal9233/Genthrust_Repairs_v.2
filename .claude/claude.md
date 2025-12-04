@@ -56,11 +56,32 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 18 Complete - Responsive UI for mobile and tablet devices. Mobile-first design with hamburger navigation, card-based table views, touch-friendly spacing. Tested breakpoints: iPhone SE (375px) to iPad Pro (1024px+).
+**[Current Status]:** Phase 20 Complete - Data cleaning for status fields during Excel import. Status values like "APPROVED >>>>" are now normalized to "Approved". Production deployment on Vercel with Trigger.dev background workers.
 
 ---
 
 ## Changelog
+
+### Phase 20 - Data Cleaning for Status Fields (2025-12-04)
+- **New Feature:** Automatic cleaning of status fields during Excel import
+- **Cleaning Logic:**
+  - Removes trailing/leading symbols (>, <, -, =, *, #, @, etc.)
+  - Normalizes capitalization to Title Case ("APPROVED >>>>" → "Approved")
+- **Fields Affected:** `curentStatus`, `genthrustStatus`, `shopStatus`
+- **Files Modified:**
+  - `src/lib/graph/excel-mapping.ts` - Added `cleanStatus()` function
+
+### Phase 19 - Vercel Production Deployment (2025-12-03)
+- **Deployment:** App deployed to Vercel at `genthrust-repairs-v-2.vercel.app`
+- **Trigger.dev Production:** Background workers deployed to Trigger.dev cloud
+- **SSL Fix:** Added `DATABASE_CA_CERT_BASE64` env var support for Base64-encoded certificates
+  - Avoids newline corruption issues in web dashboards
+  - Priority order: Base64 env var → Raw env var → File-based cert
+- **Environment Variables Configured:**
+  - Vercel: Database, Auth, SharePoint credentials
+  - Trigger.dev: Database, Auth, Excel/SharePoint, Anthropic API
+- **Files Modified:**
+  - `src/lib/db.ts` - Added Base64 certificate decoding support
 
 ### Phase 18 - Responsive UI for Mobile & Tablet (2025-12-03)
 - **New Feature:** Mobile-first responsive design across all major components
