@@ -90,6 +90,34 @@ function parseString(value: unknown): string | null {
 }
 
 /**
+ * Clean and normalize a status string
+ * - Removes trailing symbols (>, <, -, =, *, etc.)
+ * - Trims whitespace
+ * - Normalizes capitalization (e.g., "APPROVED >>>>" → "Approved")
+ */
+function cleanStatus(value: unknown): string | null {
+  const str = parseString(value);
+  if (str === null) return null;
+
+  // Remove common trailing/leading symbols and normalize
+  let cleaned = str
+    .replace(/[><=\-*#@!~^&|]+$/g, "") // Remove trailing symbols
+    .replace(/^[><=\-*#@!~^&|]+/g, "") // Remove leading symbols
+    .trim();
+
+  if (cleaned === "") return null;
+
+  // Normalize capitalization: "APPROVED" → "Approved", "in progress" → "In Progress"
+  cleaned = cleaned
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return cleaned;
+}
+
+/**
  * Parse a value to a number (for RO field)
  */
 function parseNumber(value: unknown): number | null {
@@ -138,10 +166,10 @@ export function excelRowToDbRow(
     terms: parseString(values[10]),
     shopRef: parseString(values[11]),
     estimatedDeliveryDate: parseString(values[12]),
-    curentStatus: parseString(values[13]),
+    curentStatus: cleanStatus(values[13]),
     curentStatusDate: parseString(values[14]),
-    genthrustStatus: parseString(values[15]),
-    shopStatus: parseString(values[16]),
+    genthrustStatus: cleanStatus(values[15]),
+    shopStatus: cleanStatus(values[16]),
     trackingNumberPickingUp: parseString(values[17]),
     notes: parseString(values[18]),
     lastDateUpdated: parseString(values[19]),
