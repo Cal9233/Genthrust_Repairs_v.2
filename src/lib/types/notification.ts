@@ -37,7 +37,7 @@ export type NotificationPayload = EmailDraftPayload | TaskReminderPayload;
 export function isEmailDraftPayload(
   payload: NotificationPayload
 ): payload is EmailDraftPayload {
-  return "toAddress" in payload && "subject" in payload && "body" in payload;
+  return ("toAddress" in payload || "to" in payload) && "subject" in payload && "body" in payload;
 }
 
 // Type guard for TaskReminderPayload

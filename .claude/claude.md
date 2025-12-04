@@ -56,11 +56,33 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 23 Complete - "Virtual Warehouse" Inventory Page. Transformed blank search into command center with Zero State dashboard, Omnibar search, high-density manifest table, and condition data forensics.
+**[Current Status]:** Phase 24 Complete - Auto Email Sender. Emails now send to real shop addresses with CC support, using shared mailbox for outbound messages.
 
 ---
 
 ## Changelog
+
+### Phase 24 - Auto Email Sender (2025-12-04)
+- **Real Shop Emails:** Replaced placeholder `shop@example.com` with actual shop email lookup
+- **Shop Email Lookup:** Created `getShopEmailByName()` function in `src/lib/data/shops.ts`
+  - Case-insensitive matching by `businessName`
+  - Fuzzy fallback with LIKE query
+  - Graceful handling when shop not found (skips email, logs warning)
+- **CC Support:** Added multi-recipient CC capability
+  - `sendEmail()` now accepts comma-separated CC list
+  - Configure via `GENTHRUST_CC_EMAIL` environment variable
+  - Supports single or multiple recipients (e.g., `a@example.com,b@example.com`)
+- **Shared Mailbox:** Emails sent FROM `repairs@genthrust.net`
+  - Uses `MS_GRAPH_SHARED_MAILBOX` environment variable
+  - Existing `getMailboxPath()` helper routes API calls correctly
+- **Files Modified:**
+  - `src/lib/graph/productivity.ts` - Added `SendEmailOptions` interface with CC support
+  - `src/lib/data/shops.ts` - NEW FILE - Shop email lookup helper
+  - `src/lib/types/notification.ts` - Updated type guard for robustness
+  - `src/trigger/send-approved-email.ts` - Passes CC to sendEmail
+  - `src/trigger/ro-lifecycle-flow.ts` - Uses real shop emails + CC
+  - `src/trigger/check-overdue-ros.ts` - Uses real shop emails + CC
+- **Email Templates:** 6 status-based templates (WAITING QUOTE, APPROVED, IN WORK, IN PROGRESS, SHIPPED, IN TRANSIT)
 
 ### Phase 23 - Virtual Warehouse Inventory (2025-12-04)
 - **Major Feature:** Complete redesign of Inventory page from blank search to "Parts Depot" command center

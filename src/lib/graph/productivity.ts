@@ -169,14 +169,25 @@ export async function createToDoTask(
 }
 
 /**
- * 3. Sends an email immediately from the user's account.
+ * Email options for sendEmail function.
+ */
+export interface SendEmailOptions {
+  /** CC recipient email address */
+  cc?: string;
+  /** Optional internetMessageId for threading (In-Reply-To header) */
+  replyToMessageId?: string;
+}
+
+/**
+ * 3. Sends an email immediately from the user's account (or shared mailbox).
  * Supports email threading via In-Reply-To header when replyToMessageId is provided.
+ * Supports CC recipients for visibility.
  *
  * @param userId - The user ID for Graph API authentication
  * @param to - Recipient email address
  * @param subject - Email subject line
  * @param body - HTML email body
- * @param replyToMessageId - Optional internetMessageId for threading (In-Reply-To header)
+ * @param options - Optional settings: cc, replyToMessageId
  * @returns SentEmailResult with message IDs for thread tracking
  */
 export async function sendEmail(
@@ -184,10 +195,11 @@ export async function sendEmail(
   to: string,
   subject: string,
   body: string,
-  replyToMessageId?: string
+  options?: SendEmailOptions
 ): Promise<SentEmailResult> {
   const graphClient = await getGraphClient(userId);
   const sendTimestamp = new Date().toISOString(); // Capture BEFORE send
+  const mailboxPath = getMailboxPath();
 
   // Build message payload
   const message: Record<string, unknown> = {
@@ -199,17 +211,23 @@ export async function sendEmail(
     toRecipients: [{ emailAddress: { address: to } }],
   };
 
+  // Add CC recipients if provided (supports comma-separated list)
+  if (options?.cc) {
+    const ccAddresses = options.cc.split(',').map(email => email.trim()).filter(Boolean);
+    message.ccRecipients = ccAddresses.map(address => ({ emailAddress: { address } }));
+  }
+
   // Add threading headers if replying to existing thread
-  if (replyToMessageId) {
+  if (options?.replyToMessageId) {
     message.internetMessageHeaders = [
-      { name: "In-Reply-To", value: replyToMessageId },
-      { name: "References", value: replyToMessageId },
+      { name: "In-Reply-To", value: options.replyToMessageId },
+      { name: "References", value: options.replyToMessageId },
     ];
   }
 
   try {
-    // Use /me/ because we're using delegated auth with user's access token
-    await graphClient.api("/me/sendMail").post({ message, saveToSentItems: true });
+    // Use mailbox path for shared mailbox support
+    await graphClient.api(`${mailboxPath}/sendMail`).post({ message, saveToSentItems: true });
 
     // SAFER QUERY: Filter by time, match recipient in TypeScript memory
     const sentMessage = await findSentMessage(graphClient, to, sendTimestamp);

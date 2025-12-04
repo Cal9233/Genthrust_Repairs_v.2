@@ -3,6 +3,7 @@ import { db } from "../lib/db";
 import { active, users } from "../lib/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { insertNotificationCore } from "../lib/data/notifications";
+import { getShopEmailByName } from "../lib/data/shops";
 
 /**
  * Overdue Safety Net - Runs daily at 8:00 AM UTC
@@ -68,8 +69,20 @@ export const checkOverdueRos = schedules.task({
 
     let processed = 0;
 
+    const ccEmail = process.env.GENTHRUST_CC_EMAIL;
+
     for (const ro of overdueROs) {
       try {
+        // Look up shop email
+        const shopEmail = await getShopEmailByName(ro.shopName);
+
+        if (!shopEmail) {
+          logger.warn(`No email found for shop, skipping RO ${ro.id}`, {
+            shopName: ro.shopName,
+          });
+          continue;
+        }
+
         // Generate static email template (no AI costs)
         const roNumber = ro.ro ?? ro.id;
         const partNumber = ro.part ?? "Unknown Part";
@@ -90,7 +103,8 @@ GenThrust`;
           userId: defaultUser.id,
           type: "EMAIL_DRAFT",
           payload: {
-            toAddress: "shop@example.com", // Placeholder - will be replaced with shop lookup
+            to: shopEmail,
+            cc: ccEmail,
             subject,
             body,
           },
@@ -98,7 +112,7 @@ GenThrust`;
         });
 
         processed++;
-        logger.info(`Queued notification for RO# G${roNumber}`);
+        logger.info(`Queued notification for RO# G${roNumber}`, { shopEmail });
       } catch (error) {
         logger.error(`Failed to process RO ${ro.id}`, { error });
       }

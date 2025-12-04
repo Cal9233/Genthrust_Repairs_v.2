@@ -135,17 +135,21 @@ export const sendApprovedEmail = task({
         logger.info("Sending email", {
           notificationId,
           to: recipientAddress,
+          cc: emailPayload.cc,
           subject: emailPayload.subject,
           hasExistingThread: !!existingMessageId,
         });
 
-        // Step 3b: Send with threading if we have a prior message
+        // Step 3b: Send with threading and CC support
         const result = await sendEmail(
           userId,
           recipientAddress,
           emailPayload.subject,
           emailPayload.body,
-          existingMessageId ?? undefined // internetMessageId for In-Reply-To header
+          {
+            cc: emailPayload.cc,
+            replyToMessageId: existingMessageId ?? undefined,
+          }
         );
 
         // Step 3c: Store Outlook IDs in schema columns (not JSON)

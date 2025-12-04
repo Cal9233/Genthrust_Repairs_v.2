@@ -4,6 +4,7 @@ import { db } from "../lib/db";
 import { active } from "../lib/schema";
 import { eq } from "drizzle-orm";
 import { insertNotificationCore } from "../lib/data/notifications";
+import { getShopEmailByName } from "../lib/data/shops";
 import { createCalendarEvent, createToDoTask } from "../lib/graph/productivity";
 
 /**
@@ -36,8 +37,6 @@ export const roStatusChangeOutputSchema = z.object({
 
 export type RoStatusChangeOutput = z.infer<typeof roStatusChangeOutputSchema>;
 
-// Hardcoded placeholder for shop email until shops table is implemented
-const PLACEHOLDER_SHOP_EMAIL = "shop@example.com";
 
 /**
  * Status configuration for follow-up emails
@@ -352,6 +351,7 @@ export const handleRoStatusChange = task({
 
       const currentRoNumber = currentRO.ro ?? repairOrderId;
       const currentPartNumber = currentRO.part ?? "Unknown";
+      const currentShopName = currentRO.shopName;
 
       const emailSubject = config.emailSubject(currentRoNumber, currentPartNumber);
       const emailBody = config.emailBody(currentRoNumber, currentPartNumber);
@@ -364,14 +364,32 @@ export const handleRoStatusChange = task({
       // ==========================================
       // PHASE 5: Queue for Approval
       // ==========================================
-      logger.info("Phase 5: Queueing email for user approval");
+      logger.info("Phase 5: Looking up shop email and queueing for approval");
+
+      // Look up the shop's email address
+      const shopEmail = await getShopEmailByName(currentShopName);
+      const ccEmail = process.env.GENTHRUST_CC_EMAIL;
+
+      if (!shopEmail) {
+        logger.warn("No email found for shop, skipping email notification", {
+          repairOrderId,
+          shopName: currentShopName,
+        });
+        return {
+          success: true,
+          action: "skipped",
+        };
+      }
+
+      logger.info("Shop email found", { shopEmail, ccEmail: ccEmail ?? "(not configured)" });
 
       const notificationId = await insertNotificationCore({
         repairOrderId,
         userId,
         type: "EMAIL_DRAFT",
         payload: {
-          toAddress: PLACEHOLDER_SHOP_EMAIL,
+          to: shopEmail,
+          cc: ccEmail,
           subject: emailSubject,
           body: emailBody,
         },
