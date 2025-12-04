@@ -18,17 +18,28 @@ const globalForDb = globalThis as unknown as {
 // Helper to get SSL config safely
 function getSSLConfig() {
   try {
-    // Priority 1: Environment variable (for containerized environments like Trigger.dev)
+    // Priority 1: Base64 encoded cert (safe for production - avoids newline issues in dashboards)
+    if (process.env.DATABASE_CA_CERT_BASE64) {
+      console.log("[db] SSL: Using Base64 CA Cert");
+      return {
+        ca: Buffer.from(process.env.DATABASE_CA_CERT_BASE64, "base64").toString("utf-8"),
+        rejectUnauthorized: true,
+      };
+    }
+
+    // Priority 2: Environment variable (for containerized environments like Trigger.dev)
     if (process.env.DATABASE_CA_CERT) {
+      console.log("[db] SSL: Using DATABASE_CA_CERT env var");
       return {
         ca: process.env.DATABASE_CA_CERT,
         rejectUnauthorized: true,
       };
     }
 
-    // Priority 2: File-based cert (for local development)
+    // Priority 3: File-based cert (for local development)
     const certPath = path.join(process.cwd(), "certs", "ca.pem");
     if (fs.existsSync(certPath)) {
+      console.log("[db] SSL: Using file-based cert at " + certPath);
       return {
         ca: fs.readFileSync(certPath).toString(),
         rejectUnauthorized: true,
