@@ -16,22 +16,26 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-4">
-            <Image
-              src="/GenLogoTab.png"
-              alt="GenThrust Logo"
-              width={80}
-              height={80}
-              className="h-20 w-20 object-contain"
-              priority
-            />
+        <CardHeader className="text-center space-y-4">
+          {/* Logo with styled container */}
+          <div className="flex justify-center">
+            <div className="rounded-2xl bg-white p-4 shadow-lg ring-1 ring-black/5">
+              <Image
+                src="/GenLogoTab.png"
+                alt="GenThrust Logo"
+                width={120}
+                height={120}
+                className="h-24 w-24 object-contain"
+                priority
+              />
+            </div>
           </div>
-          <CardTitle className="text-2xl">GenThrust RO Tracker</CardTitle>
-          <CardDescription>
-            Aviation repair order tracking system
-          </CardDescription>
+          <div className="space-y-1">
+            <CardTitle className="text-2xl font-bold">RO Tracker</CardTitle>
+            <CardDescription className="text-sm">
+              Aviation repair order tracking system
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="flex justify-center">
           {session?.user ? (

@@ -36,28 +36,26 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background bg-diagonal-lines px-4">
       <Card className="w-full max-w-md shadow-vibrant">
-        <CardHeader className="text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-4">
-            <Image
-              src="/GenLogoTab.png"
-              alt="GenThrust Logo"
-              width={80}
-              height={80}
-              className="h-20 w-20 object-contain"
-              priority
-            />
+        <CardHeader className="text-center space-y-4">
+          {/* Logo with styled container */}
+          <div className="flex justify-center">
+            <div className="rounded-2xl bg-white p-4 shadow-lg ring-1 ring-black/5">
+              <Image
+                src="/GenLogoTab.png"
+                alt="GenThrust Logo"
+                width={120}
+                height={120}
+                className="h-24 w-24 object-contain"
+                priority
+              />
+            </div>
           </div>
-          {/* Brand with gradient text */}
-          <div className="mb-2">
-            <span className="bg-gradient-to-r from-sky-700 to-sky-500 dark:from-sky-400 dark:to-sky-300 bg-clip-text text-3xl font-bold text-transparent">
-              GenThrust
-            </span>
+          <div className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+            <CardDescription className="text-sm">
+              Sign in to access the repair order tracker
+            </CardDescription>
           </div>
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to access the repair order tracker
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {params.error && (
