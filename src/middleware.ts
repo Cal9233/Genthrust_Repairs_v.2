@@ -3,7 +3,7 @@ import authConfig from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-// Export as named "middleware" function for Next.js 16
+// Export as named "middleware" function
 export const middleware = auth;
 
 export const config = {

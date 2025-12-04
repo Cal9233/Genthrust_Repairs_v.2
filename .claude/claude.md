@@ -56,11 +56,98 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 21 Complete - GenThrust logo integrated into application. Logo appears on sign-in page, header, and browser tab favicon.
+**[Current Status]:** Phase 23 Complete - "Virtual Warehouse" Inventory Page. Transformed blank search into command center with Zero State dashboard, Omnibar search, high-density manifest table, and condition data forensics.
 
 ---
 
 ## Changelog
+
+### Phase 23 - Virtual Warehouse Inventory (2025-12-04)
+- **Major Feature:** Complete redesign of Inventory page from blank search to "Parts Depot" command center
+- **Zero State Dashboard:**
+  - Low Stock Alerts: Shows items with qty < 5, sorted by scarcity
+  - Recently Updated: Last 5 items by `lastSeen` timestamp
+  - Inventory Stats: Total items (5,216), total quantity (162,372), condition breakdown
+- **Omnibar Search Component:**
+  - Large hero-style search input (h-14, font-mono)
+  - Condition filter pills: All, New, Overhauled, As-Removed, Serviceable
+  - Keyboard shortcut support (⌘K)
+  - Disabled Scan button (placeholder for future barcode scanning)
+- **Manifest Table (Desktop):**
+  - High-density data display with stacked part identity (P/N + description)
+  - Location tags with MapPin icon
+  - Condition badges with color-coded dots (NE=sky, OH=emerald, SV=teal, AR=zinc, RP=amber)
+  - Stock-level colored quantities (green ≥10, amber 5-9, red <5)
+  - Ghost-style slide-in action buttons on hover
+  - Smart actions: "Issue" (clipboard) for NE/SV, "Create RO" for AR/RP/OH
+- **Mobile Cards:**
+  - Responsive card-based view for mobile devices
+  - Same visual language as table (condition dots, stock colors, location tags)
+  - Touch-friendly action buttons
+- **Condition Data Forensics:**
+  - Created `/api/forensics` endpoint for database analysis
+  - Discovered: Only 35 of 5,216 items (0.7%) have condition data
+  - Source tables lack proper aviation condition codes
+  - UI gracefully shows "?" for unknown conditions
+- **Files Added:**
+  - `src/components/inventory/WarehouseOverview.tsx` - Zero State dashboard
+  - `src/components/inventory/InventoryOmnibar.tsx` - Search with filter pills
+  - `src/components/inventory/InventoryTable.tsx` - Desktop manifest table
+  - `src/components/inventory/InventoryCard.tsx` - Mobile card view
+  - `src/app/(protected)/inventory/InventoryContent.tsx` - Client state manager
+  - `src/app/actions/forensics.ts` - Database forensics queries
+  - `src/app/api/forensics/route.ts` - Forensics API endpoint
+  - `scripts/investigate-conditions.ts` - Standalone forensics script
+- **Files Modified:**
+  - `src/app/actions/inventory.ts` - Added dashboard queries (getLowStockItems, getRecentlyUpdated, getInventoryStats, searchInventory with condition filter)
+  - `src/app/(protected)/inventory/page.tsx` - Server-side data prefetch, title changed to "Inventory"
+
+### Phase 22 - Aero-Glass UI Redesign (2025-12-04)
+- **Major Redesign:** Transformed from Bootstrap-style to "Industrial Precision" cockpit interface
+- **Design System:**
+  - Added Gunmetal color palette (10 shades) for monochromatic base
+  - Added semantic status colors: Signal Orange, Aviation Blue, Tactical Green, Caution Amber, Critical Red
+  - Glass effects with backdrop blur for panels and cards
+  - Dark mode set as default ("Cockpit" mode)
+- **New Components:**
+  - `StatTicker` - Slim horizontal KPI bar with sparklines (replaces hero cards)
+  - `Sparkline` - SVG trend visualization for metrics
+  - `DotStatus` - Compact status indicator (dot + label)
+  - `PipelineRail` - Subway-map style process tracker with HUD glow effect
+  - `BlueprintPattern` - Technical schematic SVG pattern for login background
+- **Login Page ("The Hangar"):**
+  - Split-screen layout (40% control panel / 60% blueprint texture)
+  - Turbine wireframe + altimeter grid SVG patterns
+  - Frosted glass overlay with aviation blue accent
+- **Dashboard:**
+  - Replaced large gradient hero cards with slim StatTicker
+  - Real-time trend data with 7-day sparklines
+  - Increased density (reduced padding/spacing)
+- **DataGrid (Table):**
+  - Row hover glow effect with aviation blue accent
+  - DotStatus indicators instead of full-width badges
+  - Uppercase column headers with tracking
+  - Font-mono tabular-nums for all data columns
+- **Header:**
+  - Glass panel effect with backdrop blur
+  - Reduced height (h-12) for cockpit density
+  - Aviation blue bottom accent line
+- **Files Added:**
+  - `src/components/ui/sparkline.tsx`
+  - `src/components/ui/dot-status.tsx`
+  - `src/components/ui/blueprint-pattern.tsx`
+  - `src/components/dashboard/StatTicker.tsx`
+  - `src/components/dashboard/PipelineRail.tsx`
+  - `src/app/actions/trends.ts`
+- **Files Modified:**
+  - `src/app/globals.css` - Gunmetal palette, glass utilities, pipeline-active glow
+  - `src/components/ui/card.tsx` - Added glass variant
+  - `src/components/dashboard/StatsGrid.tsx` - Uses StatTicker
+  - `src/components/dashboard/RepairOrderTable.tsx` - DataGrid styling with DotStatus
+  - `src/app/(auth)/signin/page.tsx` - Split-screen "Hangar" design
+  - `src/components/layout/Header.tsx` - Glass panel effect
+  - `src/components/providers/ThemeProvider.tsx` - Dark mode default
+  - `src/app/(protected)/dashboard/page.tsx` - Fetches trends, compact layout
 
 ### Phase 21 - Logo Integration (2025-12-04)
 - **New Feature:** GenThrust logo added throughout application
