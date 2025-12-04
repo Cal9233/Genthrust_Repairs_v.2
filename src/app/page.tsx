@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,17 @@ export default async function Home() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/GenLogoTab.png"
+              alt="GenThrust Logo"
+              width={80}
+              height={80}
+              className="h-20 w-20 object-contain"
+              priority
+            />
+          </div>
           <CardTitle className="text-2xl">GenThrust RO Tracker</CardTitle>
           <CardDescription>
             Aviation repair order tracking system
