@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GenThrust RO Tracker",
   description: "Aviation repair order tracking and inventory management system",
+  icons: {
+    icon: "/GenLogoTab.png",
+    shortcut: "/GenLogoTab.png",
+    apple: "/GenLogoTab.png",
+  },
 };
 
 export default function RootLayout({

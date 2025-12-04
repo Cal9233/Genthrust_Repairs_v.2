@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Metadata } from "next";
 import { signInAction } from "@/actions/auth";
 import { auth } from "@/auth";
@@ -36,6 +37,17 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     <div className="flex min-h-screen items-center justify-center bg-background bg-diagonal-lines px-4">
       <Card className="w-full max-w-md shadow-vibrant">
         <CardHeader className="text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/GenLogoTab.png"
+              alt="GenThrust Logo"
+              width={80}
+              height={80}
+              className="h-20 w-20 object-contain"
+              priority
+            />
+          </div>
           {/* Brand with gradient text */}
           <div className="mb-2">
             <span className="bg-gradient-to-r from-sky-700 to-sky-500 dark:from-sky-400 dark:to-sky-300 bg-clip-text text-3xl font-bold text-transparent">
