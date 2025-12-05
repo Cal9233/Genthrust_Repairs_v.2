@@ -56,11 +56,43 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 28 Complete - UX Polish & Bug Fixes. Dashboard forensics endpoint, status normalization, activity log fix, and cursor-pointer for all buttons.
+**[Current Status]:** Phase 29 Complete - Dashboard Filter System. Added comprehensive filtering to repairs dashboard with Status, Shop, and Date Range filters plus 67 unit tests.
 
 ---
 
 ## Changelog
+
+### Phase 29 - Dashboard Filter System (2025-12-05)
+- **Feature:** Advanced filtering for repairs dashboard table
+- **Filters Added:**
+  - **Status Filter:** Dropdown with all unique statuses (prefix matching for "APPROVED >>>>" variants)
+  - **Shop Filter:** Dropdown with all unique shop names (case-insensitive exact match)
+  - **Date Range Filter:** From/To date pickers for delivery date filtering
+- **UI Features:**
+  - Collapsible filter bar (mobile-friendly)
+  - Active filter count badge
+  - Filter pills showing active filters when collapsed
+  - "Clear All Filters" button
+- **Backend:**
+  - Extended `getRepairOrdersBySheet()` with `DashboardFilters` parameter
+  - Added `getUniqueShops()` server action
+  - Added `getUniqueStatuses()` server action (excludes archived statuses)
+  - SQL filtering with AND logic for combined filters
+- **TDD Approach:** 67 tests covering filter logic
+  - Filter type validation (6 tests)
+  - Status filter matching (7 tests)
+  - Shop filter matching (6 tests)
+  - Date range filtering (8 tests)
+  - Active filter count (7 tests)
+  - Filter combinations/AND logic (11 tests)
+  - Unique shops/statuses extraction (18 tests)
+- **Files Added:**
+  - `src/components/dashboard/DashboardFilterBar.tsx` - Collapsible filter UI
+  - `src/components/ui/collapsible.tsx` - shadcn/ui Collapsible component
+  - `src/__tests__/dashboard-filters.test.ts` - 67 unit tests
+- **Files Modified:**
+  - `src/app/actions/dashboard.ts` - Added filter types, filtering logic, getUniqueShops/Statuses
+  - `src/components/dashboard/RepairOrderTable.tsx` - Integrated filter bar and state
 
 ### Phase 28 - UX Polish & Bug Fixes (2025-12-05)
 - **Dashboard Forensics:** Created `/api/dashboard-forensics` endpoint to verify stats against database

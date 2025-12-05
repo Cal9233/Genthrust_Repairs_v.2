@@ -7,7 +7,9 @@ import {
   type NormalizedRepairOrder,
   type RepairOrderFilter,
   type SheetFilter,
+  type DashboardFilters,
 } from "@/app/actions/dashboard";
+import { DashboardFilterBar } from "./DashboardFilterBar";
 import { isOverdue } from "@/lib/date-utils";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -152,6 +154,7 @@ export function RepairOrderTable({
   sheet = "active",
 }: RepairOrderTableProps) {
   const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<DashboardFilters>({});
   const [page, setPage] = useState(1);
   const [data, setData] = useState<NormalizedRepairOrder[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -163,14 +166,15 @@ export function RepairOrderTable({
   const debouncedQuery = useDebounce(query, 300);
   const { refreshKey } = useRefresh();
 
-  // Fetch data when query, page, filter, sheet, refreshTrigger, or refreshKey changes
+  // Fetch data when query, page, filter, sheet, filters, refreshTrigger, or refreshKey changes
   useEffect(() => {
     startTransition(async () => {
       const result = await getRepairOrdersBySheet(
         sheet,
         debouncedQuery,
         page,
-        filter
+        filter,
+        filters
       );
       if (result.success) {
         setData(result.data.data);
@@ -181,12 +185,12 @@ export function RepairOrderTable({
         setData([]);
       }
     });
-  }, [debouncedQuery, page, filter, sheet, refreshTrigger, refreshKey]);
+  }, [debouncedQuery, page, filter, sheet, filters, refreshTrigger, refreshKey]);
 
-  // Reset to page 1 when search query, filter, or sheet changes
+  // Reset to page 1 when search query, filter, sheet, or filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, filter, sheet]);
+  }, [debouncedQuery, filter, sheet, filters]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -225,6 +229,14 @@ export function RepairOrderTable({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="mt-4">
+          <DashboardFilterBar
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
         </div>
       </CardHeader>
       <CardContent>

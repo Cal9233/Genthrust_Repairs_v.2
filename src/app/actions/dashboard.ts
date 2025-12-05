@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { active, net, paid, returns } from "@/lib/schema";
-import { like, or, sql, count, desc, notInArray, and, eq } from "drizzle-orm";
+import { like, or, sql, count, desc, notInArray, and, eq, gte, lte } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
 
 // Result type per CLAUDE.md
@@ -50,6 +50,14 @@ export type RepairOrderFilter = "all" | "overdue";
 
 // Sheet filter type for multi-table querying
 export type SheetFilter = "active" | "net" | "paid" | "returns";
+
+// Dashboard filters for advanced filtering
+export interface DashboardFilters {
+  status?: string;      // e.g., "APPROVED", "IN WORK", "WAITING QUOTE"
+  shop?: string;        // Shop name (exact match)
+  dateFrom?: string;    // ISO date string for date range start
+  dateTo?: string;      // ISO date string for date range end
+}
 
 // Table lookup map for dynamic querying
 const SHEET_TABLES = {
@@ -395,33 +403,57 @@ export async function getRepairOrdersBySheet(
   sheet: SheetFilter,
   query: string = "",
   page: number = 1,
-  filter: RepairOrderFilter = "all"
+  filter: RepairOrderFilter = "all",
+  filters?: DashboardFilters
 ): Promise<Result<PaginatedNormalizedRepairOrders>> {
   try {
     const table = SHEET_TABLES[sheet];
     const offset = (page - 1) * ITEMS_PER_PAGE;
     const searchPattern = query.trim() ? `%${query.trim()}%` : null;
 
-    // Build search condition - works for all tables since they share column names
-    const searchCondition = searchPattern
-      ? or(
-          like(sql`CAST(${table.ro} AS CHAR)`, searchPattern),
-          like(table.shopName, searchPattern),
-          like(table.part, searchPattern),
-          like(table.serial, searchPattern),
-          like(table.partDescription, searchPattern)
-        )
-      : undefined;
+    // Build conditions array for AND logic
+    const conditions: ReturnType<typeof eq>[] = [];
+
+    // Search condition - works for all tables since they share column names
+    if (searchPattern) {
+      const searchCondition = or(
+        like(sql`CAST(${table.ro} AS CHAR)`, searchPattern),
+        like(table.shopName, searchPattern),
+        like(table.part, searchPattern),
+        like(table.serial, searchPattern),
+        like(table.partDescription, searchPattern)
+      );
+      if (searchCondition) conditions.push(searchCondition);
+    }
 
     // For active sheet, exclude archived statuses
-    // For other sheets (net, paid, returns), show all records
-    let whereCondition = searchCondition;
     if (sheet === "active") {
-      const archiveFilter = notInArray(table.curentStatus, ARCHIVED_STATUSES);
-      whereCondition = searchCondition
-        ? and(archiveFilter, searchCondition)
-        : archiveFilter;
+      conditions.push(notInArray(table.curentStatus, ARCHIVED_STATUSES));
     }
+
+    // Apply status filter (supports startsWith for "APPROVED" variants)
+    if (filters?.status) {
+      const statusUpper = filters.status.toUpperCase();
+      // Use LIKE with % for prefix matching (handles "APPROVED >>>>" etc.)
+      conditions.push(like(sql`UPPER(${table.curentStatus})`, `${statusUpper}%`));
+    }
+
+    // Apply shop filter (exact match, case-insensitive)
+    if (filters?.shop) {
+      conditions.push(eq(sql`LOWER(${table.shopName})`, filters.shop.toLowerCase()));
+    }
+
+    // Apply date range filters on estimatedDeliveryDate
+    // Note: estimatedDeliveryDate is stored as VARCHAR, so we use string comparison
+    if (filters?.dateFrom) {
+      conditions.push(gte(table.estimatedDeliveryDate, filters.dateFrom));
+    }
+    if (filters?.dateTo) {
+      conditions.push(lte(table.estimatedDeliveryDate, filters.dateTo));
+    }
+
+    // Combine all conditions with AND
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Handle overdue filter (requires in-memory filtering due to string date format)
     if (filter === "overdue") {
@@ -487,6 +519,69 @@ export async function getRepairOrdersBySheet(
         error instanceof Error
           ? error.message
           : `Failed to fetch repair orders from ${sheet} sheet`,
+    };
+  }
+}
+
+/**
+ * Get unique shop names from the active table for filter dropdown
+ */
+export async function getUniqueShops(): Promise<Result<string[]>> {
+  try {
+    const results = await db
+      .selectDistinct({ shopName: active.shopName })
+      .from(active)
+      .where(sql`${active.shopName} IS NOT NULL AND ${active.shopName} != ''`)
+      .orderBy(active.shopName);
+
+    const shops = results
+      .map((r) => r.shopName)
+      .filter((name): name is string => name !== null);
+
+    return {
+      success: true,
+      data: shops,
+    };
+  } catch (error) {
+    console.error("getUniqueShops error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch shop names",
+    };
+  }
+}
+
+/**
+ * Get unique status values from the active table for filter dropdown
+ */
+export async function getUniqueStatuses(): Promise<Result<string[]>> {
+  try {
+    const results = await db
+      .selectDistinct({ status: active.curentStatus })
+      .from(active)
+      .where(
+        and(
+          sql`${active.curentStatus} IS NOT NULL AND ${active.curentStatus} != ''`,
+          notInArray(active.curentStatus, ARCHIVED_STATUSES)
+        )
+      )
+      .orderBy(active.curentStatus);
+
+    const statuses = results
+      .map((r) => r.status)
+      .filter((status): status is string => status !== null);
+
+    return {
+      success: true,
+      data: statuses,
+    };
+  } catch (error) {
+    console.error("getUniqueStatuses error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch status values",
     };
   }
 }
