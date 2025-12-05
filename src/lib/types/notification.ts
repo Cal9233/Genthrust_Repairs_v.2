@@ -9,6 +9,7 @@ export const NotificationStatuses = [
   "APPROVED",
   "REJECTED",
   "SENT",
+  "FAILED",
 ] as const;
 export type NotificationStatus = (typeof NotificationStatuses)[number];
 

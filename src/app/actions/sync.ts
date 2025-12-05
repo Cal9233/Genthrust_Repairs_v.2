@@ -3,6 +3,8 @@
 import { auth } from "@/auth";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { syncRepairOrders } from "@/trigger/excel-sync";
+import { db } from "@/lib/db";
+import { active } from "@/lib/schema";
 
 /**
  * Result type per CLAUDE.md Section 4
@@ -122,4 +124,73 @@ export async function triggerExcelSync(
   repairOrderIds: number[]
 ): Promise<Result<TriggerSyncResult>> {
   return triggerSync({ userId, repairOrderIds });
+}
+
+/**
+ * triggerSyncAllActive Server Action
+ *
+ * Syncs ALL active repair orders to Excel.
+ * Fetches all RO IDs from the active table, then triggers the sync task.
+ *
+ * @returns Result with runId and publicAccessToken for realtime tracking
+ */
+export async function triggerSyncAllActive(): Promise<Result<TriggerSyncResult>> {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: "Unauthorized: You must be signed in to sync repair orders",
+      };
+    }
+
+    if (session.error) {
+      return {
+        success: false,
+        error: `Authentication error: ${session.error}. Please sign in again.`,
+      };
+    }
+
+    // Fetch all active RO IDs
+    const allActiveROs = await db
+      .select({ id: active.id })
+      .from(active);
+
+    const repairOrderIds = allActiveROs.map((ro) => ro.id);
+
+    if (repairOrderIds.length === 0) {
+      return {
+        success: false,
+        error: "No active repair orders to sync",
+      };
+    }
+
+    // Trigger the sync task
+    const handle = await tasks.trigger<typeof syncRepairOrders>(
+      "sync-repair-orders",
+      {
+        userId: session.user.id,
+        repairOrderIds,
+      }
+    );
+
+    const publicAccessToken = await handle.publicAccessToken;
+
+    return {
+      success: true,
+      data: {
+        runId: handle.id,
+        publicAccessToken,
+      },
+    };
+  } catch (error) {
+    console.error("triggerSyncAllActive error:", error);
+    return {
+      success: false,
+      error: error instanceof Error
+        ? error.message
+        : "Failed to trigger sync job",
+    };
+  }
 }

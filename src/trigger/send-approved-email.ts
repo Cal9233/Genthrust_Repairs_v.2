@@ -1,11 +1,15 @@
-import { task, logger } from "@trigger.dev/sdk/v3";
+import { task, logger, tasks } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
+import { db } from "../lib/db";
+import { notificationQueue, active } from "../lib/schema";
+import { eq } from "drizzle-orm";
 import {
   getNotificationById,
   updateNotificationStatus,
   getEmailThreadForRO,
   updateNotificationOutlookIds,
 } from "../lib/data/notifications";
+import { getShopEmailByName, updateShopEmail } from "../lib/data/shops";
 import { sendEmail, createToDoTask, createCalendarEvent } from "../lib/graph/productivity";
 import type { EmailDraftPayload, TaskReminderPayload } from "../lib/types/notification";
 
@@ -55,6 +59,16 @@ export const sendApprovedEmail = task({
   retry: {
     maxAttempts: 3,
   },
+  // Update status to FAILED when all retries are exhausted
+  onFailure: async ({ payload }) => {
+    const { notificationId } = payload as SendApprovedEmailPayload;
+    logger.info("All retries exhausted, marking notification as FAILED", { notificationId });
+
+    await db
+      .update(notificationQueue)
+      .set({ status: "FAILED" })
+      .where(eq(notificationQueue.id, notificationId));
+  },
   run: async (payload: SendApprovedEmailPayload): Promise<SendApprovedEmailOutput> => {
     const { notificationId, userId } = payload;
 
@@ -86,6 +100,15 @@ export const sendApprovedEmail = task({
 
       if (notification.status === "REJECTED") {
         logger.info("Notification was rejected, skipping", { notificationId });
+        return {
+          success: true,
+          notificationId,
+          action: "skipped",
+        };
+      }
+
+      if (notification.status === "FAILED") {
+        logger.info("Notification previously failed, skipping", { notificationId });
         return {
           success: true,
           notificationId,
@@ -168,6 +191,94 @@ export const sendApprovedEmail = task({
           conversationId: result.conversationId,
           hasThread: !!existingMessageId,
         });
+
+        // Step 3d: Update shop email if it was edited (for future emails)
+        if (recipientAddress && notification.repairOrderId) {
+          try {
+            const ro = await db
+              .select({ shopName: active.shopName })
+              .from(active)
+              .where(eq(active.id, notification.repairOrderId))
+              .limit(1);
+
+            if (ro[0]?.shopName) {
+              const currentShopEmail = await getShopEmailByName(ro[0].shopName);
+
+              // Only update if email is different (case-insensitive comparison)
+              const emailChanged =
+                !currentShopEmail ||
+                currentShopEmail.toLowerCase().trim() !== recipientAddress.toLowerCase().trim();
+
+              if (emailChanged) {
+                const updateResult = await updateShopEmail(ro[0].shopName, recipientAddress);
+                if (updateResult.success) {
+                  logger.info("Updated shop email for future use", {
+                    shop: ro[0].shopName,
+                    oldEmail: currentShopEmail,
+                    newEmail: recipientAddress,
+                  });
+                } else {
+                  logger.warn("Failed to update shop email", {
+                    shop: ro[0].shopName,
+                    error: updateResult.error,
+                  });
+                }
+              }
+            }
+          } catch (shopError) {
+            // Non-critical error - don't fail the task if shop update fails
+            logger.warn("Error updating shop email, continuing anyway", {
+              notificationId,
+              error: shopError instanceof Error ? shopError.message : String(shopError),
+            });
+          }
+        }
+
+        // Step 3e: Update RO dates to reset overdue status
+        if (notification.repairOrderId) {
+          try {
+            const today = new Date();
+            const nextFollowUp = new Date();
+            nextFollowUp.setDate(today.getDate() + 7);
+
+            // Format dates as M/D/YYYY (matches existing schema format)
+            const formatDate = (d: Date) =>
+              `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+
+            const todayFormatted = formatDate(today);
+            const nextFollowUpFormatted = formatDate(nextFollowUp);
+
+            await db
+              .update(active)
+              .set({
+                lastDateUpdated: todayFormatted,
+                nextDateToUpdate: nextFollowUpFormatted,
+              })
+              .where(eq(active.id, notification.repairOrderId));
+
+            logger.info("Updated RO dates after email sent", {
+              roId: notification.repairOrderId,
+              lastDateUpdated: todayFormatted,
+              nextDateToUpdate: nextFollowUpFormatted,
+            });
+
+            // Step 3f: Trigger Excel sync to update columns T & U
+            await tasks.trigger("sync-repair-orders", {
+              userId,
+              repairOrderIds: [notification.repairOrderId],
+            });
+
+            logger.info("Triggered Excel sync for date update", {
+              roId: notification.repairOrderId,
+            });
+          } catch (dateError) {
+            // Non-critical error - don't fail the task
+            logger.warn("Error updating RO dates, continuing anyway", {
+              notificationId,
+              error: dateError instanceof Error ? dateError.message : String(dateError),
+            });
+          }
+        }
       } else if (notification.type === "TASK_REMINDER") {
         const taskPayload = notificationPayload as TaskReminderPayload;
         const dueDate = new Date(taskPayload.dueDate);

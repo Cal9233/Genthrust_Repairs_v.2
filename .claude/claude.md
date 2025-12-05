@@ -56,11 +56,91 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 24 Complete - Auto Email Sender. Emails now send to real shop addresses with CC support, using shared mailbox for outbound messages.
+**[Current Status]:** Phase 28 Complete - UX Polish & Bug Fixes. Dashboard forensics endpoint, status normalization, activity log fix, and cursor-pointer for all buttons.
 
 ---
 
 ## Changelog
+
+### Phase 28 - UX Polish & Bug Fixes (2025-12-05)
+- **Dashboard Forensics:** Created `/api/dashboard-forensics` endpoint to verify stats against database
+  - Compares displayed stats with actual data
+  - Shows status distribution breakdown
+  - Identifies date parsing issues
+- **Status Normalization:** Merged "APPROVED >>>>" variants to "Approved" (8 + 5 = 13 records)
+  - Created temporary API endpoint to clean existing data
+  - Future imports handled by existing `cleanStatus()` function
+- **Activity Log Bug Fix:** Fixed note saving error in Edit RO dialog
+  - Error: `insert into 'ro_activity_log'... values (default, ?, ?, ?, default, ?, ?, default)`
+  - Root cause: `oldValue` field missing from insert
+  - Fix: Added `oldValue: currentNotes || null` to `appendRONote()` function
+- **Cursor Pointer UX:** All buttons now show pointer cursor on hover
+  - Added `cursor-pointer` to base Button component styles
+  - Applies to: login, pagination, dialogs, navigation, all buttons
+- **Files Added:**
+  - `src/app/api/dashboard-forensics/route.ts` - Diagnostic endpoint
+- **Files Modified:**
+  - `src/app/actions/repair-orders.ts` - Fixed activity log insert
+  - `src/components/ui/button.tsx` - Added cursor-pointer to base styles
+
+### Phase 27 - RO Date Update on Email Send (2025-12-04)
+- **Feature:** Sending a follow-up email now resets the RO's overdue status
+- **Date Updates:** After successful email send:
+  - `lastDateUpdated` → set to today's date
+  - `nextDateToUpdate` → set to today + 7 days
+- **Excel Sync:** Automatically triggers sync to update columns T & U
+- **Dashboard Impact:** "Overdue" stat decreases after email sent (on page refresh)
+- **TDD Approach:** 21 tests written before implementation
+- **Files Added:**
+  - `src/__tests__/ro-date-update.test.ts` - TDD test suite (21 tests)
+- **Files Modified:**
+  - `src/trigger/send-approved-email.ts` - Added Steps 3e (date update) + 3f (Excel sync trigger)
+
+### Phase 26 - Save Edited Shop Email (2025-12-04)
+- **Feature:** When user edits email in approval dialog, shop record is updated for future use
+- **Shop Email Persistence:** Edited emails are saved to the shop's record in database
+- **Future Pre-population:** Next email to same shop will be pre-populated with saved address
+- **TDD Approach:** 23 tests written before implementation
+- **Files Added:**
+  - `src/__tests__/shop-email-update.test.ts` - TDD test suite (23 tests)
+- **Files Modified:**
+  - `src/lib/data/shops.ts` - Added `updateShopEmail()` function
+  - `src/trigger/send-approved-email.ts` - Added Step 3d for shop email update
+
+### Bug Fix - Email Threading Headers (2025-12-04)
+- **Issue:** Emails failing with "In-Reply-To should start with 'x-'" error
+- **Root Cause:** Microsoft Graph API's `internetMessageHeaders` only allows custom `x-` headers
+- **Fix:** Removed invalid `In-Reply-To` and `References` headers from `sendEmail()`
+- **Impact:** Emails send successfully but without threading (threading requires different API approach)
+- **Files Modified:**
+  - `src/lib/graph/productivity.ts` - Removed invalid threading headers block
+
+### Phase 25 - Auto Excel Sync (2025-12-04)
+- **Architecture:** Full implementation of Write-Behind pattern per CLAUDE.md Section 3A
+- **Auto-Import on Dashboard Load:**
+  - New `AutoImportTrigger` component triggers Excel → MySQL import once per browser session
+  - Uses `sessionStorage` to prevent duplicate imports on page refresh
+  - Non-blocking background import via Trigger.dev
+  - Toast notifications show sync progress and completion
+- **Status Updates Auto-Sync to Excel:**
+  - `updateRepairOrderStatus()` now triggers `sync-repair-orders` task after MySQL update
+  - Previously only `updateRepairOrder()` had sync capability (gap fixed)
+  - Wrapped in try/catch so Excel failures don't break status updates
+- **Manual Sync Fixed:**
+  - `ExcelDropdownButton` no longer uses hardcoded `[1, 2, 3]` RO IDs
+  - New `triggerSyncAllActive()` action fetches ALL active RO IDs from database
+  - Syncs entire active table to Excel in one background task
+- **Files Added:**
+  - `src/components/dashboard/AutoImportTrigger.tsx` - Session-based auto-import trigger
+- **Files Modified:**
+  - `src/app/(protected)/dashboard/page.tsx` - Added AutoImportTrigger component
+  - `src/app/actions/repair-orders.ts` - Added sync call to updateRepairOrderStatus
+  - `src/app/actions/sync.ts` - Added triggerSyncAllActive() function
+  - `src/components/layout/ExcelDropdownButton.tsx` - Uses triggerSyncAllActive instead of hardcoded IDs
+- **Data Flow:**
+  - On app load: Excel → MySQL (auto-import, once per session)
+  - On status update: MySQL → Excel (auto-sync, per change)
+  - Manual sync: MySQL → Excel (all active ROs)
 
 ### Phase 24 - Auto Email Sender (2025-12-04)
 - **Real Shop Emails:** Replaced placeholder `shop@example.com` with actual shop email lookup

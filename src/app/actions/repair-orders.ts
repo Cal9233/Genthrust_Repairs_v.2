@@ -176,14 +176,31 @@ export async function updateRepairOrderStatus(
 
     const oldStatus = currentRO.curentStatus ?? "";
 
+    // Skip if status hasn't changed (optimization to avoid unnecessary syncs)
+    if (newStatus === oldStatus) {
+      return { success: true, data: {} };
+    }
+
     // Update status in MySQL
     await db
       .update(active)
       .set({
         curentStatus: newStatus,
         curentStatusDate: new Date().toISOString().split("T")[0],
+        lastDateUpdated: new Date().toISOString().split("T")[0],
       })
       .where(eq(active.id, repairOrderId));
+
+    // Sync to Excel (Write-Behind pattern per CLAUDE.md)
+    try {
+      await tasks.trigger("sync-repair-orders", {
+        userId: session.user.id,
+        repairOrderIds: [repairOrderId],
+      });
+    } catch {
+      // Excel sync failure shouldn't fail the status update
+      console.error("Failed to trigger Excel sync for status update");
+    }
 
     // Revalidate dashboard to refresh table data
     revalidatePath("/dashboard");
@@ -314,7 +331,7 @@ export async function updateRepairOrder(
     try {
       const handle = await tasks.trigger("sync-repair-orders", {
         batchId: `single-${repairOrderId}-${Date.now()}`,
-        repairOrderIds: [String(repairOrderId)],
+        repairOrderIds: [repairOrderId],
       });
       runId = handle.id;
     } catch {
@@ -503,6 +520,7 @@ export async function appendRONote(
       repairOrderId,
       action: "NOTE_ADDED",
       field: "notes",
+      oldValue: currentNotes || null,
       newValue: note,
       userId: session.user.id,
     });

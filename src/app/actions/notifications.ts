@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { notificationQueue } from "@/lib/schema";
-import { eq, and, desc, isNotNull, asc } from "drizzle-orm";
+import { eq, and, desc, isNotNull, asc, or } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk/v3";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type {
@@ -59,10 +59,11 @@ export async function getPendingNotifications(): Promise<
  * for actual email sending via Microsoft Graph API.
  *
  * Flow: Update status to APPROVED -> Dispatch to send-approved-email task
+ * Returns runId and publicAccessToken for real-time UI tracking via toast.
  */
 export async function approveNotification(
   notificationId: number
-): Promise<Result<{ runId: string }>> {
+): Promise<Result<{ runId: string; publicAccessToken: string }>> {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -101,7 +102,10 @@ export async function approveNotification(
       userId: session.user.id,
     });
 
-    return { success: true, data: { runId: handle.id } };
+    // Get the public access token for real-time UI updates
+    const publicAccessToken = await handle.publicAccessToken;
+
+    return { success: true, data: { runId: handle.id, publicAccessToken } };
   } catch (error) {
     return {
       success: false,
@@ -462,6 +466,125 @@ export async function getNotificationsForRO(
         error instanceof Error
           ? error.message
           : "Failed to fetch notifications",
+    };
+  }
+}
+
+/**
+ * Updates the payload of a PENDING_APPROVAL notification.
+ * Used for editing email drafts before sending.
+ */
+export async function updateNotificationPayload(
+  notificationId: number,
+  updates: { to?: string; cc?: string; subject?: string; body?: string }
+): Promise<Result<{ id: number }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Verify ownership and pending status
+    const [notification] = await db
+      .select()
+      .from(notificationQueue)
+      .where(
+        and(
+          eq(notificationQueue.id, notificationId),
+          eq(notificationQueue.userId, session.user.id),
+          eq(notificationQueue.status, "PENDING_APPROVAL")
+        )
+      )
+      .limit(1);
+
+    if (!notification) {
+      return {
+        success: false,
+        error: "Notification not found or already processed",
+      };
+    }
+
+    // Merge updates into existing payload
+    const currentPayload = notification.payload as EmailDraftPayload;
+    const updatedPayload: EmailDraftPayload = {
+      ...currentPayload,
+      ...(updates.to !== undefined && { to: updates.to }),
+      ...(updates.cc !== undefined && { cc: updates.cc || undefined }),
+      ...(updates.subject !== undefined && { subject: updates.subject }),
+      ...(updates.body !== undefined && { body: updates.body }),
+    };
+
+    // Update the notification
+    await db
+      .update(notificationQueue)
+      .set({ payload: updatedPayload })
+      .where(eq(notificationQueue.id, notificationId));
+
+    return { success: true, data: { id: notificationId } };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to update notification",
+    };
+  }
+}
+
+/**
+ * Re-queues a REJECTED notification by creating a new one with the same payload.
+ * The new notification has PENDING_APPROVAL status, allowing the user to edit and approve.
+ */
+export async function requeueNotification(
+  notificationId: number
+): Promise<Result<{ id: number }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Find the rejected or failed notification
+    const [notification] = await db
+      .select()
+      .from(notificationQueue)
+      .where(
+        and(
+          eq(notificationQueue.id, notificationId),
+          eq(notificationQueue.userId, session.user.id),
+          or(
+            eq(notificationQueue.status, "REJECTED"),
+            eq(notificationQueue.status, "FAILED")
+          )
+        )
+      )
+      .limit(1);
+
+    if (!notification) {
+      return {
+        success: false,
+        error: "Notification not found or not in a requeueable state",
+      };
+    }
+
+    // Create a new notification with the same payload
+    const newId = await insertNotificationCore({
+      repairOrderId: notification.repairOrderId,
+      userId: session.user.id,
+      type: notification.type,
+      payload: notification.payload,
+      scheduledFor: new Date(),
+    });
+
+    if (!newId) {
+      return { success: false, error: "Failed to create new notification" };
+    }
+
+    return { success: true, data: { id: newId } };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to requeue notification",
     };
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
-import { Bell, X, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye } from "lucide-react";
+import { useState, useEffect, useTransition, useCallback } from "react";
+import { Bell, X, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
@@ -18,7 +18,10 @@ import {
   approveNotification,
   rejectNotification,
   getAllNotifications,
+  requeueNotification,
 } from "@/app/actions/notifications";
+import { useTriggerRun } from "@/hooks/use-trigger-run";
+import { toast } from "sonner";
 import { EmailThreadView } from "@/components/notifications/EmailThreadView";
 import { EmailPreviewDialog } from "@/components/notifications/EmailPreviewDialog";
 import type { NotificationQueueItem } from "@/lib/schema";
@@ -29,6 +32,7 @@ const statusConfig: Record<NotificationStatus, { label: string; className: strin
   APPROVED: { label: "Approved", className: "bg-success text-success-foreground", icon: CheckCircle },
   REJECTED: { label: "Rejected", className: "bg-danger text-danger-foreground", icon: XCircle },
   SENT: { label: "Sent", className: "bg-sky-500 text-sky-50", icon: Send },
+  FAILED: { label: "Failed", className: "bg-destructive text-destructive-foreground", icon: AlertCircle },
 };
 
 function formatDate(date: Date | string): string {
@@ -49,6 +53,26 @@ export function NotificationBell() {
   const [actioningId, setActioningId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
+
+  // Track active email send for toast notifications
+  const [emailRunId, setEmailRunId] = useState<string | null>(null);
+  const [emailAccessToken, setEmailAccessToken] = useState<string | null>(null);
+  const { status: emailRunStatus } = useTriggerRun(emailRunId, emailAccessToken);
+
+  // Show toast when email send completes or fails
+  useEffect(() => {
+    if (emailRunStatus === "completed") {
+      toast.success("Email sent successfully");
+      setEmailRunId(null);
+      setEmailAccessToken(null);
+      fetchHistory(); // Refresh history to show the sent email
+    } else if (emailRunStatus === "failed") {
+      toast.error("Failed to send email");
+      setEmailRunId(null);
+      setEmailAccessToken(null);
+      fetchHistory(); // Refresh to show FAILED status
+    }
+  }, [emailRunStatus]);
 
   // Fetch notifications on mount and when sheet opens
   useEffect(() => {
@@ -88,10 +112,18 @@ export function NotificationBell() {
 
   const handleApprove = async (id: number) => {
     setActioningId(id);
+    toast.info("Sending email...");
+
     const result = await approveNotification(id);
     if (result.success) {
+      // Track the run for toast notifications
+      setEmailRunId(result.data.runId);
+      setEmailAccessToken(result.data.publicAccessToken);
+
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setPreviewNotification(null); // Close preview dialog if open
+    } else {
+      toast.error(result.error || "Failed to approve notification");
     }
     setActioningId(null);
   };
@@ -100,8 +132,25 @@ export function NotificationBell() {
     setActioningId(id);
     const result = await rejectNotification(id);
     if (result.success) {
+      toast.info("Email draft rejected");
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setPreviewNotification(null); // Close preview dialog if open
+    } else {
+      toast.error(result.error || "Failed to reject notification");
+    }
+    setActioningId(null);
+  };
+
+  const handleRequeue = async (id: number) => {
+    setActioningId(id);
+    const result = await requeueNotification(id);
+    if (result.success) {
+      toast.success("Email requeued for approval");
+      // Refresh both lists
+      fetchNotifications();
+      fetchHistory();
+    } else {
+      toast.error(result.error || "Failed to requeue notification");
     }
     setActioningId(null);
   };
@@ -168,7 +217,7 @@ export function NotificationBell() {
                           {payload.subject}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          To: {payload.toAddress}
+                          To: {payload.to || payload.toAddress}
                         </p>
                       </div>
                       <Badge variant="outline" className="shrink-0">
@@ -269,6 +318,7 @@ export function NotificationBell() {
                           const status = notification.status as NotificationStatus;
                           const config = statusConfig[status];
                           const StatusIcon = config.icon;
+                          const isActioning = actioningId === notification.id;
 
                           return (
                             <div
@@ -290,9 +340,30 @@ export function NotificationBell() {
                                     {payload.subject}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
+                                    To: {payload.to || payload.toAddress}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
                                     {formatDate(notification.createdAt)}
                                   </p>
                                 </div>
+                                {(status === "REJECTED" || status === "FAILED") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRequeue(notification.id)}
+                                    disabled={isActioning}
+                                    className="shrink-0"
+                                  >
+                                    {isActioning ? (
+                                      <TurbineSpinner size="sm" />
+                                    ) : (
+                                      <>
+                                        <RotateCcw className="h-3 w-3 mr-1" />
+                                        Requeue
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           );
@@ -313,6 +384,7 @@ export function NotificationBell() {
           onApprove={handleApprove}
           onReject={handleReject}
           isActioning={!!actioningId}
+          onUpdate={fetchNotifications}
         />
       </SheetContent>
     </Sheet>

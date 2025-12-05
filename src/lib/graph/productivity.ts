@@ -199,7 +199,7 @@ export async function sendEmail(
 ): Promise<SentEmailResult> {
   const graphClient = await getGraphClient(userId);
   const sendTimestamp = new Date().toISOString(); // Capture BEFORE send
-  const mailboxPath = getMailboxPath();
+  const sharedMailbox = process.env.MS_GRAPH_SHARED_MAILBOX;
 
   // Build message payload
   const message: Record<string, unknown> = {
@@ -211,23 +211,30 @@ export async function sendEmail(
     toRecipients: [{ emailAddress: { address: to } }],
   };
 
+  // Set "from" address to shared mailbox (works with Send As permission)
+  // This approach uses /me/sendMail endpoint which only requires "Send As" permission,
+  // unlike /users/{mailbox}/sendMail which requires "Full Access" permission
+  if (sharedMailbox) {
+    message.from = {
+      emailAddress: {
+        address: sharedMailbox,
+      },
+    };
+  }
+
   // Add CC recipients if provided (supports comma-separated list)
   if (options?.cc) {
     const ccAddresses = options.cc.split(',').map(email => email.trim()).filter(Boolean);
     message.ccRecipients = ccAddresses.map(address => ({ emailAddress: { address } }));
   }
 
-  // Add threading headers if replying to existing thread
-  if (options?.replyToMessageId) {
-    message.internetMessageHeaders = [
-      { name: "In-Reply-To", value: options.replyToMessageId },
-      { name: "References", value: options.replyToMessageId },
-    ];
-  }
+  // NOTE: Email threading via In-Reply-To/References headers is NOT supported by Graph API's
+  // internetMessageHeaders (which only allows custom x- headers). To properly thread emails,
+  // use /messages/{id}/reply endpoint instead. For now, emails send without threading.
 
   try {
-    // Use mailbox path for shared mailbox support
-    await graphClient.api(`${mailboxPath}/sendMail`).post({ message, saveToSentItems: true });
+    // Use /me/sendMail endpoint (works with Send As permission on shared mailbox)
+    await graphClient.api("/me/sendMail").post({ message, saveToSentItems: true });
 
     // SAFER QUERY: Filter by time, match recipient in TypeScript memory
     const sentMessage = await findSentMessage(graphClient, to, sendTimestamp);
@@ -245,7 +252,7 @@ export async function sendEmail(
  * Helper: Safe SentItems lookup with retry and exponential backoff.
  * Filters by createdDateTime (safe OData filter) and matches recipient in TypeScript.
  * Does NOT filter by subject (brittle with special characters).
- * Uses getMailboxPath() for shared mailbox support.
+ * Uses /me since sent items are saved to user's mailbox when using /me/sendMail.
  */
 async function findSentMessage(
   client: Client,
@@ -254,15 +261,15 @@ async function findSentMessage(
   maxRetries = 3
 ): Promise<SentEmailResult> {
   const delays = [1000, 2000, 4000]; // Exponential backoff
-  const mailboxPath = getMailboxPath();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     await new Promise((r) => setTimeout(r, delays[attempt]));
 
     try {
       // Query by createdDateTime only (safe OData filter - ISO timestamp has no special chars)
+      // Use /me since we send via /me/sendMail (sent items are in user's mailbox)
       const response = await client
-        .api(`${mailboxPath}/mailFolders/SentItems/messages`)
+        .api("/me/mailFolders/SentItems/messages")
         .filter(`createdDateTime ge ${afterTimestamp}`)
         .orderby("createdDateTime desc")
         .top(10)

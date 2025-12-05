@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
-import { triggerExcelSync } from "@/app/actions/sync";
+import { triggerSyncAllActive } from "@/app/actions/sync";
 import { triggerExcelImport } from "@/app/actions/import";
 import { FileSpreadsheet, Download, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -84,14 +84,14 @@ export function ExcelDropdownButton({ userId }: ExcelDropdownButtonProps) {
     }
   }, [userId]);
 
-  // Handle Sync: MySQL → Excel
+  // Handle Sync: MySQL → Excel (syncs all active ROs)
   const handleSync = useCallback(async () => {
     setIsOpen(false);
     setResultStatus("idle");
     setActiveAction("sync");
 
-    // Get all active RO IDs for sync (you might want to customize this)
-    const result = await triggerExcelSync(userId, [1, 2, 3]);
+    // Sync all active ROs
+    const result = await triggerSyncAllActive();
     if (result.success) {
       setRunId(result.data.runId);
       setAccessToken(result.data.publicAccessToken);
@@ -101,7 +101,7 @@ export function ExcelDropdownButton({ userId }: ExcelDropdownButtonProps) {
       setActiveAction(null);
       toast.error(result.error);
     }
-  }, [userId]);
+  }, []);
 
   // Get the appropriate icon for current state
   const getIcon = () => {

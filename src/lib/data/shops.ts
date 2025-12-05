@@ -114,3 +114,68 @@ export async function getShopByName(shopName: string | null | undefined) {
     return null;
   }
 }
+
+/**
+ * Updates a shop's email address by business name.
+ * Used when user edits email in approval dialog - saves for future use.
+ *
+ * @param shopName - The shop name to update (case-insensitive match)
+ * @param newEmail - The new email address to save
+ * @returns Result object with success status and optional error message
+ */
+export async function updateShopEmail(
+  shopName: string | null | undefined,
+  newEmail: string
+): Promise<{ success: boolean; error?: string }> {
+  // Validate inputs
+  if (!shopName || shopName.trim() === "") {
+    return { success: false, error: "Shop name is required" };
+  }
+
+  if (!newEmail || newEmail.trim() === "") {
+    return { success: false, error: "Email is required" };
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(newEmail.trim())) {
+    return { success: false, error: "Invalid email format" };
+  }
+
+  const trimmedName = shopName.trim();
+  const trimmedEmail = newEmail.trim();
+
+  try {
+    // First check if shop exists (for better error reporting)
+    const existingShop = await db
+      .select({ id: shops.id, businessName: shops.businessName })
+      .from(shops)
+      .where(sql`UPPER(TRIM(${shops.businessName})) = UPPER(${trimmedName})`)
+      .limit(1);
+
+    if (existingShop.length === 0) {
+      console.warn(`[updateShopEmail] No shop found matching "${trimmedName}"`);
+      return { success: false, error: "Shop not found" };
+    }
+
+    // Update shop email
+    await db
+      .update(shops)
+      .set({ email: trimmedEmail })
+      .where(sql`UPPER(TRIM(${shops.businessName})) = UPPER(${trimmedName})`);
+
+    console.log(
+      `[updateShopEmail] Updated email for shop "${existingShop[0].businessName}" to "${trimmedEmail}"`
+    );
+    return { success: true };
+  } catch (error) {
+    console.error(
+      `[updateShopEmail] Database error updating shop "${trimmedName}":`,
+      error
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Database error",
+    };
+  }
+}
