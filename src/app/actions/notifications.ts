@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { notificationQueue } from "@/lib/schema";
-import { eq, and, desc, isNotNull, asc, or } from "drizzle-orm";
+import { eq, and, desc, isNotNull, asc, or, sql, ne, inArray } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk/v3";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type {
@@ -17,6 +17,7 @@ import type {
 import { insertNotificationCore } from "@/lib/data/notifications";
 import { getConversationMessages } from "@/lib/graph/productivity";
 import { active } from "@/lib/schema";
+import { updateShopEmail } from "@/lib/data/shops";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -33,15 +34,25 @@ export async function getPendingNotifications(): Promise<
       return { success: false, error: "Unauthorized" };
     }
 
+    // Note: Removed userId filter to show all pending notifications to any authenticated user
+    // This is appropriate for single-user/admin scenarios where all notifications should be visible
+    // INNER JOIN with active table to filter out orphaned notifications (ROs deleted from Excel)
     const notifications = await db
-      .select()
+      .select({
+        id: notificationQueue.id,
+        userId: notificationQueue.userId,
+        repairOrderId: notificationQueue.repairOrderId,
+        type: notificationQueue.type,
+        status: notificationQueue.status,
+        payload: notificationQueue.payload,
+        scheduledFor: notificationQueue.scheduledFor,
+        createdAt: notificationQueue.createdAt,
+        outlookMessageId: notificationQueue.outlookMessageId,
+        outlookConversationId: notificationQueue.outlookConversationId,
+      })
       .from(notificationQueue)
-      .where(
-        and(
-          eq(notificationQueue.userId, session.user.id),
-          eq(notificationQueue.status, "PENDING_APPROVAL")
-        )
-      )
+      .innerJoin(active, eq(notificationQueue.repairOrderId, active.id))
+      .where(eq(notificationQueue.status, "PENDING_APPROVAL"))
       .orderBy(desc(notificationQueue.scheduledFor));
 
     return { success: true, data: notifications };
@@ -70,14 +81,13 @@ export async function approveNotification(
       return { success: false, error: "Unauthorized" };
     }
 
-    // Verify ownership and pending status
+    // Verify pending status (removed userId filter for single-tenant admin app)
     const [notification] = await db
       .select()
       .from(notificationQueue)
       .where(
         and(
           eq(notificationQueue.id, notificationId),
-          eq(notificationQueue.userId, session.user.id),
           eq(notificationQueue.status, "PENDING_APPROVAL")
         )
       )
@@ -128,13 +138,13 @@ export async function rejectNotification(
       return { success: false, error: "Unauthorized" };
     }
 
+    // Removed userId filter for single-tenant admin app
     const [result] = await db
       .update(notificationQueue)
       .set({ status: "REJECTED" })
       .where(
         and(
           eq(notificationQueue.id, notificationId),
-          eq(notificationQueue.userId, session.user.id),
           eq(notificationQueue.status, "PENDING_APPROVAL")
         )
       );
@@ -484,14 +494,13 @@ export async function updateNotificationPayload(
       return { success: false, error: "Unauthorized" };
     }
 
-    // Verify ownership and pending status
+    // Verify pending status (removed userId filter for single-tenant admin app)
     const [notification] = await db
       .select()
       .from(notificationQueue)
       .where(
         and(
           eq(notificationQueue.id, notificationId),
-          eq(notificationQueue.userId, session.user.id),
           eq(notificationQueue.status, "PENDING_APPROVAL")
         )
       )
@@ -519,6 +528,25 @@ export async function updateNotificationPayload(
       .update(notificationQueue)
       .set({ payload: updatedPayload })
       .where(eq(notificationQueue.id, notificationId));
+
+    // Also update shop email for future notifications (if "to" field was edited)
+    if (updates.to) {
+      try {
+        // Get the shop name from the associated repair order
+        const [ro] = await db
+          .select({ shopName: active.shopName })
+          .from(active)
+          .where(eq(active.id, notification.repairOrderId))
+          .limit(1);
+
+        if (ro?.shopName) {
+          await updateShopEmail(ro.shopName, updates.to);
+        }
+      } catch (shopError) {
+        // Non-critical - don't fail the save if shop update fails
+        console.warn("Failed to update shop email:", shopError);
+      }
+    }
 
     return { success: true, data: { id: notificationId } };
   } catch (error) {
@@ -585,6 +613,260 @@ export async function requeueNotification(
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to requeue notification",
+    };
+  }
+}
+
+/**
+ * ADMIN: Clears all notifications from the queue.
+ * Used to reset test data. After clearing, the next scheduled
+ * check-overdue-ros run will regenerate pending notifications.
+ */
+export async function clearAllNotifications(): Promise<Result<{ deleted: number }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Count before delete
+    const [result] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(notificationQueue);
+
+    const countBefore = Number(result.count);
+
+    // Delete all records
+    await db.delete(notificationQueue);
+
+    return { success: true, data: { deleted: countBefore } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to clear notifications",
+    };
+  }
+}
+
+/**
+ * ADMIN: Manually triggers the overdue RO check task.
+ * Useful after clearing notifications to regenerate immediately
+ * instead of waiting for the 8 AM UTC scheduled run.
+ */
+export async function triggerOverdueCheck(): Promise<Result<{ runId: string }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const handle = await tasks.trigger("check-overdue-ros", {});
+
+    return { success: true, data: { runId: handle.id } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to trigger check",
+    };
+  }
+}
+
+/**
+ * Type for sibling notification details in batch email feature
+ */
+export type SiblingNotification = {
+  notificationId: number;
+  roNumber: number | null;
+  partNumber: string | null;
+  serialNumber: string | null;
+};
+
+/**
+ * Fetches related pending notifications from the same shop.
+ * Used for batch email feature - when user clicks preview on one notification,
+ * we check if there are others from the same shop that could be batched.
+ *
+ * @param currentNotificationId - The notification being previewed
+ * @returns Shop name and list of sibling notifications from same shop
+ */
+export async function getRelatedPendingNotifications(
+  currentNotificationId: number
+): Promise<
+  Result<{
+    shopName: string;
+    currentRo: {
+      roNumber: number | null;
+      partNumber: string | null;
+      serialNumber: string | null;
+    };
+    siblings: SiblingNotification[];
+  }>
+> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Step 1: Get the current notification's RO and shop name
+    const [currentNotification] = await db
+      .select({
+        repairOrderId: notificationQueue.repairOrderId,
+        shopName: active.shopName,
+        roNumber: active.ro,
+        partNumber: active.part,
+        serialNumber: active.serial,
+      })
+      .from(notificationQueue)
+      .innerJoin(active, eq(notificationQueue.repairOrderId, active.id))
+      .where(eq(notificationQueue.id, currentNotificationId))
+      .limit(1);
+
+    if (!currentNotification) {
+      return { success: false, error: "Notification not found" };
+    }
+
+    const shopName = currentNotification.shopName;
+
+    if (!shopName) {
+      // No shop name means we can't find siblings
+      return {
+        success: true,
+        data: {
+          shopName: "",
+          currentRo: {
+            roNumber: currentNotification.roNumber,
+            partNumber: currentNotification.partNumber,
+            serialNumber: currentNotification.serialNumber,
+          },
+          siblings: [],
+        },
+      };
+    }
+
+    // Step 2: Find all other PENDING_APPROVAL notifications for the same shop
+    const siblings = await db
+      .select({
+        notificationId: notificationQueue.id,
+        roNumber: active.ro,
+        partNumber: active.part,
+        serialNumber: active.serial,
+      })
+      .from(notificationQueue)
+      .innerJoin(active, eq(notificationQueue.repairOrderId, active.id))
+      .where(
+        and(
+          eq(notificationQueue.status, "PENDING_APPROVAL"),
+          eq(notificationQueue.type, "EMAIL_DRAFT"),
+          eq(active.shopName, shopName),
+          ne(notificationQueue.id, currentNotificationId)
+        )
+      )
+      .orderBy(active.ro);
+
+    return {
+      success: true,
+      data: {
+        shopName,
+        currentRo: {
+          roNumber: currentNotification.roNumber,
+          partNumber: currentNotification.partNumber,
+          serialNumber: currentNotification.serialNumber,
+        },
+        siblings,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch related notifications",
+    };
+  }
+}
+
+/**
+ * Approves multiple notifications as a batch and triggers a single email send.
+ * The primary notification gets the merged email content, siblings are marked
+ * as BATCHED and linked to the primary.
+ *
+ * @param primaryNotificationId - The main notification (clicked first)
+ * @param siblingNotificationIds - Additional notifications to batch
+ * @param mergedPayload - The combined email content with all ROs
+ * @returns Run ID and public access token for tracking
+ */
+export async function approveBatchNotifications(
+  primaryNotificationId: number,
+  siblingNotificationIds: number[],
+  mergedPayload: EmailDraftPayload
+): Promise<Result<{ runId: string; publicAccessToken: string }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Verify primary notification exists and is pending
+    const [primaryNotification] = await db
+      .select()
+      .from(notificationQueue)
+      .where(
+        and(
+          eq(notificationQueue.id, primaryNotificationId),
+          eq(notificationQueue.status, "PENDING_APPROVAL")
+        )
+      )
+      .limit(1);
+
+    if (!primaryNotification) {
+      return {
+        success: false,
+        error: "Primary notification not found or already processed",
+      };
+    }
+
+    // Update primary notification with merged payload and APPROVED status
+    await db
+      .update(notificationQueue)
+      .set({
+        status: "APPROVED",
+        payload: mergedPayload,
+      })
+      .where(eq(notificationQueue.id, primaryNotificationId));
+
+    // Update sibling notifications to APPROVED status
+    // They will be marked SENT when the primary email is sent
+    if (siblingNotificationIds.length > 0) {
+      await db
+        .update(notificationQueue)
+        .set({ status: "APPROVED" })
+        .where(
+          and(
+            inArray(notificationQueue.id, siblingNotificationIds),
+            eq(notificationQueue.status, "PENDING_APPROVAL")
+          )
+        );
+    }
+
+    // Trigger send-approved-email with batch info
+    const handle = await tasks.trigger("send-approved-email", {
+      notificationId: primaryNotificationId,
+      userId: session.user.id,
+      batchedNotificationIds: siblingNotificationIds,
+    });
+
+    const publicAccessToken = await handle.publicAccessToken;
+
+    return { success: true, data: { runId: handle.id, publicAccessToken } };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to approve batch notifications",
     };
   }
 }

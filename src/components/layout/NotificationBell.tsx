@@ -19,11 +19,20 @@ import {
   rejectNotification,
   getAllNotifications,
   requeueNotification,
+  getRelatedPendingNotifications,
+  approveBatchNotifications,
 } from "@/app/actions/notifications";
+import type { SiblingNotification } from "@/app/actions/notifications";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
 import { toast } from "sonner";
 import { EmailThreadView } from "@/components/notifications/EmailThreadView";
 import { EmailPreviewDialog } from "@/components/notifications/EmailPreviewDialog";
+import {
+  BatchPromptDialog,
+  isBatchPromptDisabled,
+  enableBatchPrompt,
+} from "@/components/notifications/BatchPromptDialog";
+import { generateBatchEmailContent } from "@/lib/batch-email-template";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type { EmailDraftPayload, NotificationStatus } from "@/lib/types/notification";
 
@@ -53,6 +62,34 @@ export function NotificationBell() {
   const [actioningId, setActioningId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
+
+  // Batch email prompt state
+  const [batchPromptOpen, setBatchPromptOpen] = useState(false);
+  const [batchShopName, setBatchShopName] = useState("");
+  const [batchCurrentRo, setBatchCurrentRo] = useState<{
+    roNumber: number | null;
+    partNumber: string | null;
+    serialNumber: string | null;
+  }>({ roNumber: null, partNumber: null, serialNumber: null });
+  const [batchSiblings, setBatchSiblings] = useState<SiblingNotification[]>([]);
+  const [pendingBatchNotification, setPendingBatchNotification] = useState<NotificationQueueItem | null>(null);
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
+  // Track sibling IDs when batch is confirmed - passed to EmailPreviewDialog for batch approval
+  const [batchedSiblingIds, setBatchedSiblingIds] = useState<number[]>([]);
+  // Track batch prompt preference for showing reset button
+  const [batchPromptDisabled, setBatchPromptDisabled] = useState(false);
+
+  // Check batch prompt preference on mount
+  useEffect(() => {
+    setBatchPromptDisabled(isBatchPromptDisabled());
+  }, [isOpen]);
+
+  // Reset batch prompt preference
+  const handleResetBatchPrompt = () => {
+    enableBatchPrompt();
+    setBatchPromptDisabled(false);
+    toast.success("Batch email prompts re-enabled");
+  };
 
   // Track active email send for toast notifications
   const [emailRunId, setEmailRunId] = useState<string | null>(null);
@@ -88,6 +125,19 @@ export function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  // Listen for refresh events from AutoImportTrigger
+  // This ensures notifications are updated after Excel import deletes orphaned records
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchNotifications();
+      if (activeTab === "history") {
+        fetchHistory();
+      }
+    };
+    window.addEventListener("notifications-refresh", handleRefresh);
+    return () => window.removeEventListener("notifications-refresh", handleRefresh);
+  }, [activeTab]);
 
   const fetchNotifications = () => {
     startTransition(async () => {
@@ -151,6 +201,108 @@ export function NotificationBell() {
       fetchHistory();
     } else {
       toast.error(result.error || "Failed to requeue notification");
+    }
+    setActioningId(null);
+  };
+
+  // Handle preview click - check for siblings first
+  const handlePreviewClick = async (notification: NotificationQueueItem) => {
+    // Only check for siblings on EMAIL_DRAFT notifications
+    if (notification.type !== "EMAIL_DRAFT") {
+      setPreviewNotification(notification);
+      setBatchedSiblingIds([]);
+      return;
+    }
+
+    // Check if batch prompts are disabled
+    if (isBatchPromptDisabled()) {
+      setPreviewNotification(notification);
+      setBatchedSiblingIds([]);
+      return;
+    }
+
+    // Check for siblings from the same shop
+    setIsBatchLoading(true);
+    const result = await getRelatedPendingNotifications(notification.id);
+    setIsBatchLoading(false);
+
+    if (!result.success || result.data.siblings.length === 0) {
+      // No siblings - open normal preview
+      setPreviewNotification(notification);
+      setBatchedSiblingIds([]);
+      return;
+    }
+
+    // Has siblings - show batch prompt
+    setPendingBatchNotification(notification);
+    setBatchShopName(result.data.shopName);
+    setBatchCurrentRo(result.data.currentRo);
+    setBatchSiblings(result.data.siblings);
+    setBatchPromptOpen(true);
+  };
+
+  // User confirmed batch - generate merged email and open preview
+  const handleConfirmBatch = (selectedSiblingIds: number[]) => {
+    if (!pendingBatchNotification) return;
+
+    const currentPayload = pendingBatchNotification.payload as EmailDraftPayload;
+
+    // Build RO details array for the batch email
+    const roDetails = [
+      batchCurrentRo,
+      ...batchSiblings.filter((s) => selectedSiblingIds.includes(s.notificationId)),
+    ];
+
+    // Generate merged email content
+    const { subject, body } = generateBatchEmailContent(batchShopName, roDetails);
+
+    // Create a modified notification with merged payload
+    const mergedNotification: NotificationQueueItem = {
+      ...pendingBatchNotification,
+      payload: {
+        ...currentPayload,
+        subject,
+        body,
+      },
+    };
+
+    // Track which siblings are included
+    setBatchedSiblingIds(selectedSiblingIds);
+
+    // Open preview with merged content
+    setPreviewNotification(mergedNotification);
+    setBatchPromptOpen(false);
+    setPendingBatchNotification(null);
+  };
+
+  // User skipped batch - open normal preview
+  const handleSkipBatch = () => {
+    if (!pendingBatchNotification) return;
+
+    setPreviewNotification(pendingBatchNotification);
+    setBatchedSiblingIds([]);
+    setBatchPromptOpen(false);
+    setPendingBatchNotification(null);
+  };
+
+  // Handle batch approve - use special batch action
+  const handleBatchApprove = async (id: number, siblingIds: number[], payload: EmailDraftPayload) => {
+    setActioningId(id);
+    toast.info(`Sending batch email (${siblingIds.length + 1} ROs)...`);
+
+    const result = await approveBatchNotifications(id, siblingIds, payload);
+    if (result.success) {
+      // Track the run for toast notifications
+      setEmailRunId(result.data.runId);
+      setEmailAccessToken(result.data.publicAccessToken);
+
+      // Remove all batched notifications from the list
+      const allIds = [id, ...siblingIds];
+      setNotifications((prev) => prev.filter((n) => !allIds.includes(n.id)));
+      setPreviewNotification(null);
+      setBatchedSiblingIds([]);
+    } else {
+      toast.error(result.error || "Failed to send batch email");
     }
     setActioningId(null);
   };
@@ -229,9 +381,14 @@ export function NotificationBell() {
                         size="sm"
                         variant="ghost"
                         className="px-2"
-                        onClick={() => setPreviewNotification(notification)}
+                        onClick={() => handlePreviewClick(notification)}
+                        disabled={isBatchLoading}
                       >
-                        <Eye className="h-4 w-4" />
+                        {isBatchLoading ? (
+                          <TurbineSpinner size="sm" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </Button>
                       <Button
                         size="sm"
@@ -374,17 +531,57 @@ export function NotificationBell() {
                 })()}
               </>
             )}
+
+            {/* Reset batch prompt preference */}
+            {batchPromptDisabled && (
+              <div className="mt-4 pt-4 border-t">
+                <button
+                  onClick={handleResetBatchPrompt}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                >
+                  Re-enable batch email prompts
+                </button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
         <EmailPreviewDialog
           notification={previewNotification}
           open={!!previewNotification}
-          onOpenChange={(open) => !open && setPreviewNotification(null)}
-          onApprove={handleApprove}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPreviewNotification(null);
+              setBatchedSiblingIds([]);
+            }
+          }}
+          onApprove={(id) => {
+            if (batchedSiblingIds.length > 0 && previewNotification) {
+              // Batch approval
+              const payload = previewNotification.payload as EmailDraftPayload;
+              handleBatchApprove(id, batchedSiblingIds, payload);
+            } else {
+              // Single approval
+              handleApprove(id);
+            }
+          }}
           onReject={handleReject}
           isActioning={!!actioningId}
           onUpdate={fetchNotifications}
+          isBatch={batchedSiblingIds.length > 0}
+          batchCount={batchedSiblingIds.length + 1}
+        />
+
+        {/* Batch prompt dialog */}
+        <BatchPromptDialog
+          open={batchPromptOpen}
+          onOpenChange={setBatchPromptOpen}
+          shopName={batchShopName}
+          currentRo={batchCurrentRo}
+          siblings={batchSiblings}
+          onConfirmBatch={handleConfirmBatch}
+          onSkipBatch={handleSkipBatch}
+          isLoading={isBatchLoading}
         />
       </SheetContent>
     </Sheet>

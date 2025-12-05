@@ -139,6 +139,15 @@ function getStatusConfig(status: string): {
           "bg-danger/20 text-danger dark:bg-danger/30",
       };
 
+    // Action needed states - Amber/Warning (to draw attention)
+    case "TO SEND":
+    case "SEND":
+      return {
+        label: "To Send",
+        colorClasses:
+          "bg-warning/20 text-warning dark:bg-warning/30",
+      };
+
     // Default - Neutral gray
     default:
       return {

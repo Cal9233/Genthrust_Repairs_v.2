@@ -56,64 +56,120 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 29 Complete - Dashboard Filter System. Added comprehensive filtering to repairs dashboard with Status, Shop, and Date Range filters plus 67 unit tests.
+**[Current Status]:** Phase 33 Complete - Email Preview Bug Fixes. Fixed notification approval flow, stale content display, and shop email persistence.
 
 ---
 
 ## Changelog
 
-### Phase 29 - Dashboard Filter System (2025-12-05)
-- **Feature:** Advanced filtering for repairs dashboard table
-- **Filters Added:**
-  - **Status Filter:** Dropdown with all unique statuses (prefix matching for "APPROVED >>>>" variants)
-  - **Shop Filter:** Dropdown with all unique shop names (case-insensitive exact match)
-  - **Date Range Filter:** From/To date pickers for delivery date filtering
-- **UI Features:**
-  - Collapsible filter bar (mobile-friendly)
-  - Active filter count badge
-  - Filter pills showing active filters when collapsed
-  - "Clear All Filters" button
-- **Backend:**
-  - Extended `getRepairOrdersBySheet()` with `DashboardFilters` parameter
-  - Added `getUniqueShops()` server action
-  - Added `getUniqueStatuses()` server action (excludes archived statuses)
-  - SQL filtering with AND logic for combined filters
-- **TDD Approach:** 67 tests covering filter logic
-  - Filter type validation (6 tests)
-  - Status filter matching (7 tests)
-  - Shop filter matching (6 tests)
-  - Date range filtering (8 tests)
-  - Active filter count (7 tests)
-  - Filter combinations/AND logic (11 tests)
-  - Unique shops/statuses extraction (18 tests)
-- **Files Added:**
-  - `src/components/dashboard/DashboardFilterBar.tsx` - Collapsible filter UI
-  - `src/components/ui/collapsible.tsx` - shadcn/ui Collapsible component
-  - `src/__tests__/dashboard-filters.test.ts` - 67 unit tests
+### Phase 33 - Email Preview Bug Fixes (2025-12-05)
+- **Bug Fix 1: Notification Approval Flow**
+  - Issue: "Notification not found or already processed" error when approving/rejecting
+  - Root Cause: `userId` filter in notification actions didn't match session user ID
+  - Solution: Removed `userId` filter from `approveNotification()`, `rejectNotification()`, `updateNotificationPayload()` for single-tenant admin app
+- **Bug Fix 2: Stale Email Preview Content**
+  - Issue: Editing RO# 38386, then previewing RO# 38586 showed old content from 38386
+  - Root Cause: `localPayload` state persisted across notification switches (Radix Dialog doesn't fire `onOpenChange` on programmatic open)
+  - Solution: Added `useEffect` to reset `localPayload` and `isEditMode` when `notification?.id` changes
+- **Bug Fix 3: Warning Banner Not Clearing**
+  - Issue: "Shop email not configured" warning persisted after saving valid email
+  - Root Cause: OR logic checked `missingEmail` flag which wasn't cleared on save
+  - Solution: Changed to check only if email field is actually empty, ignoring `missingEmail` flag
+- **Feature: Shop Email Persistence on Save**
+  - When editing "To" email in Email Preview Dialog, clicking Save now persists the email to the shop's record
+  - Future notifications to same shop will use the saved email address
+  - Uses existing `updateShopEmail()` function from Phase 26
 - **Files Modified:**
-  - `src/app/actions/dashboard.ts` - Added filter types, filtering logic, getUniqueShops/Statuses
-  - `src/components/dashboard/RepairOrderTable.tsx` - Integrated filter bar and state
+  - `src/app/actions/notifications.ts` - Removed userId filters, added shop email update on save
+  - `src/components/notifications/EmailPreviewDialog.tsx` - Added useEffect for state reset, fixed isMissingEmail logic
+
+### Phase 32 - Orphaned Notifications Cleanup (2025-12-05)
+- **Bug Fix:** Notification badge showed stale count (58) after Excel import updated dashboard (37 overdue)
+- **Root Cause:** When ROs are deleted from MySQL (Phase 30), `notificationQueue` entries remained orphaned
+- **Solution 1:** `getPendingNotifications()` now INNER JOINs with `active` table to filter orphans
+- **Solution 2:** Excel import Phase 4.6 explicitly deletes orphaned notification queue entries
+- **Files Modified:**
+  - `src/app/actions/notifications.ts` - Added INNER JOIN in `getPendingNotifications()`
+  - `src/trigger/import-from-excel.ts` - Added Phase 4.6 orphan cleanup, new imports
+
+### Phase 31 - Batch Email Notifications (2025-12-05)
+- **Feature:** Combine multiple pending ROs from the same shop into one email
+- **Problem Solved:** Shops receiving 5 individual emails when one consolidated email would suffice
+- **UI Flow:**
+  1. Click "Preview" eye icon on a notification
+  2. System checks for other pending ROs from the same shop
+  3. If siblings exist, BatchPromptDialog opens with checkable list
+  4. User can combine selected ROs into one email or send separately
+  5. Combined email uses HTML table listing all RO#, Part#, Serial#
+- **Subject Line Strategy:**
+  - 1 RO: `Status Update for RO #12345`
+  - 2-3 ROs: `Status Update: RO #12345, #12346, #12347`
+  - 4+ ROs: `Status Update: Multiple Orders ({Shop Name})`
+- **Timestamp Consistency:** All batched notifications get same `outlookMessageId`, `outlookConversationId`
+- **User Preference:** "Don't ask again" checkbox saves to localStorage; reset link in History tab
+- **Files Created:**
+  - `src/components/notifications/BatchPromptDialog.tsx` - Dialog with checkbox selection
+  - `src/lib/batch-email-template.ts` - Generates merged email subject/body with HTML table
+  - `src/components/ui/checkbox.tsx` - Added shadcn checkbox component
+- **Files Modified:**
+  - `src/app/actions/notifications.ts` - Added `getRelatedPendingNotifications()`, `approveBatchNotifications()`, `SiblingNotification` type
+  - `src/components/layout/NotificationBell.tsx` - Batch prompt interception, state management, reset preference
+  - `src/components/notifications/EmailPreviewDialog.tsx` - Added `isBatch`/`batchCount` props, batch indicator
+  - `src/trigger/send-approved-email.ts` - Added `batchedNotificationIds` payload, updates all sibling RO dates/statuses
+
+### Phase 30 - Full Sync Excel Import (2025-12-05)
+- **Feature:** Excel import now deletes MySQL rows not present in Excel
+- **Problem Solved:** ROs deleted from Excel remained in MySQL dashboard forever (append-only import)
+- **Solution:** After upserting all Excel rows, delete MySQL rows whose RO# is not in Excel
+- **Safety Guard:** If Excel returns 0 RO numbers, skip deletion to prevent accidental data wipe
+- **Output Schema:** Added `deletedCount` field to track deletions
+- **Files Modified:**
+  - `src/trigger/import-from-excel.ts`:
+    - Added Phase 4.5: Delete Orphaned MySQL Rows
+    - Collects `excelRONumbers` Set after parsing
+    - Uses `notInArray` to find orphaned MySQL rows
+    - Logs deleted RO numbers for audit trail
+- **Data Flow:** Excel is now the true source of truth for the `active` table
+
+### Phase 29 - Dashboard Filter System (2025-12-05)
+- **Feature:** Advanced filtering for dashboard repair order table
+- **Filter Bar Component:** `DashboardFilterBar` with collapsible filter chips
+- **Available Filters:**
+  - Status filter (multi-select): Filter by current status values
+  - Shop filter: Filter by shop name
+  - Date range filters: Filter by date received, next update date
+  - Overdue toggle: Show only overdue items
+- **Server-Side Filtering:** Filters passed to `getRepairOrdersBySheet()` action
+- **Persistence:** Filter state maintained during pagination
+- **Files Added:**
+  - `src/components/dashboard/DashboardFilterBar.tsx` - Filter bar UI component
+- **Files Modified:**
+  - `src/components/dashboard/RepairOrderTable.tsx` - Integrated filter bar, passes filters to action
+  - `src/app/actions/dashboard.ts` - Added `DashboardFilters` type, filter logic in query
 
 ### Phase 28 - UX Polish & Bug Fixes (2025-12-05)
-- **Dashboard Forensics:** Created `/api/dashboard-forensics` endpoint to verify stats against database
-  - Compares displayed stats with actual data
-  - Shows status distribution breakdown
-  - Identifies date parsing issues
-- **Status Normalization:** Merged "APPROVED >>>>" variants to "Approved" (8 + 5 = 13 records)
-  - Created temporary API endpoint to clean existing data
-  - Future imports handled by existing `cleanStatus()` function
-- **Activity Log Bug Fix:** Fixed note saving error in Edit RO dialog
-  - Error: `insert into 'ro_activity_log'... values (default, ?, ?, ?, default, ?, ?, default)`
-  - Root cause: `oldValue` field missing from insert
-  - Fix: Added `oldValue: currentNotes || null` to `appendRONote()` function
-- **Cursor Pointer UX:** All buttons now show pointer cursor on hover
-  - Added `cursor-pointer` to base Button component styles
-  - Applies to: login, pagination, dialogs, navigation, all buttons
-- **Files Added:**
-  - `src/app/api/dashboard-forensics/route.ts` - Diagnostic endpoint
+- **Year 45988 Fix:** Dates > 2100 or < 1900 display as "-" instead of absurd values
+  - SQL "end of time" dates and parsing errors no longer show garbage data
+  - Added year validation in `formatDate()` and `getDaysOverdue()` functions
+- **Overdue Days Display:** Now shows "(+Xd)" suffix for overdue dates
+  - Example: "11/24/2025 (+11d)" shows date is 11 days overdue
+  - Added `getDaysOverdue()` helper function
+  - Applied to both desktop table and mobile cards
+- **TO SEND Status Color:** Changed from grey (default) to amber/warning
+  - Action items now visually stand out for attention
+  - Added explicit case in `StatusBadge.tsx` switch statement
+- **Empty States:** Est. Cost "-" now dimmed with `text-muted-foreground/50`
+  - `formatCurrency()` returns JSX with styled dash for null values
+- **Dark Mode Contrast:** Improved placeholder text visibility
+  - Added CSS rule in `globals.css` for `.dark input::placeholder`
+  - Placeholder color changed to `hsl(215 20% 72%)` for better readability
+- **Removed Left Borders:** Eliminated colored left borders from table rows
+  - No "Priority" field exists in data, so borders added visual noise ("rainbow effect")
+  - Removed `getStatusBorderColor()` function and `border-l-4` classes
 - **Files Modified:**
-  - `src/app/actions/repair-orders.ts` - Fixed activity log insert
-  - `src/components/ui/button.tsx` - Added cursor-pointer to base styles
+  - `src/components/dashboard/RepairOrderTable.tsx` - Date validation, overdue days, borders removed
+  - `src/components/dashboard/StatusBadge.tsx` - TO SEND amber color
+  - `src/app/globals.css` - Dark mode placeholder contrast
 
 ### Phase 27 - RO Date Update on Email Send (2025-12-04)
 - **Feature:** Sending a follow-up email now resets the RO's overdue status

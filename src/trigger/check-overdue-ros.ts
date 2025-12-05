@@ -1,15 +1,17 @@
 import { schedules, logger } from "@trigger.dev/sdk/v3";
 import { db } from "../lib/db";
-import { active, users } from "../lib/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { active, users, notificationQueue } from "../lib/schema";
+import { eq, and, lt } from "drizzle-orm";
 import { insertNotificationCore } from "../lib/data/notifications";
 import { getShopEmailByName } from "../lib/data/shops";
+import { isOverdue } from "../lib/date-utils";
 
 /**
  * Overdue Safety Net - Runs daily at 8:00 AM UTC
  *
- * Finds ROs that have been in WAITING QUOTE status for 7+ days
- * and creates follow-up email drafts for user approval.
+ * Step 1: Bumps stale PENDING_APPROVAL notifications (24h+) to top of UI list
+ * Step 2: Finds overdue ROs (nextDateToUpdate < today) - matches dashboard definition
+ * Step 3: Creates follow-up email drafts for user approval
  *
  * This catches ROs that:
  * - Became overdue before the notification system was online
@@ -20,43 +22,65 @@ import { getShopEmailByName } from "../lib/data/shops";
  */
 export const checkOverdueRos = schedules.task({
   id: "check-overdue-ros",
-  // Run daily at 8:00 AM UTC
-  cron: "0 8 * * *",
+  cron: "0 8 * * *", // 8:00 AM UTC daily
   machine: { preset: "small-1x" },
   run: async () => {
-    logger.info("Starting overdue RO check");
+    // ============================================================
+    // STEP 1: Bump stale PENDING_APPROVAL notifications (24h+)
+    // This moves old pending items to the top of the UI list
+    // ============================================================
+    logger.info("Step 1: Bumping stale pending notifications...");
 
-    // Find ROs in WAITING QUOTE status for 7+ days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Query for overdue ROs
-    const overdueROs = await db
+    const bumpResult = await db
+      .update(notificationQueue)
+      .set({ scheduledFor: new Date() })
+      .where(
+        and(
+          eq(notificationQueue.status, "PENDING_APPROVAL"),
+          lt(notificationQueue.scheduledFor, twentyFourHoursAgo)
+        )
+      );
+
+    const bumpedCount = bumpResult[0]?.affectedRows ?? 0;
+    logger.info(`Bumped ${bumpedCount} stale notifications to top of queue`);
+
+    // ============================================================
+    // STEP 2: Find overdue ROs (nextDateToUpdate < today)
+    // Matches dashboard definition for consistency
+    // ============================================================
+    logger.info("Step 2: Scanning for overdue ROs...");
+
+    // Fetch all active ROs with nextDateToUpdate field
+    // (Must filter in memory due to string date format)
+    const allActiveROs = await db
       .select({
         id: active.id,
         ro: active.ro,
         part: active.part,
         serial: active.serial,
         shopName: active.shopName,
-        dateDroppedOff: active.dateDroppedOff,
-        curentStatusDate: active.curentStatusDate,
+        nextDateToUpdate: active.nextDateToUpdate,
+        curentStatus: active.curentStatus,
       })
-      .from(active)
-      .where(
-        and(
-          eq(active.curentStatus, "WAITING QUOTE"),
-          sql`${active.curentStatusDate} <= ${sevenDaysAgoStr}`
-        )
-      );
+      .from(active);
 
-    logger.info(`Found ${overdueROs.length} overdue ROs`);
+    // Filter for overdue using shared isOverdue() function
+    const overdueROs = allActiveROs.filter((ro) => isOverdue(ro.nextDateToUpdate));
+
+    logger.info(`Found ${overdueROs.length} overdue ROs (nextDateToUpdate < today)`);
 
     if (overdueROs.length === 0) {
-      return { processed: 0 };
+      return { bumped: bumpedCount, processed: 0 };
     }
 
-    // Get a default user to assign notifications to
-    // (In production, this could be improved with RO ownership)
+    // ============================================================
+    // STEP 3: Create notifications for overdue ROs
+    // (insertNotificationCore handles deduplication automatically)
+    // ============================================================
+    logger.info("Step 3: Creating notifications for overdue ROs...");
+
     const [defaultUser] = await db
       .select({ id: users.id })
       .from(users)
@@ -64,61 +88,65 @@ export const checkOverdueRos = schedules.task({
 
     if (!defaultUser) {
       logger.error("No users found in system");
-      return { processed: 0, error: "No users found" };
+      return { bumped: bumpedCount, processed: 0, error: "No users found" };
     }
 
     let processed = 0;
-
     const ccEmail = process.env.GENTHRUST_CC_EMAIL;
 
     for (const ro of overdueROs) {
       try {
-        // Look up shop email
         const shopEmail = await getShopEmailByName(ro.shopName);
 
+        // Don't skip - create notification even without email
         if (!shopEmail) {
-          logger.warn(`No email found for shop, skipping RO ${ro.id}`, {
-            shopName: ro.shopName,
-          });
-          continue;
+          logger.warn(`No email found for shop "${ro.shopName}", creating notification without recipient`);
         }
 
-        // Generate static email template (no AI costs)
         const roNumber = ro.ro ?? ro.id;
         const partNumber = ro.part ?? "Unknown Part";
+        const status = ro.curentStatus ?? "Unknown Status";
 
         const subject = `Follow-up: RO# G${roNumber}`;
         const body = `Hi Team,
 
 Just checking in on RO# G${roNumber} for part ${partNumber}.
 
-We'd love an update on the quote when you have a moment.
+Current status: ${status}
+
+We'd love an update when you have a moment.
 
 Thanks!
 GenThrust`;
 
-        // Queue notification for approval
-        await insertNotificationCore({
+        // insertNotificationCore handles deduplication - returns existing ID if duplicate
+        const notificationId = await insertNotificationCore({
           repairOrderId: ro.id,
           userId: defaultUser.id,
           type: "EMAIL_DRAFT",
           payload: {
-            to: shopEmail,
+            to: shopEmail || "",  // Empty string if no email
             cc: ccEmail,
             subject,
             body,
+            missingEmail: !shopEmail,  // Flag for UI
+            shopName: ro.shopName,     // For display when email missing
           },
           scheduledFor: new Date(),
         });
 
-        processed++;
-        logger.info(`Queued notification for RO# G${roNumber}`, { shopEmail });
+        if (notificationId) {
+          processed++;
+          logger.info(`Queued notification ${notificationId} for RO# G${roNumber}`, {
+            shopEmail: shopEmail || "(missing)",
+          });
+        }
       } catch (error) {
         logger.error(`Failed to process RO ${ro.id}`, { error });
       }
     }
 
-    logger.info(`Processed ${processed} overdue ROs`);
-    return { processed, total: overdueROs.length };
+    logger.info(`Task complete: bumped=${bumpedCount}, processed=${processed}`);
+    return { bumped: bumpedCount, processed, total: overdueROs.length };
   },
 });

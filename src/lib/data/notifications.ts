@@ -8,11 +8,40 @@ import { eq, and, desc, isNotNull } from "drizzle-orm";
 import type { NewNotificationQueueItem, NotificationQueueItem } from "@/lib/schema";
 
 /**
+ * Checks if a PENDING_APPROVAL notification already exists for a repair order.
+ * Used to prevent duplicate pending drafts for the same RO.
+ */
+export async function findExistingPendingNotification(
+  repairOrderId: number
+): Promise<number | null> {
+  try {
+    const [existing] = await db
+      .select({ id: notificationQueue.id })
+      .from(notificationQueue)
+      .where(
+        and(
+          eq(notificationQueue.repairOrderId, repairOrderId),
+          eq(notificationQueue.status, "PENDING_APPROVAL")
+        )
+      )
+      .limit(1);
+
+    return existing?.id ?? null;
+  } catch (error) {
+    console.error("Error checking for existing notification:", error);
+    return null;
+  }
+}
+
+/**
  * Core function to insert a new notification record into the database.
  * Does NOT perform session/auth checks.
  *
+ * DEDUPLICATION: If a PENDING_APPROVAL notification already exists for
+ * this RO, returns the existing ID instead of creating a duplicate.
+ *
  * @param data - The notification data, including userId.
- * @returns The ID of the newly inserted notification or null on failure.
+ * @returns The ID of the notification (new or existing) or null on failure.
  */
 export async function insertNotificationCore(
   data: Omit<NewNotificationQueueItem, "id" | "createdAt" | "status"> & {
@@ -20,12 +49,24 @@ export async function insertNotificationCore(
   }
 ): Promise<number | null> {
   try {
+    const targetStatus = data.status || "PENDING_APPROVAL";
+
+    // Deduplication: if creating PENDING_APPROVAL, check for existing
+    if (targetStatus === "PENDING_APPROVAL") {
+      const existingId = await findExistingPendingNotification(data.repairOrderId);
+      if (existingId) {
+        console.log(
+          `[notification] Skipping duplicate: RO ${data.repairOrderId} already has pending #${existingId}`
+        );
+        return existingId;
+      }
+    }
+
     const [inserted] = await db
       .insert(notificationQueue)
       .values({
         ...data,
-        // Status defaults to PENDING_APPROVAL in the schema, but we ensure consistency here
-        status: data.status || "PENDING_APPROVAL",
+        status: targetStatus,
       })
       .$returningId();
 

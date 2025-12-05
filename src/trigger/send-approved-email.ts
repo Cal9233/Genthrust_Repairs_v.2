@@ -2,7 +2,7 @@ import { task, logger, tasks } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { db } from "../lib/db";
 import { notificationQueue, active } from "../lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   getNotificationById,
   updateNotificationStatus,
@@ -19,6 +19,11 @@ import type { EmailDraftPayload, TaskReminderPayload } from "../lib/types/notifi
 export const sendApprovedEmailPayloadSchema = z.object({
   notificationId: z.number(),
   userId: z.string(),
+  /**
+   * Optional array of sibling notification IDs when sending a batch email.
+   * These siblings will also be marked as SENT after the primary email is sent.
+   */
+  batchedNotificationIds: z.array(z.number()).optional(),
 });
 
 export type SendApprovedEmailPayload = z.infer<typeof sendApprovedEmailPayloadSchema>;
@@ -70,9 +75,15 @@ export const sendApprovedEmail = task({
       .where(eq(notificationQueue.id, notificationId));
   },
   run: async (payload: SendApprovedEmailPayload): Promise<SendApprovedEmailOutput> => {
-    const { notificationId, userId } = payload;
+    const { notificationId, userId, batchedNotificationIds = [] } = payload;
+    const isBatch = batchedNotificationIds.length > 0;
 
-    logger.info("Processing approved notification", { notificationId, userId });
+    logger.info("Processing approved notification", {
+      notificationId,
+      userId,
+      isBatch,
+      batchedCount: batchedNotificationIds.length,
+    });
 
     try {
       // Step 1: Fetch notification from database
@@ -146,14 +157,23 @@ export const sendApprovedEmail = task({
       if (notification.type === "EMAIL_DRAFT") {
         const emailPayload = notificationPayload as EmailDraftPayload;
 
-        // Step 3a: Look up existing thread for this RO
-        const existingMessageId = await getEmailThreadForRO(notification.repairOrderId);
-
-        // Get recipient address (support both 'to' and legacy 'toAddress' fields)
-        const recipientAddress = emailPayload.to || emailPayload.toAddress;
+        // Step 3a: Validate recipient address (support both 'to' and legacy 'toAddress' fields)
+        const recipientAddress = (emailPayload.to || emailPayload.toAddress || "").trim();
         if (!recipientAddress) {
-          throw new Error("No recipient address found in email payload");
+          // User-recoverable error: missing email address
+          // Mark as FAILED without retrying - user needs to fill in email first
+          logger.error("Cannot send email: recipient address is empty", { notificationId });
+          await updateNotificationStatus(notificationId, "FAILED");
+          return {
+            success: false,
+            notificationId,
+            action: "failed",
+            error: "Recipient email address is required. Please edit the notification to add an email address.",
+          };
         }
+
+        // Step 3b: Look up existing thread for this RO
+        const existingMessageId = await getEmailThreadForRO(notification.repairOrderId);
 
         logger.info("Sending email", {
           notificationId,
@@ -163,7 +183,7 @@ export const sendApprovedEmail = task({
           hasExistingThread: !!existingMessageId,
         });
 
-        // Step 3b: Send with threading and CC support
+        // Step 3c: Send with threading and CC support
         const result = await sendEmail(
           userId,
           recipientAddress,
@@ -175,7 +195,7 @@ export const sendApprovedEmail = task({
           }
         );
 
-        // Step 3c: Store Outlook IDs in schema columns (not JSON)
+        // Step 3d: Store Outlook IDs in schema columns (not JSON)
         const idsUpdated = await updateNotificationOutlookIds(
           notificationId,
           result.internetMessageId, // Store internetMessageId (used for threading)
@@ -186,13 +206,29 @@ export const sendApprovedEmail = task({
           logger.warn("Failed to update Outlook IDs, but email was sent", { notificationId });
         }
 
+        // Step 3d-batch: Update Outlook IDs for all batched siblings (same message/conversation)
+        if (isBatch) {
+          for (const siblingId of batchedNotificationIds) {
+            await updateNotificationOutlookIds(
+              siblingId,
+              result.internetMessageId,
+              result.conversationId
+            );
+          }
+          logger.info("Updated Outlook IDs for batched siblings", {
+            count: batchedNotificationIds.length,
+            conversationId: result.conversationId,
+          });
+        }
+
         logger.info("Email sent and tracked", {
           notificationId,
           conversationId: result.conversationId,
           hasThread: !!existingMessageId,
+          isBatch,
         });
 
-        // Step 3d: Update shop email if it was edited (for future emails)
+        // Step 3e: Update shop email if it was edited (for future emails)
         if (recipientAddress && notification.repairOrderId) {
           try {
             const ro = await db
@@ -234,8 +270,28 @@ export const sendApprovedEmail = task({
           }
         }
 
-        // Step 3e: Update RO dates to reset overdue status
+        // Step 3f: Update RO dates to reset overdue status (for primary and batch)
+        // Collect all RO IDs: primary + all batched siblings
+        const allRoIds: number[] = [];
         if (notification.repairOrderId) {
+          allRoIds.push(notification.repairOrderId);
+        }
+
+        // Get RO IDs from batched siblings
+        if (isBatch) {
+          const siblingNotifications = await db
+            .select({ repairOrderId: notificationQueue.repairOrderId })
+            .from(notificationQueue)
+            .where(inArray(notificationQueue.id, batchedNotificationIds));
+
+          for (const sibling of siblingNotifications) {
+            if (sibling.repairOrderId && !allRoIds.includes(sibling.repairOrderId)) {
+              allRoIds.push(sibling.repairOrderId);
+            }
+          }
+        }
+
+        if (allRoIds.length > 0) {
           try {
             const today = new Date();
             const nextFollowUp = new Date();
@@ -248,28 +304,32 @@ export const sendApprovedEmail = task({
             const todayFormatted = formatDate(today);
             const nextFollowUpFormatted = formatDate(nextFollowUp);
 
+            // Update dates for all ROs in the batch
             await db
               .update(active)
               .set({
                 lastDateUpdated: todayFormatted,
                 nextDateToUpdate: nextFollowUpFormatted,
               })
-              .where(eq(active.id, notification.repairOrderId));
+              .where(inArray(active.id, allRoIds));
 
             logger.info("Updated RO dates after email sent", {
-              roId: notification.repairOrderId,
+              roIds: allRoIds,
+              count: allRoIds.length,
               lastDateUpdated: todayFormatted,
               nextDateToUpdate: nextFollowUpFormatted,
+              isBatch,
             });
 
-            // Step 3f: Trigger Excel sync to update columns T & U
+            // Step 3g: Trigger Excel sync to update columns T & U for ALL ROs
             await tasks.trigger("sync-repair-orders", {
               userId,
-              repairOrderIds: [notification.repairOrderId],
+              repairOrderIds: allRoIds,
             });
 
             logger.info("Triggered Excel sync for date update", {
-              roId: notification.repairOrderId,
+              roIds: allRoIds,
+              count: allRoIds.length,
             });
           } catch (dateError) {
             // Non-critical error - don't fail the task
@@ -327,6 +387,26 @@ export const sendApprovedEmail = task({
         logger.error("Failed to update notification status to SENT", { notificationId });
         // Don't fail the task - the email/task was already sent
         // This is a non-critical error
+      }
+
+      // Step 4-batch: Update all batched siblings to SENT as well
+      if (isBatch && batchedNotificationIds.length > 0) {
+        try {
+          await db
+            .update(notificationQueue)
+            .set({ status: "SENT" })
+            .where(inArray(notificationQueue.id, batchedNotificationIds));
+
+          logger.info("Updated batched siblings to SENT", {
+            count: batchedNotificationIds.length,
+            siblingIds: batchedNotificationIds,
+          });
+        } catch (batchError) {
+          // Non-critical - the email was sent, siblings just won't show as SENT
+          logger.warn("Failed to update batched siblings status", {
+            error: batchError instanceof Error ? batchError.message : String(batchError),
+          });
+        }
       }
 
       return {

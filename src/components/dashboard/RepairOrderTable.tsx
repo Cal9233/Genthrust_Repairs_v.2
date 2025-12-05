@@ -29,6 +29,7 @@ import { RODetailPanel } from "@/components/ro-detail";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { Search, AlertCircle, ChevronRight } from "lucide-react";
 import { useRefresh } from "@/contexts/RefreshContext";
+import { cn } from "@/lib/utils";
 
 /**
  * Format a number as RO# display
@@ -39,10 +40,12 @@ const formatRO = (ro: number | null) => {
 };
 
 /**
- * Format currency
+ * Format currency - returns JSX for proper styling
  */
-const formatCurrency = (value: number | null) => {
-  if (value === null || value === undefined) return "-";
+const formatCurrency = (value: number | null): React.ReactNode => {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground/50">-</span>;
+  }
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -59,6 +62,9 @@ const formatDate = (dateStr: string | null) => {
     const date = new Date(dateStr);
     // If it's a valid date object, format it nicely
     if (!isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      // Catch absurd dates (SQL "end of time" or parsing errors like year 45988)
+      if (year > 2100 || year < 1900) return "-";
       return new Intl.DateTimeFormat("en-US", {
         year: "numeric",
         month: "numeric",
@@ -70,6 +76,22 @@ const formatDate = (dateStr: string | null) => {
   } catch (e) {
     return dateStr;
   }
+};
+
+/**
+ * Calculate days overdue for a date
+ */
+const getDaysOverdue = (dateStr: string | null): number | null => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  // Don't calculate for absurd dates
+  if (year > 2100 || year < 1900) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff : null;
 };
 
 type RepairOrderTableProps = {
@@ -105,12 +127,15 @@ function MobileROCard({
   return (
     <div
       onClick={onClick}
-      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors min-h-[72px] active:bg-muted"
+      className={cn(
+        "flex items-center justify-between p-4 rounded-lg border bg-card/80 backdrop-blur-sm",
+        "hover:bg-muted/50 cursor-pointer transition-colors min-h-[72px] active:bg-muted"
+      )}
     >
       <div className="flex-1 min-w-0 space-y-1">
         {/* Row 1: RO# and Shop */}
         <div className="flex items-center gap-2">
-          <span className="font-mono font-semibold text-sm">
+          <span className="font-mono font-semibold text-sm tabular-nums">
             RO-{formatRO(ro.ro)}
           </span>
           <span className="text-muted-foreground text-sm truncate">
@@ -120,7 +145,7 @@ function MobileROCard({
 
         {/* Row 2: Part and Status */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+          <span className="text-xs text-muted-foreground truncate max-w-[140px] font-mono">
             {ro.part || "-"}
           </span>
           <StatusBadge status={ro.curentStatus} className="text-xs" />
@@ -128,11 +153,16 @@ function MobileROCard({
 
         {/* Row 3: Next Update (if overdue, highlight) */}
         {ro.nextDateToUpdate && (
-          <div className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-1 text-xs font-mono">
             {overdueStatus ? (
               <span className="text-danger flex items-center gap-1 font-medium">
                 <AlertCircle className="h-3 w-3" />
                 Overdue: {formatDate(ro.nextDateToUpdate)}
+                {getDaysOverdue(ro.nextDateToUpdate) && (
+                  <span className="opacity-75">
+                    (+{getDaysOverdue(ro.nextDateToUpdate)}d)
+                  </span>
+                )}
               </span>
             ) : (
               <span className="text-muted-foreground">
@@ -241,16 +271,16 @@ export function RepairOrderTable({
       </CardHeader>
       <CardContent>
         {/* Desktop Table View - hidden on mobile */}
-        <div className="hidden sm:block rounded-md border">
+        <div className="hidden sm:block rounded-lg border bg-card/80 backdrop-blur-sm overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">RO #</TableHead>
-                <TableHead>Shop</TableHead>
-                <TableHead>Part / Serial</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Next Update</TableHead>
-                <TableHead className="text-right">Est. Cost</TableHead>
+              <TableRow className="hover:bg-transparent border-b-2">
+                <TableHead className="w-[100px] uppercase tracking-wide text-xs font-semibold">RO #</TableHead>
+                <TableHead className="uppercase tracking-wide text-xs font-semibold">Shop</TableHead>
+                <TableHead className="uppercase tracking-wide text-xs font-semibold">Part / Serial</TableHead>
+                <TableHead className="uppercase tracking-wide text-xs font-semibold">Status</TableHead>
+                <TableHead className="uppercase tracking-wide text-xs font-semibold">Next Update</TableHead>
+                <TableHead className="text-right uppercase tracking-wide text-xs font-semibold">Est. Cost</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -267,10 +297,10 @@ export function RepairOrderTable({
                 data.map((ro) => (
                   <TableRow
                     key={ro.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="group cursor-pointer transition-colors hover:bg-muted/50"
                     onClick={() => setSelectedRoId(Number(ro.id))}
                   >
-                    <TableCell className="font-medium font-mono">
+                    <TableCell className="font-mono font-semibold tabular-nums">
                       {formatRO(ro.ro)}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate" title={ro.shopName || ""}>
@@ -278,8 +308,8 @@ export function RepairOrderTable({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium">{ro.part || "-"}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="font-mono font-medium">{ro.part || "-"}</span>
+                        <span className="text-xs text-muted-foreground font-mono">
                           S/N: {ro.serial || "-"}
                         </span>
                       </div>
@@ -287,17 +317,22 @@ export function RepairOrderTable({
                     <TableCell>
                       <StatusBadge status={ro.curentStatus} />
                     </TableCell>
-                    <TableCell className="tabular-nums">
+                    <TableCell className="font-mono tabular-nums">
                       {isOverdue(ro.nextDateToUpdate) ? (
                         <span className="text-danger flex items-center gap-1 font-medium">
                           <AlertCircle className="h-4 w-4" />
                           {formatDate(ro.nextDateToUpdate)}
+                          {getDaysOverdue(ro.nextDateToUpdate) && (
+                            <span className="text-xs opacity-75">
+                              (+{getDaysOverdue(ro.nextDateToUpdate)}d)
+                            </span>
+                          )}
                         </span>
                       ) : (
                         formatDate(ro.nextDateToUpdate)
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right font-mono tabular-nums">
                       {formatCurrency(ro.estimatedCost)}
                     </TableCell>
                   </TableRow>

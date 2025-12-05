@@ -1,8 +1,8 @@
 import { task, metadata, logger } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { db } from "../lib/db";
-import { active } from "../lib/schema";
-import { eq } from "drizzle-orm";
+import { active, notificationQueue } from "../lib/schema";
+import { eq, notInArray, isNull, inArray } from "drizzle-orm";
 import {
   getGraphClient,
   createExcelSession,
@@ -28,6 +28,7 @@ export const importFromExcelOutputSchema = z.object({
   totalRows: z.number(),
   insertedCount: z.number(),
   updatedCount: z.number(),
+  deletedCount: z.number(),
   skippedCount: z.number(),
   errorCount: z.number(),
   errors: z.array(z.string()).optional(),
@@ -73,6 +74,7 @@ export const importFromExcel = task({
     let sessionId: string | null = null;
     let insertedCount = 0;
     let updatedCount = 0;
+    let deletedCount = 0;
     let skippedCount = 0;
     const errors: string[] = [];
 
@@ -94,6 +96,7 @@ export const importFromExcel = task({
             totalRows: 0,
             insertedCount: 0,
             updatedCount: 0,
+            deletedCount: 0,
             skippedCount: 0,
             errorCount: 1,
             errors: [error.message],
@@ -135,6 +138,7 @@ export const importFromExcel = task({
           totalRows: 0,
           insertedCount: 0,
           updatedCount: 0,
+          deletedCount: 0,
           skippedCount: 0,
           errorCount: 0,
         };
@@ -162,6 +166,15 @@ export const importFromExcel = task({
         parsed: parsedRows.length,
         skipped: skippedCount,
       });
+
+      // Collect all RO numbers from Excel for full sync deletion
+      const excelRONumbers = new Set<number>();
+      for (const { data } of parsedRows) {
+        if (data.ro !== null) {
+          excelRONumbers.add(data.ro);
+        }
+      }
+      logger.info("Excel RO numbers collected", { count: excelRONumbers.size });
 
       // Build lookup map: RO number → MySQL id
       const existingROs = await db
@@ -218,6 +231,70 @@ export const importFromExcel = task({
       }
 
       // ==========================================
+      // PHASE 4.5: Delete Orphaned MySQL Rows
+      // ==========================================
+      await metadata.set("status", "cleaning");
+      logger.info("Phase 4.5: Deleting MySQL rows not in Excel");
+
+      // Safety guard: Skip deletion if Excel returned no RO numbers
+      if (excelRONumbers.size === 0) {
+        logger.warn("No RO numbers found in Excel - skipping deletion to prevent data loss");
+      } else {
+        // Find MySQL rows whose RO is NOT in Excel
+        const orphanedRows = await db
+          .select({ id: active.id, ro: active.ro })
+          .from(active)
+          .where(notInArray(active.ro, Array.from(excelRONumbers)));
+
+        if (orphanedRows.length > 0) {
+          logger.info("Found orphaned rows to delete", {
+            count: orphanedRows.length,
+            roNumbers: orphanedRows.map((r) => r.ro),
+          });
+
+          // Delete orphaned rows
+          for (const row of orphanedRows) {
+            await db.delete(active).where(eq(active.id, row.id));
+            deletedCount++;
+          }
+
+          logger.info("Deleted orphaned rows", { deletedCount });
+        } else {
+          logger.info("No orphaned rows found - MySQL and Excel are in sync");
+        }
+      }
+
+      await metadata.set("progress", 92);
+
+      // ==========================================
+      // PHASE 4.6: Clean Orphaned Notification Queue
+      // ==========================================
+      logger.info("Phase 4.6: Cleaning orphaned notification queue entries");
+
+      // Find notifications whose ROs no longer exist in the active table
+      const orphanedNotifications = await db
+        .select({ id: notificationQueue.id })
+        .from(notificationQueue)
+        .leftJoin(active, eq(notificationQueue.repairOrderId, active.id))
+        .where(isNull(active.id));
+
+      if (orphanedNotifications.length > 0) {
+        const orphanedIds = orphanedNotifications.map((n) => n.id);
+
+        await db
+          .delete(notificationQueue)
+          .where(inArray(notificationQueue.id, orphanedIds));
+
+        logger.info("Cleaned orphaned notifications", {
+          count: orphanedNotifications.length,
+        });
+      } else {
+        logger.info("No orphaned notifications found");
+      }
+
+      await metadata.set("progress", 94);
+
+      // ==========================================
       // PHASE 5: Cleanup (95-100%)
       // ==========================================
       await metadata.set("status", "finishing");
@@ -234,6 +311,7 @@ export const importFromExcel = task({
         totalRows,
         insertedCount,
         updatedCount,
+        deletedCount,
         skippedCount,
         errorCount: errors.length,
       });
@@ -242,6 +320,7 @@ export const importFromExcel = task({
         totalRows,
         insertedCount,
         updatedCount,
+        deletedCount,
         skippedCount,
         errorCount: errors.length,
         errors: errors.length > 0 ? errors : undefined,

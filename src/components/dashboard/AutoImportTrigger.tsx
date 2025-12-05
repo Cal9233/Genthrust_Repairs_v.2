@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { triggerExcelImport } from "@/app/actions/import";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
-import { useRefresh } from "@/contexts/RefreshContext";
+// Note: Not using RefreshContext because StatsGrid is server-rendered
+// and needs a full page reload to update
 import { toast } from "sonner";
 
 interface AutoImportTriggerProps {
@@ -28,21 +29,25 @@ export function AutoImportTrigger({ userId }: AutoImportTriggerProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const { status } = useTriggerRun(runId, accessToken);
-  const { triggerRefresh } = useRefresh();
 
   // Track completion status
   useEffect(() => {
     if (status === "completed") {
-      toast.success("Excel data synced");
-      triggerRefresh();
-      setRunId(null);
-      setAccessToken(null);
+      toast.success("Excel data synced - refreshing...");
+      // Dispatch event to refresh NotificationBell immediately
+      // This prevents stale notifications from being actioned before page reload
+      window.dispatchEvent(new CustomEvent("notifications-refresh"));
+      // Full page reload to refresh server-rendered stats cards
+      // triggerRefresh() only updates client components, not StatsGrid
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000); // Brief delay to show toast
     } else if (status === "failed") {
       toast.error("Excel sync failed");
       setRunId(null);
       setAccessToken(null);
     }
-  }, [status, triggerRefresh]);
+  }, [status]);
 
   // Trigger import on mount (once per session)
   useEffect(() => {
