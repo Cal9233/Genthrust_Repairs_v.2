@@ -56,11 +56,38 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 33 Complete - Email Preview Bug Fixes. Fixed notification approval flow, stale content display, and shop email persistence.
+**[Current Status]:** Phase 34 Complete - Streaming AI Assistant. Moved AI chat from Trigger.dev background tasks to Next.js streaming API for instant responses.
 
 ---
 
 ## Changelog
+
+### Phase 34 - Streaming AI Assistant (2025-12-06)
+- **Architecture:** "Switchboard Architecture" - AI "Brain" (LLM) moved to Next.js Edge, "Muscles" (heavy tools) stay in Trigger.dev
+- **Problem Solved:** Users waited 3-10 seconds for AI responses due to Trigger.dev cold start latency
+- **Solution:** Streaming API route with hybrid tool strategy
+- **READ Tools (Instant - Direct DB):**
+  - `search_inventory` - Search parts by P/N or description
+  - `get_repair_order` - Lookup RO by number or database ID
+- **WRITE Tools (Fire-and-Forget to Trigger.dev):**
+  - `create_repair_order` - Queue new RO creation
+  - `update_repair_order` - Queue field updates (status, notes, costs, dates)
+  - `archive_repair_order` - Queue move to Returns/Paid/NET sheets
+  - `create_email_draft` - Queue email draft for approval
+- **Frontend Updates:**
+  - Uses Vercel AI SDK v5 `useChat` hook from `@ai-sdk/react`
+  - `TextStreamChatTransport` for streaming text responses
+  - `getMessageText()` helper handles both `msg.content` and `msg.parts` formats
+  - Real-time "Thinking..." loading indicator during streaming
+- **AI SDK v5 Compatibility:**
+  - Tool definitions use `inputSchema` (not `parameters`)
+  - `maxOutputTokens` (not `maxTokens`)
+  - `toTextStreamResponse()` for streaming
+  - `convertToModelMessages()` to convert UIMessage[] to ModelMessage[]
+- **Files Created:**
+  - `src/app/api/chat/route.ts` - Streaming API endpoint with hybrid tools
+- **Files Modified:**
+  - `src/components/agent/Assistant.tsx` - Replaced Trigger.dev hook with useChat
 
 ### Phase 33 - Email Preview Bug Fixes (2025-12-05)
 - **Bug Fix 1: Notification Approval Flow**

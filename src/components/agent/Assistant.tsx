@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useChat } from "@ai-sdk/react";
+import { TextStreamChatTransport, type UIMessage } from "ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,38 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { MessageCircle, Send, Bot, User } from "lucide-react";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
-import { askAgent } from "@/app/actions/agent";
-import { useAgentRun, type AgentStatus } from "@/hooks/use-agent-run";
-
-/**
- * Message type for the chat interface
- */
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  status?: "pending" | "complete" | "error";
-}
-
-/**
- * Map agent status to human-readable text
- */
-function getStatusText(status: AgentStatus): string {
-  switch (status) {
-    case "thinking":
-      return "Thinking...";
-    case "searching_inventory":
-      return "Searching inventory...";
-    case "fetching_repair_order":
-      return "Looking up repair order...";
-    case "completed":
-      return "Done";
-    case "failed":
-      return "Failed";
-    default:
-      return "Processing...";
-  }
-}
 
 /**
  * Assistant Component
@@ -51,97 +21,60 @@ function getStatusText(status: AgentStatus): string {
  * Provides a chat bubble in the bottom-right corner that expands
  * into a dialog for interacting with the research agent.
  *
- * Per CLAUDE.md: Uses Trigger.dev realtime hooks for progress updates.
- * Session-only chat (no database persistence).
+ * Uses Vercel AI SDK v5's useChat hook for streaming responses.
+ * READ operations stream instantly; WRITE operations are queued to Trigger.dev.
  */
 export function Assistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to agent run updates
-  const { status, output, isComplete, error } = useAgentRun(
-    currentRunId,
-    accessToken
+  // Create transport with memoization to avoid recreating on every render
+  const transport = useMemo(
+    () => new TextStreamChatTransport({ api: "/api/chat" }),
+    []
   );
 
-  // Update assistant message when run completes
-  useEffect(() => {
-    if (isComplete && output?.response) {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.status === "pending"
-            ? { ...msg, content: output.response, status: "complete" }
-            : msg
-        )
-      );
-      setCurrentRunId(null);
-      setAccessToken(null);
-    }
-    if (error) {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.status === "pending"
-            ? { ...msg, content: `Error: ${error}`, status: "error" }
-            : msg
-        )
-      );
-      setCurrentRunId(null);
-      setAccessToken(null);
-    }
-  }, [isComplete, output, error]);
+  const { messages, sendMessage, status, error } = useChat({
+    transport,
+  });
+
+  const isLoading = status === "streaming" || status === "submitted";
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
+  }, [messages, isLoading]);
 
-  /**
-   * Handle form submission
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isPending || currentRunId) return;
+    if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: input.trim(),
-    };
-
-    const assistantMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: "",
-      status: "pending",
-    };
-
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
-    const prompt = input.trim();
+    const userMessage = input.trim();
     setInput("");
-
-    startTransition(async () => {
-      const result = await askAgent(prompt);
-      if (result.success) {
-        setCurrentRunId(result.data.runId);
-        setAccessToken(result.data.publicAccessToken);
-      } else {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessage.id
-              ? { ...msg, content: result.error, status: "error" }
-              : msg
-          )
-        );
-      }
+    // In AI SDK v5, sendMessage takes parts array for user messages
+    await sendMessage({
+      role: "user",
+      parts: [{ type: "text", text: userMessage }],
     });
   };
 
-  const isProcessing = isPending || !!currentRunId;
+  // Get text content from message parts
+const getMessageText = (msg: UIMessage): string => {
+  // Fallback to top-level content if parts are missing (common in simple text streams)
+  if (msg.content && (!msg.parts || msg.parts.length === 0)) {
+    return msg.content;
+  }
+  
+  // Otherwise parse parts (for tool calls/multi-modal)
+  if (!msg.parts || msg.parts.length === 0) {
+    return "";
+  }
+  return msg.parts
+    .filter((part) => part.type === "text")
+    .map((part) => (part as { type: "text"; text: string }).text)
+    .join("");
+};
 
   return (
     <>
@@ -181,7 +114,7 @@ export function Assistant() {
               </div>
             )}
 
-            {messages.map((msg) => (
+            {messages.map((msg: UIMessage) => (
               <div
                 key={msg.id}
                 className={`flex gap-2 ${
@@ -197,19 +130,10 @@ export function Assistant() {
                   className={`rounded-lg px-3 py-2 max-w-[85%] ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : msg.status === "error"
-                      ? "bg-danger/10 text-danger dark:bg-danger/20"
                       : "bg-muted"
                   }`}
                 >
-                  {msg.status === "pending" ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <TurbineSpinner size="sm" />
-                      <span>{getStatusText(status)}</span>
-                    </div>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  )}
+                  <p className="text-sm whitespace-pre-wrap">{getMessageText(msg)}</p>
                 </div>
                 {msg.role === "user" && (
                   <div className="shrink-0 mt-1">
@@ -218,6 +142,34 @@ export function Assistant() {
                 )}
               </div>
             ))}
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex gap-2 justify-start">
+                <div className="shrink-0 mt-1">
+                  <Bot className="h-5 w-5 text-primary" />
+                </div>
+                <div className="rounded-lg px-3 py-2 bg-muted">
+                  <div className="flex items-center gap-2 text-sm">
+                    <TurbineSpinner size="sm" />
+                    <span>Thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error display */}
+            {error && (
+              <div className="flex gap-2 justify-start">
+                <div className="shrink-0 mt-1">
+                  <Bot className="h-5 w-5 text-danger-red" />
+                </div>
+                <div className="rounded-lg px-3 py-2 bg-danger-red/10 text-danger-red">
+                  <p className="text-sm">Error: {error.message}</p>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -230,17 +182,17 @@ export function Assistant() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Search inventory, lookup RO..."
-              disabled={isProcessing}
+              disabled={isLoading}
               className="flex-1"
               autoComplete="off"
             />
             <Button
               type="submit"
               size="icon"
-              disabled={!input.trim() || isProcessing}
+              disabled={!input.trim() || isLoading}
               aria-label="Send message"
             >
-              {isProcessing ? (
+              {isLoading ? (
                 <TurbineSpinner size="sm" />
               ) : (
                 <Send className="h-4 w-4" />
