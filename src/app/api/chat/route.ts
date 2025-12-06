@@ -220,10 +220,10 @@ Guidelines:
             return `No repair orders found matching filter: ${status}${shopName ? `, shop: "${shopName}"` : ""}`;
           }
 
-          const header = `**Found ${filteredROs.length} repair orders** (showing ${results.length}):\n\n`;
+          const header = `Found ${filteredROs.length} repair orders (showing ${results.length}):\n\n`;
           const list = results
             .map((ro, i) =>
-              `${i + 1}. **RO #${ro.roNumber}** - ${ro.shopName}\n` +
+              `${i + 1}. RO #${ro.roNumber} - ${ro.shopName}\n` +
               `   Part: ${ro.part}${ro.serial ? ` (S/N: ${ro.serial})` : ""} | Status: ${ro.status}\n` +
               `   ${ro.daysOverdue > 0 ? `⚠️ ${ro.daysOverdue} days overdue` : "✓ On track"}`
             )
