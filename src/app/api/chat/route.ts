@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { active, inventoryindex } from "@/lib/schema";
 import { eq, like, or } from "drizzle-orm";
+import { isOverdue, daysSince } from "@/lib/date-utils";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 
@@ -55,6 +56,15 @@ const CreateEmailDraftSchema = z.object({
   body: z.string().describe("Email body content (HTML supported)"),
 });
 
+const ListRepairOrdersSchema = z.object({
+  status: z.enum(["overdue", "active", "completed", "all"]).optional()
+    .describe("Filter by status: 'overdue' (past due), 'active' (in progress), 'completed', or 'all'"),
+  shopName: z.string().optional()
+    .describe("Filter by shop name (case-insensitive partial match)"),
+  limit: z.number().optional()
+    .describe("Maximum results to return (default 20)"),
+});
+
 export async function POST(req: Request) {
   // 1. Auth check
   const session = await auth();
@@ -76,6 +86,7 @@ export async function POST(req: Request) {
 Your capabilities:
 - Search the inventory database by part number or description
 - Look up repair order (RO) details by RO number or database ID
+- List and filter repair orders (by status: overdue/active/completed/all, by shop name)
 - Create new repair orders
 - Update existing repair orders (status, notes, costs, dates, etc.)
 - Archive repair orders (move to Returns, Paid, or NET sheets)
@@ -136,6 +147,80 @@ Guidelines:
           }
 
           return { repairOrder: results[0] ?? null };
+        },
+      },
+
+      list_repair_orders: {
+        description:
+          "List repair orders with optional filters. Can filter by status (overdue/active/completed/all) and shop name. Returns RO number, shop, part, status, and days info. Sorted by most overdue first.",
+        inputSchema: ListRepairOrdersSchema,
+        execute: async ({ status = "all", shopName, limit = 20 }: z.infer<typeof ListRepairOrdersSchema>) => {
+          // Define incomplete vs complete statuses
+          const INCOMPLETE_STATUSES = [
+            "WAITING QUOTE", "APPROVED", "IN WORK", "IN PROGRESS",
+            "SHIPPED", "IN TRANSIT", "PENDING"
+          ];
+          const COMPLETE_STATUSES = ["COMPLETE", "RETURNED", "PAID", "NET"];
+
+          // Fetch ROs with optional shop filter
+          const allROs = shopName
+            ? await db.select().from(active).where(like(active.shopName, `%${shopName}%`))
+            : await db.select().from(active);
+
+          // Filter based on status
+          let filteredROs = allROs;
+
+          if (status === "overdue") {
+            // Overdue = past estimated delivery AND incomplete
+            filteredROs = allROs.filter((ro) => {
+              const isIncomplete = INCOMPLETE_STATUSES.some(s =>
+                ro.curentStatus?.toUpperCase().includes(s)
+              );
+              return isIncomplete && isOverdue(ro.estimatedDeliveryDate);
+            });
+          } else if (status === "active") {
+            // Active = any incomplete status
+            filteredROs = allROs.filter((ro) =>
+              INCOMPLETE_STATUSES.some(s => ro.curentStatus?.toUpperCase().includes(s))
+            );
+          } else if (status === "completed") {
+            // Completed = any complete status
+            filteredROs = allROs.filter((ro) =>
+              COMPLETE_STATUSES.some(s => ro.curentStatus?.toUpperCase().includes(s))
+            );
+          }
+          // "all" returns everything
+
+          // Map to response format
+          const results = filteredROs
+            .map((ro) => ({
+              id: ro.id,
+              roNumber: ro.ro,
+              shopName: ro.shopName,
+              part: ro.part,
+              serial: ro.serial,
+              status: ro.curentStatus,
+              estimatedDeliveryDate: ro.estimatedDeliveryDate,
+              daysOverdue: isOverdue(ro.estimatedDeliveryDate)
+                ? daysSince(ro.estimatedDeliveryDate) || 0
+                : 0,
+              nextFollowUp: ro.nextDateToUpdate,
+            }))
+            .sort((a, b) => {
+              // Sort by days overdue (most overdue first)
+              if (a.daysOverdue !== b.daysOverdue) {
+                return b.daysOverdue - a.daysOverdue;
+              }
+              return 0;
+            })
+            .slice(0, limit);
+
+          return {
+            totalCount: filteredROs.length,
+            returnedCount: results.length,
+            filter: { status, shopName },
+            ros: results,
+          };
         },
       },
 

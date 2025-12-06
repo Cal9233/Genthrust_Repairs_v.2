@@ -62,10 +62,12 @@ export function Assistant() {
   // Get text content from message parts
 const getMessageText = (msg: UIMessage): string => {
   // Fallback to top-level content if parts are missing (common in simple text streams)
-  if (msg.content && (!msg.parts || msg.parts.length === 0)) {
-    return msg.content;
+  // Use type assertion for backward compatibility with text stream responses
+  const msgAny = msg as unknown as { content?: string };
+  if (msgAny.content && (!msg.parts || msg.parts.length === 0)) {
+    return msgAny.content;
   }
-  
+
   // Otherwise parse parts (for tool calls/multi-modal)
   if (!msg.parts || msg.parts.length === 0) {
     return "";

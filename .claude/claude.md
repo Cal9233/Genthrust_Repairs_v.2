@@ -56,11 +56,31 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 34 Complete - Streaming AI Assistant. Moved AI chat from Trigger.dev background tasks to Next.js streaming API for instant responses.
+**[Current Status]:** Phase 35 Complete - AI Assistant Cleanup & list_repair_orders Tool. Removed orphaned AI code, added unified RO listing tool with flexible filters.
 
 ---
 
 ## Changelog
+
+### Phase 35 - AI Assistant Cleanup & list_repair_orders Tool (2025-12-06)
+- **Orphaned Code Removal:** Deleted 3 unused AI files (~509 lines)
+  - `src/trigger/ai-agent.ts` - Research agent never connected to UI
+  - `src/app/actions/agent.ts` - askAgent() never called
+  - `src/hooks/use-agent-run.ts` - Hook for orphaned agent
+- **New AI Tool:** `list_repair_orders` with flexible filters
+  - Status filter: `overdue` | `active` | `completed` | `all`
+  - Shop name filter: case-insensitive partial match
+  - Limit parameter: default 20 results
+  - Sorted by most overdue first
+- **Overdue Definition:** `estimatedDeliveryDate` < today AND incomplete status
+- **Bug Fix:** Fixed UIMessage type compatibility in Assistant.tsx
+- **Files Deleted:**
+  - `src/trigger/ai-agent.ts`
+  - `src/app/actions/agent.ts`
+  - `src/hooks/use-agent-run.ts`
+- **Files Modified:**
+  - `src/app/api/chat/route.ts` - Added list_repair_orders tool + imports
+  - `src/components/agent/Assistant.tsx` - Type assertion fix
 
 ### Phase 34 - Streaming AI Assistant (2025-12-06)
 - **Architecture:** "Switchboard Architecture" - AI "Brain" (LLM) moved to Next.js Edge, "Muscles" (heavy tools) stay in Trigger.dev
