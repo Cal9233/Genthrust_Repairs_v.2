@@ -22,6 +22,8 @@ export interface EmailDraftPayload {
   cc?: string;
   draftMessageId?: string;   // Outlook draft message ID
   draftWebLink?: string;     // Link to open draft in Outlook
+  missingEmail?: boolean;    // Flag when shop email is missing
+  shopName?: string;         // Shop name for display when email missing
 }
 
 // Payload structure for TASK_REMINDER notifications

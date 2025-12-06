@@ -130,7 +130,7 @@ GenThrust`;
             subject,
             body,
             missingEmail: !shopEmail,  // Flag for UI
-            shopName: ro.shopName,     // For display when email missing
+            shopName: ro.shopName ?? undefined,     // For display when email missing
           },
           scheduledFor: new Date(),
         });
