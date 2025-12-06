@@ -130,6 +130,8 @@ export const createRepairOrderTool = task({
     await db.insert(roActivityLog).values({
       repairOrderId: result.id,
       action: "CREATE",
+      field: null,
+      oldValue: null,
       newValue: `Created RO #${nextRO} via AI Assistant`,
       userId,
     });
@@ -229,6 +231,8 @@ export const updateRepairOrderTool = task({
     await db.insert(roActivityLog).values({
       repairOrderId: existing.id,
       action: "UPDATE",
+      field: null,
+      oldValue: null,
       newValue: `Updated via AI: ${changes.join(", ")}`,
       userId,
     });
@@ -389,6 +393,8 @@ export const createEmailDraftTool = task({
     await db.insert(roActivityLog).values({
       repairOrderId: existing.id,
       action: "DRAFT_CREATED",
+      field: null,
+      oldValue: null,
       newValue: `Email draft created for ${toAddress}: ${subject}`,
       userId,
     });
