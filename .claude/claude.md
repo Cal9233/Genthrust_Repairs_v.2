@@ -56,11 +56,38 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 35 Complete - AI Assistant Cleanup & list_repair_orders Tool. Removed orphaned AI code, added unified RO listing tool with flexible filters.
+**[Current Status]:** Phase 37 Complete - RO Edit Save Fixes. Fixed double-save race condition, added toast feedback, overdue status clears after save.
 
 ---
 
 ## Changelog
+
+### Phase 37 - RO Edit Save Fixes (2025-12-08)
+- **Bug Fix 1: Double-Save Race Condition**
+  - Issue: Save button required clicking twice - first click failed silently, second worked
+  - Root Cause: `useCallback` stale closure captured empty `editedFields` on first save
+  - Fix: Added `editedFieldsRef` to always access current state in `saveChanges` callback
+- **Bug Fix 2: Silent Error Handling**
+  - Issue: Save failures showed no user feedback
+  - Fix: Added toast notifications using `sonner` for success/error states
+  - `handleSave()` now shows "Changes saved" on success, error message on failure
+  - `handleStatusChange()` shows "Status updated to {status}" on success
+- **Bug Fix 3: Overdue UI Not Refreshing** (Backend already fixed in Phase 36)
+  - Backend sets `nextDateToUpdate = today + 7 days` on save
+  - `revalidatePath("/dashboard")` invalidates cache
+  - UI re-fetches via `fetchData()` after successful save
+- **Files Modified:**
+  - `src/components/ro-detail/useRODetail.ts` - Added useRef for editedFields, removed from deps
+  - `src/components/ro-detail/RODetailPanel.tsx` - Added toast import and feedback
+
+### Phase 36 - roActivityLog Insert Fixes (2025-12-08)
+- **Bug Fix:** `ro_activity_log` insert failures in production Trigger.dev
+- **Root Cause:** Drizzle ORM generates `default` keyword for omitted nullable columns, MySQL rejects without DEFAULT constraint
+- **Locations Fixed (5 total):**
+  - `src/app/actions/repair-orders.ts` - createRepairOrder, linkROs, unlinkROs
+  - `src/app/actions/documents.ts` - uploadDocument, deleteDocument
+- **Solution:** Added explicit `field: null, oldValue: null, newValue: null` to all roActivityLog inserts
+- **Overdue Reset:** `updateRepairOrder()` and `updateRepairOrderStatus()` now set `nextDateToUpdate = today + 7 days`
 
 ### Phase 35 - AI Assistant Cleanup & list_repair_orders Tool (2025-12-06)
 - **Orphaned Code Removal:** Deleted 3 unused AI files (~509 lines)

@@ -20,6 +20,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { AlertCircle, FileText, History, Mail, Activity } from "lucide-react";
+import { toast } from "sonner";
 
 interface RODetailPanelProps {
   roId: number | null;
@@ -58,7 +59,10 @@ export function RODetailPanel({
   const handleSave = async () => {
     const result = await saveChanges();
     if (result.success) {
+      toast.success("Changes saved");
       onDataChanged?.();
+    } else {
+      toast.error(result.error || "Failed to save changes");
     }
   };
 
@@ -67,7 +71,10 @@ export function RODetailPanel({
     // Auto-save status changes
     const result = await saveChanges();
     if (result.success) {
+      toast.success(`Status updated to ${newStatus}`);
       onDataChanged?.();
+    } else {
+      toast.error(result.error || "Failed to update status");
     }
   };
 

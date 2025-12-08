@@ -116,6 +116,8 @@ export async function createRepairOrder(data: {
     await db.insert(roActivityLog).values({
       repairOrderId: result.id,
       action: "CREATE",
+      field: null,
+      oldValue: null,
       newValue: `Created RO #${nextRO}`,
       userId: session.user.id,
     });
@@ -182,12 +184,15 @@ export async function updateRepairOrderStatus(
     }
 
     // Update status in MySQL
+    const today = new Date().toISOString().split("T")[0];
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     await db
       .update(active)
       .set({
         curentStatus: newStatus,
-        curentStatusDate: new Date().toISOString().split("T")[0],
-        lastDateUpdated: new Date().toISOString().split("T")[0],
+        curentStatusDate: today,
+        lastDateUpdated: today,
+        nextDateToUpdate: nextWeek,
       })
       .where(eq(active.id, repairOrderId));
 
@@ -294,11 +299,14 @@ export async function updateRepairOrder(
     }
 
     // Update the repair order
+    const today = new Date().toISOString().split("T")[0];
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     await db
       .update(active)
       .set({
         ...fields,
-        lastDateUpdated: new Date().toISOString().split("T")[0],
+        lastDateUpdated: today,
+        nextDateToUpdate: nextWeek,
       })
       .where(eq(active.id, repairOrderId));
 
@@ -670,12 +678,16 @@ export async function linkROs(
       {
         repairOrderId: sourceRoId,
         action: "RELATION_ADDED",
+        field: null,
+        oldValue: null,
         newValue: `Linked to RO ${targetRoId} (${relationType})`,
         userId: session.user.id,
       },
       {
         repairOrderId: targetRoId,
         action: "RELATION_ADDED",
+        field: null,
+        oldValue: null,
         newValue: `Linked from RO ${sourceRoId} (${relationType})`,
         userId: session.user.id,
       },
@@ -721,13 +733,17 @@ export async function unlinkROs(relationId: number): Promise<Result<void>> {
       {
         repairOrderId: relation.sourceRoId,
         action: "RELATION_REMOVED",
+        field: null,
         oldValue: `Unlinked from RO ${relation.targetRoId}`,
+        newValue: null,
         userId: session.user.id,
       },
       {
         repairOrderId: relation.targetRoId,
         action: "RELATION_REMOVED",
+        field: null,
         oldValue: `Unlinked from RO ${relation.sourceRoId}`,
+        newValue: null,
         userId: session.user.id,
       },
     ]);

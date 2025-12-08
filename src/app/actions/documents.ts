@@ -60,6 +60,7 @@ export async function uploadDocument(
       repairOrderId,
       action: "DOCUMENT_UPLOADED",
       field: "documents",
+      oldValue: null,
       newValue: fileName,
       userId: session.user.id,
     });
@@ -125,6 +126,7 @@ export async function deleteDocument(
       action: "DOCUMENT_DELETED",
       field: "documents",
       oldValue: fileName,
+      newValue: null,
       userId: session.user.id,
     });
 

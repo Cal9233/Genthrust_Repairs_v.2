@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getRepairOrderById, type RepairOrder } from "@/app/actions/dashboard";
 import {
   getROStatusHistory,
@@ -75,6 +75,12 @@ export function useRODetail(
   const [editMode, setEditMode] = useState(false);
   const [editedFields, setEditedFields] = useState<RepairOrderUpdateFields>({});
   const [saving, setSaving] = useState(false);
+
+  // Ref to always have the latest editedFields (fixes stale closure in saveChanges)
+  const editedFieldsRef = useRef<RepairOrderUpdateFields>(editedFields);
+  useEffect(() => {
+    editedFieldsRef.current = editedFields;
+  }, [editedFields]);
 
   // Additional data
   const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
@@ -206,22 +212,25 @@ export function useRODetail(
     setEditedFields({});
   }, []);
 
-  // Save changes
+  // Save changes - uses ref to avoid stale closure issues
   const saveChanges = useCallback(async (): Promise<{
     success: boolean;
     error?: string;
   }> => {
-    if (!roId || Object.keys(editedFields).length === 0) {
+    // Use ref to get the latest editedFields value (avoids stale closure)
+    const currentEditedFields = editedFieldsRef.current;
+
+    if (!roId || Object.keys(currentEditedFields).length === 0) {
       return { success: true };
     }
 
     setSaving(true);
 
     try {
-      const result = await updateRepairOrder(roId, editedFields);
+      const result = await updateRepairOrder(roId, currentEditedFields);
 
       if (result.success) {
-        // Refresh data after save
+        // Refresh data after save to get updated nextDateToUpdate
         await fetchData();
         setEditMode(false);
         setEditedFields({});
@@ -237,7 +246,7 @@ export function useRODetail(
     } finally {
       setSaving(false);
     }
-  }, [roId, editedFields, fetchData]);
+  }, [roId, fetchData]);
 
   return {
     // State
