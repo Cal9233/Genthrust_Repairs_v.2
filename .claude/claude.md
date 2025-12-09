@@ -56,11 +56,27 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 39 Complete - Batch Email Preview Fixes. Fixed table visibility in dark mode, enabled email body scrolling, and confirmed batch save works correctly.
+**[Current Status]:** Phase 40 Complete - Light/Dark Mode Polish. Comprehensive audit of 45+ components; fixed StatusBadge light mode contrast and sign-in page theme awareness.
 
 ---
 
 ## Changelog
+
+### Phase 40 - Light/Dark Mode Polish (2025-12-09)
+- **Comprehensive Audit:** Used 3 parallel explore agents to audit 45+ files across dashboard, UI, layout, and modal components
+- **Audit Result:** ~93% compliant - codebase has excellent CSS variable architecture
+- **Sign-in Page Fix:**
+  - Changed `bg-white ring-black/5` to `bg-card border-border` for theme-aware logo container
+- **StatusBadge Light Mode Contrast:**
+  - Changed from `/20` opacity (too subtle in light mode) to explicit Tailwind colors
+  - Warning badges: `bg-amber-100 text-amber-700 dark:bg-warning/30 dark:text-warning`
+  - Success badges: `bg-emerald-100 text-emerald-700 dark:bg-success/30 dark:text-success`
+  - Danger badges: `bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger`
+  - Cyan badges: `bg-cyan-100 text-cyan-700 dark:bg-accent-cyan/30 dark:text-accent-cyan`
+- **Tracking File Created:** `.claude/light-dark-mode-audit.md` for context resumption
+- **Files Modified:**
+  - `src/app/(auth)/signin/page.tsx` - Theme-aware logo container
+  - `src/components/dashboard/StatusBadge.tsx` - Light mode contrast improvements
 
 ### Phase 39 - Batch Email Preview Fixes (2025-12-09)
 - **Bug Fix 1: Table Text Invisible in Dark Mode**

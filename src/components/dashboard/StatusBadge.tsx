@@ -40,7 +40,7 @@ function getStatusConfig(status: string): {
       return {
         label: "Waiting Quote",
         colorClasses:
-          "bg-warning/20 text-warning dark:bg-warning/30",
+          "bg-amber-100 text-amber-700 dark:bg-warning/30 dark:text-warning",
       };
 
     case "WAITING PARTS":
@@ -48,14 +48,14 @@ function getStatusConfig(status: string): {
       return {
         label: "Waiting Parts",
         colorClasses:
-          "bg-warning/20 text-warning dark:bg-warning/30",
+          "bg-amber-100 text-amber-700 dark:bg-warning/30 dark:text-warning",
       };
 
     case "PENDING":
       return {
         label: "Pending",
         colorClasses:
-          "bg-warning/20 text-warning dark:bg-warning/30",
+          "bg-amber-100 text-amber-700 dark:bg-warning/30 dark:text-warning",
       };
 
     // Active/In Progress states - Blue/Cyan
@@ -72,7 +72,7 @@ function getStatusConfig(status: string): {
       return {
         label: "In Work",
         colorClasses:
-          "bg-accent-cyan/20 text-accent-cyan dark:bg-accent-cyan/30",
+          "bg-cyan-100 text-cyan-700 dark:bg-accent-cyan/30 dark:text-accent-cyan",
       };
 
     case "SHIPPED":
@@ -91,14 +91,14 @@ function getStatusConfig(status: string): {
       return {
         label: status === "RECEIVED" ? "Received" : "Complete",
         colorClasses:
-          "bg-success/20 text-success dark:bg-success/30",
+          "bg-emerald-100 text-emerald-700 dark:bg-success/30 dark:text-success",
       };
 
     case "PAID":
       return {
         label: "Paid",
         colorClasses:
-          "bg-success/20 text-success dark:bg-success/30",
+          "bg-emerald-100 text-emerald-700 dark:bg-success/30 dark:text-success",
       };
 
     // Failure/Problem states - Red
@@ -106,14 +106,14 @@ function getStatusConfig(status: string): {
       return {
         label: "BER",
         colorClasses:
-          "bg-danger/20 text-danger dark:bg-danger/30",
+          "bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger",
       };
 
     case "RAI":
       return {
         label: "RAI",
         colorClasses:
-          "bg-danger/20 text-danger dark:bg-danger/30",
+          "bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger",
       };
 
     case "RETURNED":
@@ -121,7 +121,7 @@ function getStatusConfig(status: string): {
       return {
         label: "Returned",
         colorClasses:
-          "bg-danger/20 text-danger dark:bg-danger/30",
+          "bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger",
       };
 
     case "CANCELLED":
@@ -129,14 +129,14 @@ function getStatusConfig(status: string): {
       return {
         label: "Cancelled",
         colorClasses:
-          "bg-danger/20 text-danger dark:bg-danger/30",
+          "bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger",
       };
 
     case "SCRAP":
       return {
         label: "Scrap",
         colorClasses:
-          "bg-danger/20 text-danger dark:bg-danger/30",
+          "bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger",
       };
 
     // Action needed states - Amber/Warning (to draw attention)
@@ -145,7 +145,7 @@ function getStatusConfig(status: string): {
       return {
         label: "To Send",
         colorClasses:
-          "bg-warning/20 text-warning dark:bg-warning/30",
+          "bg-amber-100 text-amber-700 dark:bg-warning/30 dark:text-warning",
       };
 
     // Default - Neutral gray

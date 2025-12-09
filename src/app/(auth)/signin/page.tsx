@@ -39,7 +39,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <CardHeader className="text-center space-y-4">
           {/* Logo with styled container */}
           <div className="flex justify-center">
-            <div className="rounded-2xl bg-white p-4 shadow-lg ring-1 ring-black/5">
+            <div className="rounded-2xl bg-card p-4 shadow-lg border border-border">
               <Image
                 src="/GenLogoTab.png"
                 alt="GenThrust Logo"
