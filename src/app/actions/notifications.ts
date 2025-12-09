@@ -22,11 +22,19 @@ import { updateShopEmail } from "@/lib/data/shops";
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
 /**
+ * Extended notification type with shop name from joined active table
+ */
+export type NotificationWithShop = NotificationQueueItem & {
+  shopName: string | null;
+};
+
+/**
  * Fetches all pending notifications for the current user.
  * Returns notifications sorted by scheduledFor date (newest first).
+ * Includes shopName from the active table for display purposes.
  */
 export async function getPendingNotifications(): Promise<
-  Result<NotificationQueueItem[]>
+  Result<NotificationWithShop[]>
 > {
   try {
     const session = await auth();
@@ -49,6 +57,7 @@ export async function getPendingNotifications(): Promise<
         createdAt: notificationQueue.createdAt,
         outlookMessageId: notificationQueue.outlookMessageId,
         outlookConversationId: notificationQueue.outlookConversationId,
+        shopName: active.shopName,
       })
       .from(notificationQueue)
       .innerJoin(active, eq(notificationQueue.repairOrderId, active.id))

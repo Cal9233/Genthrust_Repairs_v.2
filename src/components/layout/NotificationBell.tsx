@@ -22,7 +22,7 @@ import {
   getRelatedPendingNotifications,
   approveBatchNotifications,
 } from "@/app/actions/notifications";
-import type { SiblingNotification } from "@/app/actions/notifications";
+import type { SiblingNotification, NotificationWithShop } from "@/app/actions/notifications";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
 import { toast } from "sonner";
 import { EmailThreadView } from "@/components/notifications/EmailThreadView";
@@ -54,7 +54,7 @@ function formatDate(date: Date | string): string {
 }
 
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<NotificationQueueItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationWithShop[]>([]);
   const [historyNotifications, setHistoryNotifications] = useState<NotificationQueueItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -368,6 +368,11 @@ export function NotificationBell() {
                         <p className="font-medium line-clamp-2">
                           {payload.subject}
                         </p>
+                        {notification.shopName && (
+                          <p className="text-sm text-muted-foreground font-medium">
+                            {notification.shopName}
+                          </p>
+                        )}
                         <p className="text-sm text-muted-foreground">
                           To: {payload.to || payload.toAddress}
                         </p>

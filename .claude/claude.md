@@ -56,11 +56,31 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 37 Complete - RO Edit Save Fixes. Fixed double-save race condition, added toast feedback, overdue status clears after save.
+**[Current Status]:** Phase 38 Complete - Shop Name in Notification Cards. Notification bell now displays shop/vendor name under each email draft for quick identification.
 
 ---
 
 ## Changelog
+
+### Phase 38 - Shop Name in Notification Cards (2025-12-09)
+- **Feature:** Display shop/vendor name as subtitle in notification bell dropdown
+- **Purpose:** Users can quickly identify which shop is working on each RO without opening the email preview
+- **Implementation:**
+  - Extended `getPendingNotifications()` to include `shopName` via existing INNER JOIN with `active` table
+  - Created `NotificationWithShop` type extending `NotificationQueueItem` with `shopName: string | null`
+  - Updated `NotificationBell.tsx` state to use new type
+  - Added shop name display below subject line with muted foreground styling
+- **Visual Result:**
+  ```
+  RO #79                           Email Draft
+  Follow-up: RO# G38573
+  Pratt & Whitney Canada           <- NEW
+  To: repairs@pwc.com
+  [Preview] [Approve & Send] [Reject]
+  ```
+- **Files Modified:**
+  - `src/app/actions/notifications.ts` - Added `NotificationWithShop` type, included `shopName` in select clause
+  - `src/components/layout/NotificationBell.tsx` - Updated state type, added shop name display in UI
 
 ### Phase 37 - RO Edit Save Fixes (2025-12-08)
 - **Bug Fix 1: Double-Save Race Condition**
