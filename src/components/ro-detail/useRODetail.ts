@@ -40,10 +40,11 @@ export interface RODetailActions {
     field: K,
     value: RepairOrderUpdateFields[K]
   ) => void;
-  saveChanges: () => Promise<{ success: boolean; error?: string }>;
+  saveChanges: (overrideFields?: RepairOrderUpdateFields) => Promise<{ success: boolean; error?: string }>;
   cancelEdit: () => void;
   refreshData: () => Promise<void>;
   refreshDocuments: () => Promise<void>;
+  editedFieldsRef: React.RefObject<RepairOrderUpdateFields>;
 }
 
 function calculateDueDateStatus(nextDateToUpdate: string | null | undefined): DueDateStatus {
@@ -212,26 +213,30 @@ export function useRODetail(
     setEditedFields({});
   }, []);
 
-  // Save changes - uses ref to avoid stale closure issues
-  const saveChanges = useCallback(async (): Promise<{
+  // Save changes - accepts optional override fields to bypass stale closure issues
+  const saveChanges = useCallback(async (
+    overrideFields?: RepairOrderUpdateFields
+  ): Promise<{
     success: boolean;
     error?: string;
   }> => {
-    // Use ref to get the latest editedFields value (avoids stale closure)
-    const currentEditedFields = editedFieldsRef.current;
+    // Use override if provided, otherwise use ref
+    const fieldsToSave = overrideFields ?? editedFieldsRef.current;
 
-    if (!roId || Object.keys(currentEditedFields).length === 0) {
+    if (!roId || Object.keys(fieldsToSave).length === 0) {
       return { success: true };
     }
 
     setSaving(true);
 
     try {
-      const result = await updateRepairOrder(roId, currentEditedFields);
+      const result = await updateRepairOrder(roId, fieldsToSave);
 
       if (result.success) {
         // Refresh data after save to get updated nextDateToUpdate
         await fetchData();
+        // Also refresh activity log, email threads, etc.
+        await fetchAdditionalData();
         setEditMode(false);
         setEditedFields({});
         return { success: true };
@@ -246,7 +251,7 @@ export function useRODetail(
     } finally {
       setSaving(false);
     }
-  }, [roId, fetchData]);
+  }, [roId, fetchData, fetchAdditionalData]);
 
   return {
     // State
@@ -269,5 +274,6 @@ export function useRODetail(
     cancelEdit,
     refreshData,
     refreshDocuments,
+    editedFieldsRef,
   };
 }

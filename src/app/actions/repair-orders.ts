@@ -8,6 +8,7 @@ import {
   roActivityLog,
   roRelationsTable,
   users,
+  notificationQueue,
   type RoStatusHistory,
   type RoActivityLog,
   type RoRelation,
@@ -345,6 +346,22 @@ export async function updateRepairOrder(
     } catch {
       // Excel sync failure shouldn't fail the update
       console.error("Failed to trigger Excel sync");
+    }
+
+    // Auto-dismiss any pending notification email drafts for this RO
+    // If user manually updated the RO from dashboard, the auto-generated draft is now stale
+    try {
+      await db
+        .delete(notificationQueue)
+        .where(
+          and(
+            eq(notificationQueue.repairOrderId, repairOrderId),
+            eq(notificationQueue.status, "PENDING_APPROVAL")
+          )
+        );
+    } catch {
+      // Notification cleanup failure shouldn't fail the update
+      console.error("Failed to cleanup pending notifications");
     }
 
     revalidatePath("/dashboard");

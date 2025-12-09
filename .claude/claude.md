@@ -56,11 +56,30 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 42 Complete - Batch Email Table Preservation. Fixed HTML table formatting breaking when editing batch email drafts.
+**[Current Status]:** Phase 43 Complete - RO Save Bug Fixes. Fixed double-save race condition, notification bell not clearing, and activity log not updating.
 
 ---
 
 ## Changelog
+
+### Phase 43 - RO Save Bug Fixes (2025-12-09)
+- **Bug Fix 1: Double-Save Race Condition**
+  - First save click failed with MySQL error, second click succeeded
+  - Root Cause: `handleStatusChange()` called `saveChanges()` immediately after `updateField()`, but React state updates are async
+  - Fix: `saveChanges()` now accepts optional `overrideFields` parameter to bypass stale closure
+  - `handleStatusChange()` passes fields directly instead of relying on async state
+- **Bug Fix 2: Notification Bell Not Clearing**
+  - Pending email draft notifications persisted after RO was manually updated from dashboard
+  - Root Cause: No code connected "RO saved" to "dismiss pending notification"
+  - Fix: `updateRepairOrder()` now auto-deletes any `PENDING_APPROVAL` notifications for the RO
+- **Bug Fix 3: Activity Log Not Updating**
+  - Activity tab didn't show changes immediately after save
+  - Root Cause: Only `fetchData()` was called after save, not `fetchAdditionalData()`
+  - Fix: Added `fetchAdditionalData()` call after successful save
+- **Files Modified:**
+  - `src/components/ro-detail/useRODetail.ts` - `saveChanges()` accepts overrideFields, calls `fetchAdditionalData()`, exposes `editedFieldsRef`
+  - `src/components/ro-detail/RODetailPanel.tsx` - `handleStatusChange()` passes fields directly
+  - `src/app/actions/repair-orders.ts` - Auto-delete PENDING_APPROVAL notifications on save
 
 ### Phase 42 - Batch Email Table Preservation (2025-12-09)
 - **Bug Fix:** Editing batch email drafts no longer destroys HTML table formatting

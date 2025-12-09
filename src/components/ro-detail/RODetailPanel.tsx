@@ -54,6 +54,7 @@ export function RODetailPanel({
     cancelEdit,
     refreshData,
     refreshDocuments,
+    editedFieldsRef,
   } = useRODetail(roId, open);
 
   const handleSave = async () => {
@@ -67,9 +68,14 @@ export function RODetailPanel({
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    updateField("curentStatus", newStatus);
-    // Auto-save status changes
-    const result = await saveChanges();
+    // Build fields directly to avoid async state update race condition
+    const fieldsToSave = {
+      ...editedFieldsRef.current,
+      curentStatus: newStatus,
+    };
+    updateField("curentStatus", newStatus); // Still update UI state
+    // Auto-save status changes - pass fields directly to bypass stale closure
+    const result = await saveChanges(fieldsToSave);
     if (result.success) {
       toast.success(`Status updated to ${newStatus}`);
       onDataChanged?.();
