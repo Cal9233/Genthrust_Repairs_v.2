@@ -141,7 +141,7 @@ export function EmailPreviewDialog({
               </div>
             )}
 
-            <div className="space-y-4 flex-1 overflow-hidden">
+            <div className="space-y-4 flex-1 flex flex-col min-h-0">
               {/* Email Header Fields */}
               <div className="space-y-2 border-b pb-4">
                 <Field label="To:" value={payload.to || payload.toAddress || "-"} />
@@ -150,7 +150,7 @@ export function EmailPreviewDialog({
               </div>
 
               {/* Email Body */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 <div
                   className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 rounded-lg p-4"
                   dangerouslySetInnerHTML={{ __html: payload.body }}

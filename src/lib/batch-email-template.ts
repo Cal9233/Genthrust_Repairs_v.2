@@ -55,13 +55,13 @@ export function generateBatchBody(
     .map(
       (ro) => `
     <tr>
-      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-family: monospace;">
+      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-family: monospace; color: #374151;">
         ${ro.roNumber ?? "-"}
       </td>
-      <td style="padding: 8px; border: 1px solid #ddd; font-family: monospace;">
+      <td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; color: #374151;">
         ${ro.partNumber ?? "-"}
       </td>
-      <td style="padding: 8px; border: 1px solid #ddd; font-family: monospace;">
+      <td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; color: #374151;">
         ${ro.serialNumber ?? "-"}
       </td>
     </tr>`
@@ -76,9 +76,9 @@ export function generateBatchBody(
 <table style="border-collapse: collapse; width: 100%; max-width: 600px; margin: 16px 0;">
   <thead>
     <tr style="background-color: #f5f5f5;">
-      <th style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: 600;">RO #</th>
-      <th style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: 600;">Part Number</th>
-      <th style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: 600;">Serial Number</th>
+      <th style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: 600; color: #1f2937;">RO #</th>
+      <th style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: 600; color: #1f2937;">Part Number</th>
+      <th style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: 600; color: #1f2937;">Serial Number</th>
     </tr>
   </thead>
   <tbody>

@@ -56,11 +56,34 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 38 Complete - Shop Name in Notification Cards. Notification bell now displays shop/vendor name under each email draft for quick identification.
+**[Current Status]:** Phase 39 Complete - Batch Email Preview Fixes. Fixed table visibility in dark mode, enabled email body scrolling, and confirmed batch save works correctly.
 
 ---
 
 ## Changelog
+
+### Phase 39 - Batch Email Preview Fixes (2025-12-09)
+- **Bug Fix 1: Table Text Invisible in Dark Mode**
+  - Issue: Table headers in batch email preview had white text on light gray background - invisible in dark mode
+  - Root Cause: Inline styles only set `background-color: #f5f5f5` without explicit text color
+  - Fix: Added explicit text colors for email-safe rendering
+    - Header text: `color: #1f2937` (Tailwind gray-800)
+    - Body text: `color: #374151` (Tailwind gray-700)
+- **Bug Fix 2: Email Body Not Scrollable**
+  - Issue: Couldn't scroll to see full email content in preview dialog
+  - Root Cause: Parent div had `overflow-hidden` which clipped child content
+  - Fix: Changed parent from `overflow-hidden` to `flex flex-col min-h-0`, added `min-h-0` to body wrapper
+  - Why it works: `min-h-0` allows flex children to shrink below content size
+- **Fix 3: Batch Email Save (Confirmed Working)**
+  - Concern: Editing email should save for ALL grouped ROs, not just primary
+  - Analysis: Already works correctly because:
+    - Batch emails are only created for ROs from same shop
+    - `updateNotificationPayload()` calls `updateShopEmail(shopName, newEmail)`
+    - Shop email stored by `businessName`, not per-RO
+    - All batched ROs share same shop, so one update covers all
+- **Files Modified:**
+  - `src/lib/batch-email-template.ts` - Added explicit text colors to table HTML
+  - `src/components/notifications/EmailPreviewDialog.tsx` - Fixed flex layout for scrolling
 
 ### Phase 38 - Shop Name in Notification Cards (2025-12-09)
 - **Feature:** Display shop/vendor name as subtitle in notification bell dropdown
