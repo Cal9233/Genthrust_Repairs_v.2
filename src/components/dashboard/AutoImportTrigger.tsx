@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { triggerExcelImport } from "@/app/actions/import";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
+import { useSyncStatus } from "@/contexts/SyncContext";
 // Note: Not using RefreshContext because StatsGrid is server-rendered
 // and needs a full page reload to update
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ export function AutoImportTrigger({ userId }: AutoImportTriggerProps) {
   const hasTriggeredRef = useRef(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const { setIsSyncing } = useSyncStatus();
 
   const { status } = useTriggerRun(runId, accessToken);
 
@@ -44,10 +46,11 @@ export function AutoImportTrigger({ userId }: AutoImportTriggerProps) {
       }, 1000); // Brief delay to show toast
     } else if (status === "failed") {
       toast.error("Excel sync failed");
+      setIsSyncing(false); // Show table again on failure
       setRunId(null);
       setAccessToken(null);
     }
-  }, [status]);
+  }, [status, setIsSyncing]);
 
   // Trigger import on mount (once per session)
   useEffect(() => {
@@ -62,17 +65,19 @@ export function AutoImportTrigger({ userId }: AutoImportTriggerProps) {
     sessionStorage.setItem("excel-imported", "true");
 
     // Trigger background import (non-blocking)
+    setIsSyncing(true); // Hide table, show spinner
     triggerExcelImport(userId).then((result) => {
       if (result.success) {
         setRunId(result.data.runId);
         setAccessToken(result.data.publicAccessToken);
         toast.info("Syncing from Excel...");
       } else {
+        setIsSyncing(false); // Show table on trigger failure
         // Don't show error toast - user didn't initiate this
         console.error("Auto-import failed:", result.error);
       }
     });
-  }, [userId]);
+  }, [userId, setIsSyncing]);
 
   // No UI, just side effect
   return null;

@@ -6,8 +6,7 @@ import {
   type SheetFilter,
 } from "@/app/actions/dashboard";
 import { StatsGrid } from "@/components/dashboard/StatsGrid";
-import { RepairOrderTable } from "@/components/dashboard/RepairOrderTable";
-import { AutoImportTrigger } from "@/components/dashboard/AutoImportTrigger";
+import { DashboardContent } from "@/components/dashboard/DashboardContent";
 
 // Valid sheet filter values
 const VALID_SHEETS: SheetFilter[] = ["active", "net", "paid", "returns"];
@@ -39,9 +38,6 @@ export default async function DashboardPage({
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Auto-import from Excel on first session load */}
-      <AutoImportTrigger userId={user.id} />
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -53,8 +49,8 @@ export default async function DashboardPage({
       {/* KPI Stats Grid */}
       <StatsGrid stats={stats} activeFilter={filter} />
 
-      {/* Repair Orders Table */}
-      <RepairOrderTable filter={filter} sheet={sheet} />
+      {/* Auto-import + Repair Orders Table (coordinated via SyncContext) */}
+      <DashboardContent userId={user.id} filter={filter} sheet={sheet} />
     </div>
   );
 }

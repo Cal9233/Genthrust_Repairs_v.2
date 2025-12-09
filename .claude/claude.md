@@ -56,11 +56,29 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 40 Complete - Light/Dark Mode Polish. Comprehensive audit of 45+ components; fixed StatusBadge light mode contrast and sign-in page theme awareness.
+**[Current Status]:** Phase 41 Complete - Dashboard Loading State. Fixed double-reload UX issue on login by showing TurbineSpinner during Excel sync.
 
 ---
 
 ## Changelog
+
+### Phase 41 - Dashboard Loading State (2025-12-09)
+- **UX Fix:** Dashboard no longer shows visible table flicker during Excel sync on login
+- **Problem:** `window.location.reload()` in AutoImportTrigger caused table to appear, go blank, then reload
+- **Solution:** SyncContext coordinates loading state between AutoImportTrigger and RepairOrderTable
+- **User Experience:** Users now see spinner → data appears (no visible blank state)
+- **Architecture:**
+  - `SyncContext` provides `isSyncing` state across dashboard components
+  - `AutoImportTrigger` sets `isSyncing: true` when sync starts, stays true until reload
+  - `RepairOrderTable` shows TurbineSpinner with "Syncing from Excel..." when syncing
+  - `DashboardContent` wraps both components in SyncProvider
+- **Files Added:**
+  - `src/contexts/SyncContext.tsx` - Sync state context provider
+  - `src/components/dashboard/DashboardContent.tsx` - Client wrapper component
+- **Files Modified:**
+  - `src/components/dashboard/AutoImportTrigger.tsx` - Sets sync state
+  - `src/components/dashboard/RepairOrderTable.tsx` - Shows spinner when syncing
+  - `src/app/(protected)/dashboard/page.tsx` - Uses DashboardContent component
 
 ### Phase 40 - Light/Dark Mode Polish (2025-12-09)
 - **Comprehensive Audit:** Used 3 parallel explore agents to audit 45+ files across dashboard, UI, layout, and modal components

@@ -29,6 +29,7 @@ import { RODetailPanel } from "@/components/ro-detail";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { Search, AlertCircle, ChevronRight } from "lucide-react";
 import { useRefresh } from "@/contexts/RefreshContext";
+import { useSyncStatus } from "@/contexts/SyncContext";
 import { cn } from "@/lib/utils";
 
 /**
@@ -195,6 +196,7 @@ export function RepairOrderTable({
 
   const debouncedQuery = useDebounce(query, 300);
   const { refreshKey } = useRefresh();
+  const { isSyncing } = useSyncStatus();
 
   // Fetch data when query, page, filter, sheet, filters, refreshTrigger, or refreshKey changes
   useEffect(() => {
@@ -225,6 +227,18 @@ export function RepairOrderTable({
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
+  // Show loading spinner during Excel sync
+  if (isSyncing) {
+    return (
+      <Card className="shadow-vibrant">
+        <CardContent className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <TurbineSpinner size="lg" />
+          <p className="text-muted-foreground text-sm">Syncing from Excel...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="shadow-vibrant">
