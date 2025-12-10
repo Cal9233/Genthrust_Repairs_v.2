@@ -56,11 +56,23 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 37 Complete - RO Edit Save Fixes. Fixed double-save race condition, added toast feedback, overdue status clears after save.
+**[Current Status]:** Phase 38 Complete - AI Assistant Multi-Turn Fix. Added maxSteps to enable tool call continuation.
 
 ---
 
 ## Changelog
+
+### Phase 38 - AI Assistant Multi-Turn Fix (2025-12-10)
+- **Bug Fix:** AI Assistant stopped responding after first message when tools were invoked
+- **User Observation:** "It's like it only makes one call in backend"
+- **Root Cause:** Vercel AI SDK `streamText()` defaults to `maxSteps: 1`, meaning AI generates ONE response then stream ends
+- **Solution:** Added `maxSteps: 10` to allow multi-turn tool conversations
+- **Impact:** AI can now:
+  - Call a tool, see results, and continue responding
+  - Chain multiple tools (e.g., search ROs → archive each one)
+  - Complete complex queries like "find and archive all ROs for shop X"
+- **Files Modified:**
+  - `src/app/api/chat/route.ts` - Added `maxSteps: 10` to streamText() config
 
 ### Phase 37 - RO Edit Save Fixes (2025-12-08)
 - **Bug Fix 1: Double-Save Race Condition**
