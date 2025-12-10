@@ -56,136 +56,23 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 44 Complete - Document Uploader Bug Fixes. Fixed 4MB limit issue, multi-file error handling, activity log resilience, parent folder error messaging, and file type validation.
+**[Current Status]:** Phase 38 Complete - AI Assistant Multi-Turn Fix. Added maxSteps to enable tool call continuation.
 
 ---
 
 ## Changelog
 
-### Phase 44 - Document Uploader Bug Fixes (2025-12-10)
-- **Bug Fix 1: 4MB Graph API Limit**
-  - Issue: Frontend allowed 10MB but Graph API simple upload only supports 4MB
-  - Fix: Reduced `MAX_FILE_SIZE` to 4MB in both server action and UI component
-- **Bug Fix 2: Multi-File Upload Error Handling**
-  - Issue: Only last error shown when uploading multiple files with failures
-  - Fix: Implemented cumulative error tracking with `errors[]` array
-  - Only refresh document list if at least one file succeeded
-- **Bug Fix 3: Activity Log Resilience**
-  - Issue: Activity log insert failure caused entire upload to fail (inconsistent state)
-  - Fix: Wrapped activity log inserts in try/catch for both upload and delete operations
-- **Bug Fix 4: Missing Parent Folder Error**
-  - Issue: Generic error when "Repair Orders" SharePoint folder doesn't exist
-  - Fix: Detect 404/itemNotFound and show actionable message
-- **Bug Fix 5: File Type Validation**
-  - Issue: No validation - any file type could be uploaded
-  - Fix: Added `ALLOWED_EXTENSIONS` allowlist (PDF, Word, Excel, images, ZIP)
-  - Added `accept` attribute to file input for better UX
-- **New Table: `files_upload`**
-  - Tracks document uploads with SharePoint file IDs, sizes, and soft delete support
-  - Fields: id, repairOrderId, fileName, fileExtension, fileSize, sharePointFileId, sharePointWebUrl, uploadedBy, uploadedAt, deletedAt
+### Phase 38 - AI Assistant Multi-Turn Fix (2025-12-10)
+- **Bug Fix:** AI Assistant stopped responding after first message when tools were invoked
+- **User Observation:** "It's like it only makes one call in backend"
+- **Root Cause:** Vercel AI SDK `streamText()` defaults to `maxSteps: 1`, meaning AI generates ONE response then stream ends
+- **Solution:** Added `maxSteps: 10` to allow multi-turn tool conversations
+- **Impact:** AI can now:
+  - Call a tool, see results, and continue responding
+  - Chain multiple tools (e.g., search ROs → archive each one)
+  - Complete complex queries like "find and archive all ROs for shop X"
 - **Files Modified:**
-  - `src/app/actions/documents.ts` - File type validation, 4MB limit, try/catch for activity logs
-  - `src/components/ro-detail/RODocuments.tsx` - Cumulative errors, 4MB limit, accept attribute, updated UI text
-  - `src/lib/graph/files.ts` - Specific error for missing parent folder
-  - `src/lib/schema.ts` - Added `filesUpload` table schema
-
-### Phase 43 - RO Save Bug Fixes (2025-12-09)
-- **Bug Fix 1: Double-Save Race Condition**
-  - First save click failed with MySQL error, second click succeeded
-  - Root Cause: `handleStatusChange()` called `saveChanges()` immediately after `updateField()`, but React state updates are async
-  - Fix: `saveChanges()` now accepts optional `overrideFields` parameter to bypass stale closure
-  - `handleStatusChange()` passes fields directly instead of relying on async state
-- **Bug Fix 2: Notification Bell Not Clearing**
-  - Pending email draft notifications persisted after RO was manually updated from dashboard
-  - Root Cause: No code connected "RO saved" to "dismiss pending notification"
-  - Fix: `updateRepairOrder()` now auto-deletes any `PENDING_APPROVAL` notifications for the RO
-- **Bug Fix 3: Activity Log Not Updating**
-  - Activity tab didn't show changes immediately after save
-  - Root Cause: Only `fetchData()` was called after save, not `fetchAdditionalData()`
-  - Fix: Added `fetchAdditionalData()` call after successful save
-- **Files Modified:**
-  - `src/components/ro-detail/useRODetail.ts` - `saveChanges()` accepts overrideFields, calls `fetchAdditionalData()`, exposes `editedFieldsRef`
-  - `src/components/ro-detail/RODetailPanel.tsx` - `handleStatusChange()` passes fields directly
-  - `src/app/actions/repair-orders.ts` - Auto-delete PENDING_APPROVAL notifications on save
-
-### Phase 42 - Batch Email Table Preservation (2025-12-09)
-- **Bug Fix:** Editing batch email drafts no longer destroys HTML table formatting
-- **Root Cause:** `stripHtmlToPlainText()` was removing all HTML tags, then save handler only created `<p>` tags
-- **Solution:** Detect table-containing emails and provide split editing interface
-- **New UX:** For batch emails, users see:
-  - "Opening Text" textarea (editable)
-  - "RO Table" section (read-only, rendered HTML)
-  - "Closing Text" textarea (editable)
-- **Helper Functions Added:**
-  - `containsTable()` - Detect if email body has `<table>` element
-  - `parseBodyWithTable()` - Split body into intro/table/outro parts
-  - `textToHtml()` - Convert plain text to HTML paragraphs
-- **Files Modified:**
-  - `src/components/notifications/EditableEmailPreview.tsx` - Table-aware editing
-
-### Phase 41 - Dashboard Loading State (2025-12-09)
-- **UX Fix:** Dashboard no longer shows visible table flicker during Excel sync on login
-- **Solution:** SyncContext coordinates loading state between AutoImportTrigger and RepairOrderTable
-- **Files Added:** `src/contexts/SyncContext.tsx`, `src/components/dashboard/DashboardContent.tsx`
-
-### Phase 40 - Light/Dark Mode Polish (2025-12-09)
-- **Comprehensive Audit:** Used 3 parallel explore agents to audit 45+ files across dashboard, UI, layout, and modal components
-- **Audit Result:** ~93% compliant - codebase has excellent CSS variable architecture
-- **Sign-in Page Fix:**
-  - Changed `bg-white ring-black/5` to `bg-card border-border` for theme-aware logo container
-- **StatusBadge Light Mode Contrast:**
-  - Changed from `/20` opacity (too subtle in light mode) to explicit Tailwind colors
-  - Warning badges: `bg-amber-100 text-amber-700 dark:bg-warning/30 dark:text-warning`
-  - Success badges: `bg-emerald-100 text-emerald-700 dark:bg-success/30 dark:text-success`
-  - Danger badges: `bg-red-100 text-red-700 dark:bg-danger/30 dark:text-danger`
-  - Cyan badges: `bg-cyan-100 text-cyan-700 dark:bg-accent-cyan/30 dark:text-accent-cyan`
-- **Tracking File Created:** `.claude/light-dark-mode-audit.md` for context resumption
-- **Files Modified:**
-  - `src/app/(auth)/signin/page.tsx` - Theme-aware logo container
-  - `src/components/dashboard/StatusBadge.tsx` - Light mode contrast improvements
-
-### Phase 39 - Batch Email Preview Fixes (2025-12-09)
-- **Bug Fix 1: Table Text Invisible in Dark Mode**
-  - Issue: Table headers in batch email preview had white text on light gray background - invisible in dark mode
-  - Root Cause: Inline styles only set `background-color: #f5f5f5` without explicit text color
-  - Fix: Added explicit text colors for email-safe rendering
-    - Header text: `color: #1f2937` (Tailwind gray-800)
-    - Body text: `color: #374151` (Tailwind gray-700)
-- **Bug Fix 2: Email Body Not Scrollable**
-  - Issue: Couldn't scroll to see full email content in preview dialog
-  - Root Cause: Parent div had `overflow-hidden` which clipped child content
-  - Fix: Changed parent from `overflow-hidden` to `flex flex-col min-h-0`, added `min-h-0` to body wrapper
-  - Why it works: `min-h-0` allows flex children to shrink below content size
-- **Fix 3: Batch Email Save (Confirmed Working)**
-  - Concern: Editing email should save for ALL grouped ROs, not just primary
-  - Analysis: Already works correctly because:
-    - Batch emails are only created for ROs from same shop
-    - `updateNotificationPayload()` calls `updateShopEmail(shopName, newEmail)`
-    - Shop email stored by `businessName`, not per-RO
-    - All batched ROs share same shop, so one update covers all
-- **Files Modified:**
-  - `src/lib/batch-email-template.ts` - Added explicit text colors to table HTML
-  - `src/components/notifications/EmailPreviewDialog.tsx` - Fixed flex layout for scrolling
-
-### Phase 38 - Shop Name in Notification Cards (2025-12-09)
-- **Feature:** Display shop/vendor name as subtitle in notification bell dropdown
-- **Purpose:** Users can quickly identify which shop is working on each RO without opening the email preview
-- **Implementation:**
-  - Extended `getPendingNotifications()` to include `shopName` via existing INNER JOIN with `active` table
-  - Created `NotificationWithShop` type extending `NotificationQueueItem` with `shopName: string | null`
-  - Updated `NotificationBell.tsx` state to use new type
-  - Added shop name display below subject line with muted foreground styling
-- **Visual Result:**
-  ```
-  RO #79                           Email Draft
-  Follow-up: RO# G38573
-  Pratt & Whitney Canada           <- NEW
-  To: repairs@pwc.com
-  [Preview] [Approve & Send] [Reject]
-  ```
-- **Files Modified:**
-  - `src/app/actions/notifications.ts` - Added `NotificationWithShop` type, included `shopName` in select clause
-  - `src/components/layout/NotificationBell.tsx` - Updated state type, added shop name display in UI
+  - `src/app/api/chat/route.ts` - Added `maxSteps: 10` to streamText() config
 
 ### Phase 37 - RO Edit Save Fixes (2025-12-08)
 - **Bug Fix 1: Double-Save Race Condition**
