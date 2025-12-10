@@ -78,7 +78,19 @@ export async function ensureROFolder(
     const repairOrdersPath = getRepairOrdersFolderPath();
 
     // Get the parent folder ID first
-    const parentFolder = await client.api(repairOrdersPath).get();
+    let parentFolder;
+    try {
+      parentFolder = await client.api(repairOrdersPath).get();
+    } catch (parentErr) {
+      // Check if it's a 404 (parent folder doesn't exist)
+      const errMsg = parentErr instanceof Error ? parentErr.message : "";
+      if (errMsg.includes("itemNotFound") || errMsg.includes("404")) {
+        throw new Error(
+          "SharePoint folder 'Repair Orders' not found. Please create it in the document library first."
+        );
+      }
+      throw parentErr;
+    }
 
     // Create the RO folder
     const newFolder = await client

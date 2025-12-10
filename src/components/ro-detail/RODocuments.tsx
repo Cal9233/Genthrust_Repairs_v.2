@@ -27,7 +27,10 @@ interface RODocumentsProps {
   onDocumentsChanged: () => void;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB - Graph API simple upload limit
+
+// Accepted file types for the file input
+const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.txt,.rtf,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.webp,.tiff,.bmp,.zip";
 
 function getFileIcon(fileName: string) {
   const ext = fileName.split(".").pop()?.toLowerCase();
@@ -74,11 +77,14 @@ export function RODocuments({
       setError(null);
       setUploading(true);
 
+      const errors: string[] = [];
+      let successCount = 0;
+
       try {
         for (const file of Array.from(files)) {
           // Validate file size
           if (file.size > MAX_FILE_SIZE) {
-            setError(`File "${file.name}" exceeds 10MB limit`);
+            errors.push(`"${file.name}" exceeds 4MB limit`);
             continue;
           }
 
@@ -102,12 +108,22 @@ export function RODocuments({
             base64
           );
 
-          if (!result.success) {
-            setError(result.error);
+          if (result.success) {
+            successCount++;
+          } else {
+            errors.push(`"${file.name}": ${result.error}`);
           }
         }
 
-        onDocumentsChanged();
+        // Show combined error feedback
+        if (errors.length > 0) {
+          setError(errors.join("; "));
+        }
+
+        // Only refresh if at least one file succeeded
+        if (successCount > 0) {
+          onDocumentsChanged();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
       } finally {
@@ -205,6 +221,7 @@ export function RODocuments({
           ref={fileInputRef}
           type="file"
           multiple
+          accept={ACCEPTED_FILE_TYPES}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           onChange={(e) => handleUpload(e.target.files)}
           disabled={uploading}
@@ -222,7 +239,7 @@ export function RODocuments({
               Drag & drop files or click to upload
             </p>
             <p className="text-xs text-muted-foreground">
-              Max file size: 10MB
+              Max 4MB. Allowed: PDF, Word, Excel, images, ZIP
             </p>
           </div>
         )}

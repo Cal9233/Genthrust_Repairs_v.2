@@ -14,6 +14,23 @@ export type { SharePointFile };
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
+// Allowed file extensions for document uploads
+const ALLOWED_EXTENSIONS = new Set([
+  // Documents
+  "pdf", "doc", "docx", "txt", "rtf",
+  // Spreadsheets
+  "xls", "xlsx", "csv",
+  // Images
+  "jpg", "jpeg", "png", "gif", "webp", "tiff", "bmp",
+  // Archives (for bundled docs)
+  "zip",
+]);
+
+function isAllowedFileType(fileName: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return ALLOWED_EXTENSIONS.has(ext);
+}
+
 /**
  * Upload a document to SharePoint for a specific RO
  * Creates folder /Repair Orders/RO-{roNumber}/ if it doesn't exist
@@ -30,13 +47,21 @@ export async function uploadDocument(
       return { success: false, error: "Unauthorized" };
     }
 
-    // Validate file size (10MB limit)
+    // Validate file type
+    if (!isAllowedFileType(fileName)) {
+      return {
+        success: false,
+        error: "File type not allowed. Supported: PDF, Word, Excel, images, ZIP",
+      };
+    }
+
+    // Validate file size (4MB limit - Graph API simple upload limit)
     const sizeInBytes = Math.ceil((fileBase64.length * 3) / 4);
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 4 * 1024 * 1024; // 4MB
     if (sizeInBytes > maxSize) {
       return {
         success: false,
-        error: "File size exceeds 10MB limit",
+        error: "File size exceeds 4MB limit",
       };
     }
 
@@ -55,15 +80,19 @@ export async function uploadDocument(
       };
     }
 
-    // Log activity
-    await db.insert(roActivityLog).values({
-      repairOrderId,
-      action: "DOCUMENT_UPLOADED",
-      field: "documents",
-      oldValue: null,
-      newValue: fileName,
-      userId: session.user.id,
-    });
+    // Log activity - wrapped in try/catch so activity log failures don't fail the upload
+    try {
+      await db.insert(roActivityLog).values({
+        repairOrderId,
+        action: "DOCUMENT_UPLOADED",
+        field: "documents",
+        oldValue: null,
+        newValue: fileName,
+        userId: session.user.id,
+      });
+    } catch (err) {
+      console.error("Failed to log document upload activity:", err);
+    }
 
     return { success: true, data: result.file };
   } catch (error) {
@@ -120,15 +149,19 @@ export async function deleteDocument(
       };
     }
 
-    // Log activity
-    await db.insert(roActivityLog).values({
-      repairOrderId,
-      action: "DOCUMENT_DELETED",
-      field: "documents",
-      oldValue: fileName,
-      newValue: null,
-      userId: session.user.id,
-    });
+    // Log activity - wrapped in try/catch so activity log failures don't fail the delete
+    try {
+      await db.insert(roActivityLog).values({
+        repairOrderId,
+        action: "DOCUMENT_DELETED",
+        field: "documents",
+        oldValue: fileName,
+        newValue: null,
+        userId: session.user.id,
+      });
+    } catch (err) {
+      console.error("Failed to log document delete activity:", err);
+    }
 
     return { success: true, data: undefined };
   } catch (error) {

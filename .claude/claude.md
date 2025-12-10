@@ -56,11 +56,38 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 43 Complete - RO Save Bug Fixes. Fixed double-save race condition, notification bell not clearing, and activity log not updating.
+**[Current Status]:** Phase 44 Complete - Document Uploader Bug Fixes. Fixed 4MB limit issue, multi-file error handling, activity log resilience, parent folder error messaging, and file type validation.
 
 ---
 
 ## Changelog
+
+### Phase 44 - Document Uploader Bug Fixes (2025-12-10)
+- **Bug Fix 1: 4MB Graph API Limit**
+  - Issue: Frontend allowed 10MB but Graph API simple upload only supports 4MB
+  - Fix: Reduced `MAX_FILE_SIZE` to 4MB in both server action and UI component
+- **Bug Fix 2: Multi-File Upload Error Handling**
+  - Issue: Only last error shown when uploading multiple files with failures
+  - Fix: Implemented cumulative error tracking with `errors[]` array
+  - Only refresh document list if at least one file succeeded
+- **Bug Fix 3: Activity Log Resilience**
+  - Issue: Activity log insert failure caused entire upload to fail (inconsistent state)
+  - Fix: Wrapped activity log inserts in try/catch for both upload and delete operations
+- **Bug Fix 4: Missing Parent Folder Error**
+  - Issue: Generic error when "Repair Orders" SharePoint folder doesn't exist
+  - Fix: Detect 404/itemNotFound and show actionable message
+- **Bug Fix 5: File Type Validation**
+  - Issue: No validation - any file type could be uploaded
+  - Fix: Added `ALLOWED_EXTENSIONS` allowlist (PDF, Word, Excel, images, ZIP)
+  - Added `accept` attribute to file input for better UX
+- **New Table: `files_upload`**
+  - Tracks document uploads with SharePoint file IDs, sizes, and soft delete support
+  - Fields: id, repairOrderId, fileName, fileExtension, fileSize, sharePointFileId, sharePointWebUrl, uploadedBy, uploadedAt, deletedAt
+- **Files Modified:**
+  - `src/app/actions/documents.ts` - File type validation, 4MB limit, try/catch for activity logs
+  - `src/components/ro-detail/RODocuments.tsx` - Cumulative errors, 4MB limit, accept attribute, updated UI text
+  - `src/lib/graph/files.ts` - Specific error for missing parent folder
+  - `src/lib/schema.ts` - Added `filesUpload` table schema
 
 ### Phase 43 - RO Save Bug Fixes (2025-12-09)
 - **Bug Fix 1: Double-Save Race Condition**

@@ -686,3 +686,46 @@ export const roRelationsTableRelations = relations(roRelationsTable, ({ one }) =
 
 export type RoRelation = typeof roRelationsTable.$inferSelect;
 export type NewRoRelation = typeof roRelationsTable.$inferInsert;
+
+// ==========================================
+// FILES UPLOAD TABLE (Document Tracking)
+// ==========================================
+
+export const filesUpload = mysqlTable(
+  "files_upload",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+    repairOrderId: bigint("repair_order_id", { mode: "number" })
+      .notNull()
+      .references(() => active.id, { onDelete: "cascade" }),
+    fileName: varchar("file_name", { length: 500 }).notNull(),
+    fileExtension: varchar("file_extension", { length: 20 }),
+    fileSize: bigint("file_size", { mode: "number" }), // Size in bytes
+    sharePointFileId: varchar("sharepoint_file_id", { length: 255 }), // Graph API file ID
+    sharePointWebUrl: text("sharepoint_web_url"), // Direct link to file in SharePoint
+    uploadedBy: varchar("uploaded_by", { length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    uploadedAt: timestamp("uploaded_at", { mode: "date" }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { mode: "date" }), // Soft delete support
+  },
+  (table) => [
+    index("idx_files_upload_ro").on(table.repairOrderId),
+    index("idx_files_upload_user").on(table.uploadedBy),
+    index("idx_files_upload_sharepoint").on(table.sharePointFileId),
+  ]
+);
+
+export const filesUploadRelations = relations(filesUpload, ({ one }) => ({
+  repairOrder: one(active, {
+    fields: [filesUpload.repairOrderId],
+    references: [active.id],
+  }),
+  user: one(users, {
+    fields: [filesUpload.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+export type FilesUpload = typeof filesUpload.$inferSelect;
+export type NewFilesUpload = typeof filesUpload.$inferInsert;
