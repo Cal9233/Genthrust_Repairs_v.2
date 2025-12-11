@@ -70,10 +70,15 @@
 - **Bug Fix 2:** Notification Bell missing search and wrong sort order
   - Added search bar to filter pending notifications by RO#, shop name, or subject
   - Changed sort order to RO# descending (highest/newest first)
+- **Bug Fix 3:** AI messages showing raw markdown symbols (`**`, `*`)
+  - Added `formatAIMessage()` helper to strip markdown and make text human-readable
+  - Converts `**bold**` → `bold`, `- list` → `• list`
+  - Makes output more accessible for all users
 - **Files Modified:**
   - `src/app/api/chat/route.ts` - Added `stopWhen: stepCountIs(10)` import + config
   - `src/components/layout/NotificationBell.tsx` - Added search input + filter logic
   - `src/app/actions/notifications.ts` - Changed orderBy to `repairOrderId DESC`
+  - `src/components/agent/Assistant.tsx` - Added formatAIMessage() for clean output
 
 ### Phase 37 - RO Edit Save Fixes (2025-12-08)
 - **Bug Fix 1: Double-Save Race Condition**
