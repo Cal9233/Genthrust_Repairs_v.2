@@ -1,4 +1,4 @@
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: anthropic("claude-sonnet-4-20250514"),
     maxOutputTokens: 2048,
-    maxSteps: 10, // Allow multi-turn tool conversations (AI can call tools and continue)
+    stopWhen: stepCountIs(10), // Allow multi-turn tool conversations (AI can call tools and continue)
     system: `You are an AI assistant for GenThrust, an aviation parts and repair tracking company.
 
 Your capabilities:

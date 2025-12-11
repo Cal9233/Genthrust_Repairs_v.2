@@ -62,7 +62,7 @@ export async function getPendingNotifications(): Promise<
       .from(notificationQueue)
       .innerJoin(active, eq(notificationQueue.repairOrderId, active.id))
       .where(eq(notificationQueue.status, "PENDING_APPROVAL"))
-      .orderBy(desc(notificationQueue.scheduledFor));
+      .orderBy(desc(notificationQueue.repairOrderId));
 
     return { success: true, data: notifications };
   } catch (error) {

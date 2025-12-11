@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useTransition, useCallback } from "react";
-import { Bell, X, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye, RotateCcw, AlertCircle } from "lucide-react";
+import { Bell, X, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye, RotateCcw, AlertCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import {
   Sheet,
@@ -78,6 +79,9 @@ export function NotificationBell() {
   const [batchedSiblingIds, setBatchedSiblingIds] = useState<number[]>([]);
   // Track batch prompt preference for showing reset button
   const [batchPromptDisabled, setBatchPromptDisabled] = useState(false);
+
+  // Search state for filtering notifications
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Check batch prompt preference on mount
   useEffect(() => {
@@ -346,12 +350,45 @@ export function NotificationBell() {
           </TabsList>
 
           <TabsContent value="pending" className="mt-4 space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+            {/* Search input */}
+            {notifications.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search RO#, shop, subject..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            )}
             {notifications.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 No pending notifications
               </p>
             ) : (
-              notifications.map((notification) => {
+              (() => {
+                // Filter notifications based on search query
+                const filteredNotifications = notifications.filter(n => {
+                  if (!searchQuery) return true;
+                  const q = searchQuery.toLowerCase();
+                  const payload = n.payload as EmailDraftPayload;
+                  return (
+                    String(n.repairOrderId).includes(q) ||
+                    n.shopName?.toLowerCase().includes(q) ||
+                    payload.subject?.toLowerCase().includes(q)
+                  );
+                });
+
+                if (filteredNotifications.length === 0) {
+                  return (
+                    <p className="text-center text-muted-foreground py-8">
+                      No notifications match &quot;{searchQuery}&quot;
+                    </p>
+                  );
+                }
+
+                return filteredNotifications.map((notification) => {
                 const payload = notification.payload as EmailDraftPayload;
                 const isActioning = actioningId === notification.id;
 
@@ -423,7 +460,8 @@ export function NotificationBell() {
                     </div>
                   </div>
                 );
-              })
+              });
+              })()
             )}
           </TabsContent>
 
