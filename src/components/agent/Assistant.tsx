@@ -15,6 +15,23 @@ import { MessageCircle, Send, Bot, User } from "lucide-react";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 
 /**
+ * Formats AI message text to be more human-readable.
+ * Removes markdown symbols while keeping the content clean and accessible.
+ */
+function formatAIMessage(text: string): string {
+  return text
+    // Remove bold markers **text** -> text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Remove italic markers *text* -> text
+    .replace(/\*([^*]+)\*/g, '$1')
+    // Convert markdown bullets to simple bullet points
+    .replace(/^[-]\s+/gm, '• ')
+    // Clean up multiple newlines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * Assistant Component
  *
  * Floating AI chat assistant for GenThrust.
@@ -135,7 +152,11 @@ const getMessageText = (msg: UIMessage): string => {
                       : "bg-muted"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{getMessageText(msg)}</p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {msg.role === "assistant"
+                      ? formatAIMessage(getMessageText(msg))
+                      : getMessageText(msg)}
+                  </p>
                 </div>
                 {msg.role === "user" && (
                   <div className="shrink-0 mt-1">
