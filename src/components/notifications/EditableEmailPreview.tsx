@@ -5,8 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Save, X, AlertCircle } from "lucide-react";
+import { Save, X, AlertCircle, Plus, Trash2 } from "lucide-react";
 import type { EmailDraftPayload } from "@/lib/types/notification";
+import {
+  parseTableToRODetails,
+  generateTableHtml,
+  type RODetail,
+} from "@/lib/batch-email-template";
 
 interface EditableEmailPreviewProps {
   payload: EmailDraftPayload;
@@ -71,6 +76,67 @@ function textToHtml(text: string): string {
     .join("");
 }
 
+/**
+ * Editable table row component
+ */
+function EditableTableRow({
+  row,
+  index,
+  onChange,
+  onRemove,
+  canRemove,
+}: {
+  row: RODetail;
+  index: number;
+  onChange: (index: number, field: keyof RODetail, value: string) => void;
+  onRemove: (index: number) => void;
+  canRemove: boolean;
+}) {
+  return (
+    <tr className="group">
+      <td className="p-1">
+        <Input
+          type="text"
+          value={row.roNumber?.toString() ?? ""}
+          onChange={(e) => onChange(index, "roNumber", e.target.value)}
+          placeholder="RO #"
+          className="h-8 text-xs font-mono text-center w-20"
+        />
+      </td>
+      <td className="p-1">
+        <Input
+          type="text"
+          value={row.partNumber ?? ""}
+          onChange={(e) => onChange(index, "partNumber", e.target.value)}
+          placeholder="Part Number"
+          className="h-8 text-xs font-mono"
+        />
+      </td>
+      <td className="p-1">
+        <Input
+          type="text"
+          value={row.serialNumber ?? ""}
+          onChange={(e) => onChange(index, "serialNumber", e.target.value)}
+          placeholder="Serial Number"
+          className="h-8 text-xs font-mono"
+        />
+      </td>
+      <td className="p-1 w-10">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => onRemove(index)}
+          disabled={!canRemove}
+          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </td>
+    </tr>
+  );
+}
+
 export function EditableEmailPreview({
   payload,
   onSave,
@@ -84,17 +150,26 @@ export function EditableEmailPreview({
     [hasTable, payload.body]
   );
 
+  // Parse table rows for editing
+  const initialRows = useMemo(() => {
+    if (tableParts?.table) {
+      return parseTableToRODetails(tableParts.table);
+    }
+    return [];
+  }, [tableParts]);
+
   const [to, setTo] = useState(payload.to || payload.toAddress || "");
   const [cc, setCc] = useState(payload.cc || "");
   const [subject, setSubject] = useState(payload.subject);
 
-  // For table-containing emails: separate intro/outro
+  // For table-containing emails: separate intro/outro + editable rows
   const [intro, setIntro] = useState(
     tableParts ? stripHtmlToPlainText(tableParts.intro) : ""
   );
   const [outro, setOutro] = useState(
     tableParts ? stripHtmlToPlainText(tableParts.outro) : ""
   );
+  const [tableRows, setTableRows] = useState<RODetail[]>(initialRows);
 
   // For simple emails: single body
   const [body, setBody] = useState(
@@ -102,6 +177,38 @@ export function EditableEmailPreview({
   );
 
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Handle table row changes
+  const handleRowChange = (index: number, field: keyof RODetail, value: string) => {
+    setTableRows((prev) => {
+      const updated = [...prev];
+      if (field === "roNumber") {
+        updated[index] = {
+          ...updated[index],
+          roNumber: value === "" ? null : parseInt(value, 10) || null,
+        };
+      } else {
+        updated[index] = {
+          ...updated[index],
+          [field]: value === "" ? null : value,
+        };
+      }
+      return updated;
+    });
+  };
+
+  // Add new row
+  const handleAddRow = () => {
+    setTableRows((prev) => [
+      ...prev,
+      { roNumber: null, partNumber: null, serialNumber: null },
+    ]);
+  };
+
+  // Remove row
+  const handleRemoveRow = (index: number) => {
+    setTableRows((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Track if any field has changed from original
   useEffect(() => {
@@ -116,22 +223,34 @@ export function EditableEmailPreview({
       const originalIntro = stripHtmlToPlainText(tableParts.intro);
       const originalOutro = stripHtmlToPlainText(tableParts.outro);
       changed = changed || intro !== originalIntro || outro !== originalOutro;
+
+      // Check if table rows changed
+      const rowsMatch =
+        tableRows.length === initialRows.length &&
+        tableRows.every(
+          (row, i) =>
+            row.roNumber === initialRows[i].roNumber &&
+            row.partNumber === initialRows[i].partNumber &&
+            row.serialNumber === initialRows[i].serialNumber
+        );
+      changed = changed || !rowsMatch;
     } else {
       const originalBody = stripHtmlToPlainText(payload.body);
       changed = changed || body !== originalBody;
     }
 
     setHasChanges(changed);
-  }, [to, cc, subject, body, intro, outro, payload, tableParts]);
+  }, [to, cc, subject, body, intro, outro, tableRows, payload, tableParts, initialRows]);
 
   const handleSave = async () => {
     let htmlBody: string;
 
     if (tableParts) {
-      // Reconstruct with preserved table
+      // Reconstruct with editable table
       const htmlIntro = textToHtml(intro);
       const htmlOutro = textToHtml(outro);
-      htmlBody = htmlIntro + tableParts.table + htmlOutro;
+      const newTableHtml = generateTableHtml(tableRows);
+      htmlBody = htmlIntro + newTableHtml + htmlOutro;
     } else {
       // Simple email - just paragraphs
       htmlBody = textToHtml(body);
@@ -210,18 +329,56 @@ export function EditableEmailPreview({
               />
             </div>
 
-            {/* Table section - read-only, styled */}
+            {/* Table section - editable */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                RO Table:{" "}
-                <span className="text-xs text-muted-foreground font-normal">
-                  (read-only)
-                </span>
+              <Label className="text-sm font-medium flex items-center justify-between">
+                <span>RO Table:</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddRow}
+                  className="h-7 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Row
+                </Button>
               </Label>
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 rounded-lg p-4 border overflow-x-auto"
-                dangerouslySetInnerHTML={{ __html: tableParts.table }}
-              />
+              <div className="bg-muted/30 rounded-lg p-3 border overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="p-1 text-left text-xs font-medium text-muted-foreground w-24">
+                        RO #
+                      </th>
+                      <th className="p-1 text-left text-xs font-medium text-muted-foreground">
+                        Part Number
+                      </th>
+                      <th className="p-1 text-left text-xs font-medium text-muted-foreground">
+                        Serial Number
+                      </th>
+                      <th className="p-1 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map((row, index) => (
+                      <EditableTableRow
+                        key={index}
+                        row={row}
+                        index={index}
+                        onChange={handleRowChange}
+                        onRemove={handleRemoveRow}
+                        canRemove={tableRows.length > 1}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+                {tableRows.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    No rows. Click &quot;Add Row&quot; to add an RO.
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Outro section - editable */}

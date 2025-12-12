@@ -18,6 +18,7 @@ import { insertNotificationCore } from "@/lib/data/notifications";
 import { getConversationMessages } from "@/lib/graph/productivity";
 import { active } from "@/lib/schema";
 import { updateShopEmail } from "@/lib/data/shops";
+import { revalidatePath } from "next/cache";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -124,6 +125,9 @@ export async function approveNotification(
     // Get the public access token for real-time UI updates
     const publicAccessToken = await handle.publicAccessToken;
 
+    // Revalidate dashboard to update Overdue stat card
+    revalidatePath("/dashboard");
+
     return { success: true, data: { runId: handle.id, publicAccessToken } };
   } catch (error) {
     return {
@@ -165,6 +169,9 @@ export async function rejectNotification(
         error: "Notification not found or already processed",
       };
     }
+
+    // Revalidate dashboard to update Overdue stat card
+    revalidatePath("/dashboard");
 
     return { success: true, data: { id: notificationId } };
   } catch (error) {
@@ -392,7 +399,7 @@ function mergeThreadMessages(
       subject: payload.subject,
       bodyPreview: stripHtml(payload.body).slice(0, 200),
       sender: {
-        name: "GenThrust Team",
+        name: "Genthrust XVII, LLC",
         email: userEmail,
       },
       sentDateTime: dbMsg.createdAt,
@@ -867,6 +874,9 @@ export async function approveBatchNotifications(
     });
 
     const publicAccessToken = await handle.publicAccessToken;
+
+    // Revalidate dashboard to update Overdue stat card
+    revalidatePath("/dashboard");
 
     return { success: true, data: { runId: handle.id, publicAccessToken } };
   } catch (error) {

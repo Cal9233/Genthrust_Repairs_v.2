@@ -62,7 +62,7 @@ Just checking in on RO# G${roNumber} for part ${partNumber}.
 We'd love an update on the quote when you have a moment.
 
 Thanks!
-GenThrust`,
+Genthrust XVII, LLC`,
     reminderTitle: (roNumber, partNumber) =>
       `Follow up on RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -87,7 +87,7 @@ Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
 Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
-GenThrust`,
+Genthrust XVII, LLC`,
     reminderTitle: (roNumber, partNumber) =>
       `Check repair progress: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -112,7 +112,7 @@ Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
 Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
-GenThrust`,
+Genthrust XVII, LLC`,
     reminderTitle: (roNumber, partNumber) =>
       `Check repair progress: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -137,7 +137,7 @@ Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
 Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
-GenThrust`,
+Genthrust XVII, LLC`,
     reminderTitle: (roNumber, partNumber) =>
       `Check repair progress: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -160,7 +160,7 @@ Follow up on repair progress.`,
 Could you please provide tracking information for RO# G${roNumber}, part ${partNumber}?
 
 Thanks!
-GenThrust`,
+Genthrust XVII, LLC`,
     reminderTitle: (roNumber, partNumber) =>
       `Check shipment: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -183,7 +183,7 @@ Follow up on shipment tracking.`,
 Could you please provide tracking information for RO# G${roNumber}, part ${partNumber}?
 
 Thanks!
-GenThrust`,
+Genthrust XVII, LLC`,
     reminderTitle: (roNumber, partNumber) =>
       `Check shipment: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>

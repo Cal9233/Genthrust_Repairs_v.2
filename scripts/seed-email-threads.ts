@@ -46,7 +46,7 @@ async function seedEmailThreads() {
     const threadEmails = [
       {
         subject: `Quote Request - RO #G${ro.ro}`,
-        body: `<p>Hi,</p><p>Please provide a quote for the repair work on part ${ro.ro}.</p><p>Best regards,<br/>GenThrust Team</p>`,
+        body: `<p>Hi,</p><p>Please provide a quote for the repair work on part ${ro.ro}.</p><p>Best regards,<br/>Genthrust XVII, LLC</p>`,
         daysAgo: 7,
       },
       {

@@ -105,19 +105,16 @@ export const checkOverdueRos = schedules.task({
 
         const roNumber = ro.ro ?? ro.id;
         const partNumber = ro.part ?? "Unknown Part";
-        const status = ro.curentStatus ?? "Unknown Status";
 
         const subject = `Follow-up: RO# G${roNumber}`;
         const body = `Hi Team,
 
 Just checking in on RO# G${roNumber} for part ${partNumber}.
 
-Current status: ${status}
-
 We'd love an update when you have a moment.
 
 Thanks!
-GenThrust`;
+Genthrust XVII, LLC`;
 
         // insertNotificationCore handles deduplication - returns existing ID if duplicate
         const notificationId = await insertNotificationCore({

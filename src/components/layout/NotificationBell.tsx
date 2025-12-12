@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { Bell, X, Check, Mail, Clock, CheckCircle, XCircle, Send, Eye, RotateCcw, AlertCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,7 @@ export function NotificationBell() {
   const [actioningId, setActioningId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Batch email prompt state
   const [batchPromptOpen, setBatchPromptOpen] = useState(false);
@@ -79,9 +80,6 @@ export function NotificationBell() {
   const [batchedSiblingIds, setBatchedSiblingIds] = useState<number[]>([]);
   // Track batch prompt preference for showing reset button
   const [batchPromptDisabled, setBatchPromptDisabled] = useState(false);
-
-  // Search state for filtering notifications
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Check batch prompt preference on mount
   useEffect(() => {
@@ -332,7 +330,7 @@ export function NotificationBell() {
             Notifications
           </SheetTitle>
         </SheetHeader>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+        <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); setSearchQuery(""); }} className="mt-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pending" className="gap-1">
               Pending
@@ -349,46 +347,65 @@ export function NotificationBell() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pending" className="mt-4 space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
-            {/* Search input */}
+          <TabsContent value="pending" className="mt-4 space-y-2 overflow-y-auto max-h-[calc(100vh-200px)]">
+            {/* Search bar */}
             {notifications.length > 0 && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative sticky top-0 bg-background pb-2 z-10">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search RO#, shop, subject..."
+                  placeholder="Search by RO#, shop, or subject..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
+                  className="pl-8 h-9 text-sm"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
-            {notifications.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No pending notifications
-              </p>
-            ) : (
-              (() => {
-                // Filter notifications based on search query
-                const filteredNotifications = notifications.filter(n => {
-                  if (!searchQuery) return true;
-                  const q = searchQuery.toLowerCase();
-                  const payload = n.payload as EmailDraftPayload;
-                  return (
-                    String(n.repairOrderId).includes(q) ||
-                    n.shopName?.toLowerCase().includes(q) ||
-                    payload.subject?.toLowerCase().includes(q)
-                  );
-                });
 
-                if (filteredNotifications.length === 0) {
-                  return (
-                    <p className="text-center text-muted-foreground py-8">
-                      No notifications match &quot;{searchQuery}&quot;
-                    </p>
-                  );
-                }
+            {(() => {
+              // Filter notifications based on search query
+              const query = searchQuery.toLowerCase().trim();
+              const filteredNotifications = query
+                ? notifications.filter((n) => {
+                    const payload = n.payload as EmailDraftPayload;
+                    const roId = String(n.repairOrderId);
+                    const subject = (payload.subject || "").toLowerCase();
+                    const toAddress = (payload.to || payload.toAddress || "").toLowerCase();
+                    const shopName = (n.shopName || "").toLowerCase();
 
-                return filteredNotifications.map((notification) => {
+                    return (
+                      roId.includes(query) ||
+                      subject.includes(query) ||
+                      toAddress.includes(query) ||
+                      shopName.includes(query)
+                    );
+                  })
+                : notifications;
+
+              if (notifications.length === 0) {
+                return (
+                  <p className="text-center text-muted-foreground py-8">
+                    No pending notifications
+                  </p>
+                );
+              }
+
+              if (filteredNotifications.length === 0) {
+                return (
+                  <p className="text-center text-muted-foreground py-8">
+                    No results for &ldquo;{searchQuery}&rdquo;
+                  </p>
+                );
+              }
+
+              return filteredNotifications.map((notification) => {
                 const payload = notification.payload as EmailDraftPayload;
                 const isActioning = actioningId === notification.id;
 
@@ -461,8 +478,7 @@ export function NotificationBell() {
                   </div>
                 );
               });
-              })()
-            )}
+            })()}
           </TabsContent>
 
           <TabsContent value="history" className="mt-4 space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
