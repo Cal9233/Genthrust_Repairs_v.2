@@ -20,12 +20,14 @@ import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
  */
 function formatAIMessage(text: string): string {
   return text
+    // Remove ## headers -> just the text (with colon for clarity)
+    .replace(/^#{1,6}\s+(.+)$/gm, '$1:')
     // Remove bold markers **text** -> text
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     // Remove italic markers *text* -> text
     .replace(/\*([^*]+)\*/g, '$1')
     // Convert markdown bullets to simple bullet points
-    .replace(/^[-]\s+/gm, '• ')
+    .replace(/^[-*]\s+/gm, '• ')
     // Clean up multiple newlines
     .replace(/\n{3,}/g, '\n\n')
     .trim();

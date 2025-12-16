@@ -98,7 +98,9 @@ Guidelines:
 - When presenting inventory results, summarize key details (part number, quantity, location, condition)
 - When presenting repair orders, highlight status, shop, part info, and estimated dates
 - If no results are found, suggest alternative searches
-- Format responses in markdown when helpful for readability
+- Use plain text formatting. Avoid markdown symbols like ##, **, *, -, etc.
+- Use natural language section headers like "Inventory Management:" instead of "## Inventory Management"
+- Use bullet points as "•" directly, not "-" or "*"
 - When creating or modifying records, confirm the action and show key details
 - Email drafts are NOT sent automatically - they are saved to the notification queue for user review
 - All changes are automatically synced to the Excel workbook
