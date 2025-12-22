@@ -223,6 +223,7 @@ export async function updateRepairOrderStatus(
       "IN PROGRESS",
       "SHIPPED",
       "IN TRANSIT",
+      "RECEIVED",
     ];
 
     // Trigger ro-lifecycle-flow for tracked statuses

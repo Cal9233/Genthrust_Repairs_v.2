@@ -37,6 +37,15 @@ export const roStatusChangeOutputSchema = z.object({
 
 export type RoStatusChangeOutput = z.infer<typeof roStatusChangeOutputSchema>;
 
+/**
+ * Parse payment terms to extract the number of days.
+ * Handles patterns like "NET 30", "Net30", "NET 60 DAYS", etc.
+ */
+function parsePaymentTermsDays(terms: string | null | undefined): number | null {
+  if (!terms) return null;
+  const match = terms.match(/net\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
 
 /**
  * Status configuration for follow-up emails
@@ -266,6 +275,56 @@ export const handleRoStatusChange = task({
       }
 
       // ==========================================
+      // SPECIAL HANDLING: RECEIVED with NET Terms
+      // ==========================================
+      // For RECEIVED status, create payment reminders based on NET terms
+      // then return early (no wait/email flow needed)
+      if (normalizedStatus === "RECEIVED") {
+        const paymentDays = parsePaymentTermsDays(repairOrder.terms);
+
+        if (!paymentDays) {
+          logger.info("RECEIVED status without NET terms, skipping", {
+            terms: repairOrder.terms
+          });
+          return { success: true, action: "skipped" };
+        }
+
+        // Calculate payment due date
+        const paymentDueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000);
+        const roNumber = repairOrder.ro ?? repairOrderId;
+        const partNumber = repairOrder.part ?? "Unknown Part";
+        const shopName = repairOrder.shopName ?? "Repair Shop";
+
+        const reminderTitle = `Payment Due: RO# G${roNumber} - ${shopName}`;
+        const reminderBody = `Payment due for RO# G${roNumber}
+Part: ${partNumber}
+Shop: ${shopName}
+Terms: ${repairOrder.terms}
+Due Date: ${paymentDueDate.toLocaleDateString()}
+
+Process payment for this repair order.`;
+
+        // Create Calendar Event and To-Do Task
+        try {
+          await Promise.all([
+            createCalendarEvent(userId, reminderTitle, paymentDueDate, paymentDueDate, reminderBody),
+            createToDoTask(userId, reminderTitle, paymentDueDate, reminderBody),
+          ]);
+          logger.info("Payment reminders created for RECEIVED RO", {
+            repairOrderId,
+            paymentDays,
+            paymentDueDate: paymentDueDate.toISOString(),
+          });
+        } catch (error) {
+          logger.warn("Failed to create payment reminders", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        return { success: true, action: "reminder_created" };
+      }
+
+      // ==========================================
       // PHASE 1: Immediate Setup
       // ==========================================
       logger.info("Phase 1: Creating immediate reminders", {
@@ -422,5 +481,110 @@ export const handleRoStatusChange = task({
       // Re-throw for Trigger.dev retry
       throw error;
     }
+  },
+});
+
+/**
+ * Backfill Payment Reminders Task
+ *
+ * One-time task to create payment reminders for existing ROs
+ * that are already in RECEIVED status with NET terms.
+ *
+ * Run this once after deploying the payment reminder feature
+ * to catch existing ROs that missed the status change trigger.
+ */
+export const backfillPaymentReminders = task({
+  id: "backfill-payment-reminders",
+  machine: {
+    preset: "small-1x",
+  },
+  run: async (payload: { userId: string }) => {
+    const { userId } = payload;
+
+    logger.info("Starting backfill of payment reminders for existing RECEIVED ROs");
+
+    // Find all ROs in RECEIVED status with NET terms
+    const receivedROs = await db
+      .select()
+      .from(active)
+      .where(eq(active.curentStatus, "RECEIVED"));
+
+    let processed = 0;
+    let skipped = 0;
+    let created = 0;
+
+    for (const ro of receivedROs) {
+      processed++;
+
+      // Check for NET terms
+      const paymentDays = parsePaymentTermsDays(ro.terms);
+      if (!paymentDays) {
+        skipped++;
+        continue;
+      }
+
+      // Calculate due date from status date (when marked RECEIVED)
+      let receivedDate = new Date();
+      if (ro.curentStatusDate) {
+        const parsed = new Date(ro.curentStatusDate);
+        if (!isNaN(parsed.getTime())) {
+          receivedDate = parsed;
+        }
+      }
+
+      const paymentDueDate = new Date(receivedDate.getTime() + paymentDays * 24 * 60 * 60 * 1000);
+
+      // Skip if due date is in the past
+      if (paymentDueDate < new Date()) {
+        logger.info("Skipping RO with past due date", {
+          roId: ro.id,
+          roNumber: ro.ro,
+          paymentDueDate: paymentDueDate.toISOString(),
+        });
+        skipped++;
+        continue;
+      }
+
+      const roNumber = ro.ro ?? ro.id;
+      const partNumber = ro.part ?? "Unknown Part";
+      const shopName = ro.shopName ?? "Repair Shop";
+
+      const reminderTitle = `Payment Due: RO# G${roNumber} - ${shopName}`;
+      const reminderBody = `Payment due for RO# G${roNumber}
+Part: ${partNumber}
+Shop: ${shopName}
+Terms: ${ro.terms}
+Due Date: ${paymentDueDate.toLocaleDateString()}
+
+Process payment for this repair order.`;
+
+      try {
+        await Promise.all([
+          createCalendarEvent(userId, reminderTitle, paymentDueDate, paymentDueDate, reminderBody),
+          createToDoTask(userId, reminderTitle, paymentDueDate, reminderBody),
+        ]);
+        created++;
+        logger.info("Created payment reminders for existing RO", {
+          roId: ro.id,
+          roNumber,
+          paymentDays,
+          paymentDueDate: paymentDueDate.toISOString(),
+        });
+      } catch (error) {
+        logger.warn("Failed to create reminders for RO", {
+          roId: ro.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    logger.info("Backfill complete", { processed, created, skipped });
+
+    return {
+      success: true,
+      processed,
+      created,
+      skipped,
+    };
   },
 });
