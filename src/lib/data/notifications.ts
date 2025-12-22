@@ -70,7 +70,7 @@ export async function insertNotificationCore(
       })
       .$returningId();
 
-    return Number(inserted.id) || null;
+    return inserted?.id ? Number(inserted.id) : null;
   } catch (error) {
     console.error("Error inserting notification core:", error);
     return null;

@@ -124,7 +124,11 @@ export const createRepairOrderTool = task({
     };
 
     // Insert into MySQL
-    const [result] = await db.insert(active).values(insertData).$returningId() as [{ id: number }];
+    const [result] = await db.insert(active).values(insertData).$returningId();
+
+    if (!result?.id) {
+      throw new Error("Failed to create repair order - database did not return ID");
+    }
 
     // Log activity
     await db.insert(roActivityLog).values({
