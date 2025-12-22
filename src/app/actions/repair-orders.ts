@@ -111,7 +111,8 @@ export async function createRepairOrder(data: {
     };
 
     // Insert into MySQL
-    const [result] = await db.insert(active).values(insertData).$returningId();
+    const insertResult = await db.insert(active).values(insertData).$returningId();
+    const result = insertResult[0] as { id: number } | undefined;
 
     if (!result?.id) {
       return { success: false, error: "Failed to create repair order - database did not return ID" };

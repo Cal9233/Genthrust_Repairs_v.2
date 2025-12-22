@@ -62,13 +62,14 @@ export async function insertNotificationCore(
       }
     }
 
-    const [inserted] = await db
+    const insertResult = await db
       .insert(notificationQueue)
       .values({
         ...data,
         status: targetStatus,
       })
       .$returningId();
+    const inserted = insertResult[0] as { id: number } | undefined;
 
     return inserted?.id ? Number(inserted.id) : null;
   } catch (error) {
