@@ -56,11 +56,26 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 48 Complete - Payment reminders for RECEIVED ROs with NET terms.
+**[Current Status]:** Phase 49 Complete - Zod validation schemas for Repair Orders.
 
 ---
 
 ## Changelog
+
+### Phase 49 - Zod Validation Schemas (2025-12-25)
+- **Feature:** Created centralized Zod validation schemas for Repair Orders
+- **Purpose:** Single Source of Truth for data validation, prevents "Ghost Data"
+- **New File:** `src/lib/validation/repair-order.ts`
+- **Schemas:**
+  - `repairOrderSchema` - Base schema matching DB shape
+  - `createRepairOrderSchema` - Form validation with required `shopName` and `part`
+  - `updateRepairOrderSchema` - All fields optional for partial updates
+  - `roStatusEnum` - 13 valid RO statuses
+- **Type Exports:** `RepairOrder`, `CreateRepairOrderInput`, `UpdateRepairOrderInput`, `ROStatus`
+- **Helper Functions:** `parseCreateInput()`, `safeParseCreateInput()`, `parseUpdateInput()`, `safeParseUpdateInput()`
+- **Key Features:**
+  - Number coercion for `estimatedCost`/`finalCost` (handles form string inputs)
+  - Zod v4 compatible syntax
 
 ### Phase 48 - Payment Reminders for RECEIVED ROs (2025-12-25)
 - **Feature:** Auto-create payment reminders when RO marked RECEIVED with NET terms
