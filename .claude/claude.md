@@ -56,11 +56,21 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 50 Complete - Zod validation integration, Excel write-back, RECEIVED status fix.
+**[Current Status]:** Phase 51 Complete - RO creation reliability fix.
 
 ---
 
 ## Changelog
+
+### Phase 51 - RO Creation Reliability Fix (2025-12-26)
+- **Bug Fix:** Replaced unreliable `$returningId()` with fetch-after-insert pattern
+- **Problem:** Drizzle's `$returningId()` can return empty array, causing failures
+- **Solution:**
+  - Insert record into MySQL
+  - Fetch newly created record by RO number (unique identifier)
+  - More reliable than relying on `$returningId()` behavior
+- **Files Modified:**
+  - `src/app/actions/repair-orders.ts` - Changed insert pattern
 
 ### Phase 50 - Validation Integration & Excel Write-Back (2025-12-25)
 - **Feature 1: Zod Validation Integration**

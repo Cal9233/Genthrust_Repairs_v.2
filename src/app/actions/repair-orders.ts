@@ -124,12 +124,20 @@ export async function createRepairOrder(data: unknown): Promise<Result<{ id: num
     };
 
     // Insert into MySQL
-    const insertResult = await db.insert(active).values(insertData).$returningId();
-    const result = insertResult[0] as { id: number } | undefined;
+    await db.insert(active).values(insertData);
 
-    if (!result?.id) {
-      return { success: false, error: "Failed to create repair order - database did not return ID" };
+    // Fetch the newly created record by RO number (unique identifier)
+    const [newRecord] = await db
+      .select()
+      .from(active)
+      .where(eq(active.ro, nextRO))
+      .limit(1);
+
+    if (!newRecord) {
+      return { success: false, error: "Failed to create repair order - could not retrieve created record" };
     }
+
+    const result = { id: newRecord.id };
 
     // Log activity
     await db.insert(roActivityLog).values({
