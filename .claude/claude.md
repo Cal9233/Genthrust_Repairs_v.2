@@ -56,11 +56,35 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 46 Complete - Email Draft Enhancements. Updated company name to "Genthrust XVII, LLC", removed status from emails, made batch email table fully editable.
+**[Current Status]:** Phase 48 Complete - Payment reminders for RECEIVED ROs with NET terms.
 
 ---
 
 ## Changelog
+
+### Phase 48 - Payment Reminders for RECEIVED ROs (2025-12-25)
+- **Feature:** Auto-create payment reminders when RO marked RECEIVED with NET terms
+- **Implementation:**
+  - Added `parsePaymentTermsDays()` helper to extract days from "NET 30", "Net60", etc.
+  - Added "RECEIVED" to `TRACKED_STATUSES` in repair-orders.ts
+  - Added special RECEIVED handling in ro-lifecycle-flow.ts
+  - Creates Outlook Calendar Event + Microsoft To-Do Task for payment due date
+- **Backfill Task:** Added `backfill-payment-reminders` task for existing RECEIVED ROs
+  - Finds all ROs in RECEIVED status with NET terms
+  - Calculates due date from `curentStatusDate`
+  - Skips ROs with past due dates
+- **Files Modified:**
+  - `src/app/actions/repair-orders.ts` - Added RECEIVED to tracked statuses
+  - `src/trigger/ro-lifecycle-flow.ts` - Added payment reminder logic + backfill task
+
+### Phase 47 - RO Creation Null Check Fix (2025-12-25)
+- **Bug Fix:** "Cannot read properties of undefined (reading 'id')" when creating ROs
+- **Root Cause:** Drizzle's `$returningId()` can return empty array, causing crash when accessing `.id`
+- **Fix:** Added null check after insert, return proper error message if no ID returned
+- **Files Modified:**
+  - `src/app/actions/repair-orders.ts` - Added null check after `$returningId()`
+  - `src/trigger/ai-tools.ts` - Same fix for AI-created ROs
+  - `src/lib/data/notifications.ts` - Same fix for notification inserts
 
 ### Phase 46 - Email Draft Enhancements (2025-12-12)
 - **Company Name Update:** Changed all email signatures from "GenThrust" to "Genthrust XVII, LLC"
