@@ -248,18 +248,8 @@ export const handleRoStatusChange = task({
       userId,
     });
 
-    // Check if this status is tracked for follow-ups
-    const config = STATUS_CONFIGS[normalizedStatus];
-    if (!config) {
-      logger.info("Status not tracked for follow-ups, skipping", { newStatus: normalizedStatus });
-      return {
-        success: true,
-        action: "skipped",
-      };
-    }
-
     try {
-      // Fetch the repair order details
+      // Fetch the repair order details first
       const [repairOrder] = await db
         .select()
         .from(active)
@@ -278,6 +268,7 @@ export const handleRoStatusChange = task({
       // ==========================================
       // SPECIAL HANDLING: RECEIVED with NET Terms
       // ==========================================
+      // Handle RECEIVED status FIRST (before checking STATUS_CONFIGS)
       // For RECEIVED status, create payment reminders based on NET terms
       // then return early (no wait/email flow needed)
       if (normalizedStatus === "RECEIVED") {
@@ -323,6 +314,18 @@ Process payment for this repair order.`;
         }
 
         return { success: true, action: "reminder_created" };
+      }
+
+      // ==========================================
+      // Check if this status has follow-up configuration
+      // ==========================================
+      const config = STATUS_CONFIGS[normalizedStatus];
+      if (!config) {
+        logger.info("Status not tracked for follow-ups, skipping", { newStatus: normalizedStatus });
+        return {
+          success: true,
+          action: "skipped",
+        };
       }
 
       // ==========================================
