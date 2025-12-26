@@ -56,11 +56,32 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 49 Complete - Zod validation schemas for Repair Orders.
+**[Current Status]:** Phase 50 Complete - Zod validation integration, Excel write-back, RECEIVED status fix.
 
 ---
 
 ## Changelog
+
+### Phase 50 - Validation Integration & Excel Write-Back (2025-12-25)
+- **Feature 1: Zod Validation Integration**
+  - Integrated `createRepairOrderSchema` into `createRepairOrder()` server action
+  - Input validated before any database operations
+  - Returns detailed error messages with field paths on validation failure
+  - Prevents "Ghost Data" (ROs without shopName/part)
+- **Feature 2: Immediate Excel Write-Back**
+  - New file: `src/lib/graph/write-single-ro.ts`
+  - `addSingleRoToExcel()` writes new ROs to SharePoint immediately after MySQL insert
+  - Uses Graph API session management for reliability
+  - Follows Write-Behind pattern but with instant sync
+- **Bug Fix: RECEIVED Status Not Triggering Reminders**
+  - Issue: "RECEIVED" was missing from `TRACKED_STATUSES` array
+  - Root Cause: `TRACKED_STATUSES = Object.keys(STATUS_CONFIGS)` excluded RECEIVED
+  - Fix: Changed to `[...Object.keys(STATUS_CONFIGS), "RECEIVED"]`
+  - Now payment reminders (Calendar + To-Do) are created when RO marked RECEIVED with NET terms
+- **Files Modified:**
+  - `src/app/actions/repair-orders.ts` - Zod validation + Excel write-back integration
+  - `src/trigger/ro-lifecycle-flow.ts` - Added RECEIVED to TRACKED_STATUSES
+  - `src/lib/graph/write-single-ro.ts` - NEW: Immediate Excel write-back function
 
 ### Phase 49 - Zod Validation Schemas (2025-12-25)
 - **Feature:** Created centralized Zod validation schemas for Repair Orders

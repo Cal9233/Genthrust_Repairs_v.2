@@ -16,6 +16,12 @@ import {
 import { eq, or, desc, and, sql, max } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { revalidatePath } from "next/cache";
+import {
+  createRepairOrderSchema,
+  updateRepairOrderSchema,
+  roStatusEnum,
+} from "@/lib/validation/repair-order";
+import { addSingleRoToExcel } from "@/lib/graph/write-single-ro";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -66,25 +72,32 @@ export interface ActivityLogEntry {
  *
  * Generates the next RO number, inserts into MySQL, and triggers Excel sync.
  * Follows Write-Behind pattern: MySQL -> Trigger.dev -> Excel
+ * 
+ * NOW WITH ZOD VALIDATION: Prevents "Ghost Data" by enforcing required fields
  */
-export async function createRepairOrder(data: {
-  shopName: string;
-  part: string;
-  serial?: string;
-  partDescription?: string;
-  reqWork?: string;
-  estimatedCost?: number;
-}): Promise<Result<{ id: number; ro: number }>> {
+export async function createRepairOrder(data: unknown): Promise<Result<{ id: number; ro: number }>> {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // Validate required fields
-    if (!data.shopName || !data.part) {
-      return { success: false, error: "Shop name and part number are required" };
+    // 🔒 STEP 1: Validate input with Zod schema
+    // This is the CRITICAL step that prevents "Ghost Data"
+    const validationResult = createRepairOrderSchema.safeParse(data);
+    
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.issues
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
+      return { 
+        success: false, 
+        error: `Validation failed: ${errorMessage}` 
+      };
     }
+
+    // Use validated data from this point forward
+    const validatedData = validationResult.data;
 
     // Generate next RO number (max + 1)
     const [maxRO] = await db
@@ -93,18 +106,18 @@ export async function createRepairOrder(data: {
 
     const nextRO = Math.floor((maxRO?.maxRo ?? 0) + 1);
 
-    // Prepare the insert data
+    // Prepare the insert data using VALIDATED data (prevents Ghost Data)
     const today = new Date().toISOString().split("T")[0];
     const insertData = {
       ro: nextRO,
       dateMade: today,
-      shopName: data.shopName,
-      part: data.part,
-      serial: data.serial ?? null,
-      partDescription: data.partDescription ?? null,
-      reqWork: data.reqWork ?? null,
-      estimatedCost: data.estimatedCost ?? null,
-      curentStatus: "WAITING QUOTE",
+      shopName: validatedData.shopName,
+      part: validatedData.part,
+      serial: validatedData.serial ?? null,
+      partDescription: validatedData.partDescription ?? null,
+      reqWork: validatedData.reqWork ?? null,
+      estimatedCost: validatedData.estimatedCost ?? null,
+      curentStatus: validatedData.curentStatus ?? "WAITING QUOTE",
       curentStatusDate: today,
       lastDateUpdated: today,
       nextDateToUpdate: today, // Will be updated by lifecycle flow
@@ -128,7 +141,28 @@ export async function createRepairOrder(data: {
       userId: session.user.id,
     });
 
-    // Trigger Excel sync
+    // 📝 IMMEDIATE EXCEL WRITE-BACK (new feature)
+    // After successful MySQL insert, immediately sync to SharePoint Excel
+    // Fire-and-forget: Don't block user response, but log errors
+    try {
+      // Fetch the complete row from database for Excel sync
+      const [newRow] = await db
+        .select()
+        .from(active)
+        .where(eq(active.id, result.id))
+        .limit(1);
+
+      if (newRow) {
+        // Immediate write-back to Excel using direct API call
+        await addSingleRoToExcel(session.user.id, newRow);
+      }
+    } catch (excelError) {
+      // Excel write-back failure is logged but doesn't fail the create operation
+      console.error("⚠️ Immediate Excel write-back failed:", excelError);
+      console.error("RO was created in MySQL successfully, but Excel sync failed. Will be retried by background sync task.");
+    }
+
+    // Trigger background Excel sync task (fallback/redundancy)
     try {
       await tasks.trigger("sync-repair-orders", {
         userId: session.user.id,
@@ -136,7 +170,7 @@ export async function createRepairOrder(data: {
       });
     } catch {
       // Excel sync failure shouldn't fail the create
-      console.error("Failed to trigger Excel sync for new RO");
+      console.error("Failed to trigger Excel sync background task for new RO");
     }
 
     revalidatePath("/dashboard");
@@ -159,6 +193,8 @@ export async function createRepairOrder(data: {
  *
  * Per CLAUDE.md Write-Behind Pattern:
  * UI -> Server Action -> MySQL Write -> Push Job to Trigger.dev
+ * 
+ * NOW WITH ZOD VALIDATION: Validates status values against allowed enum
  */
 export async function updateRepairOrderStatus(
   repairOrderId: number,
@@ -170,6 +206,18 @@ export async function updateRepairOrderStatus(
     if (!session?.user?.id) {
       return { success: false, error: "Unauthorized" };
     }
+
+    // 🔒 Validate status value against allowed enum
+    const statusValidation = roStatusEnum.safeParse(newStatus);
+    if (!statusValidation.success) {
+      return {
+        success: false,
+        error: `Invalid status: "${newStatus}". Must be one of: ${roStatusEnum.options.join(', ')}`
+      };
+    }
+
+    // Use validated status
+    const validatedStatus = statusValidation.data;
 
     // Fetch current status for comparison
     const [currentRO] = await db
