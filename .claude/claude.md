@@ -56,11 +56,22 @@
 * **Token Efficiency:** Do not dump massive raw JSON files into context. Summarize interfaces.
 
 ---
-**[Current Status]:** Phase 51 Complete - RO creation reliability fix.
+**[Current Status]:** Phase 52 Complete - AI Tool Dashboard Revalidation.
 
 ---
 
 ## Changelog
+
+### Phase 52 - AI Tool Dashboard Revalidation (2025-12-29)
+- **Bug Fix:** Overdue RO counts not matching across displays after AI tool updates
+- **Root Cause:** AI API route write tools triggered Trigger.dev tasks but didn't invalidate Next.js cache
+- **Solution:** Added `revalidatePath("/dashboard")` to all 4 write tools in `/api/chat/route.ts`:
+  - `create_repair_order`
+  - `update_repair_order`
+  - `archive_repair_order`
+  - `create_email_draft`
+- **Files Modified:**
+  - `src/app/api/chat/route.ts` - Added `revalidatePath` import and calls after each write tool
 
 ### Phase 51 - RO Creation Reliability Fix (2025-12-26)
 - **Bug Fix:** Replaced unreliable `$returningId()` with fetch-after-insert pattern

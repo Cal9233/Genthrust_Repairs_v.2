@@ -1,5 +1,6 @@
 import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { active, inventoryindex } from "@/lib/schema";
@@ -245,6 +246,7 @@ Guidelines:
         inputSchema: CreateRepairOrderSchema,
         execute: async (params: z.infer<typeof CreateRepairOrderSchema>) => {
           await tasks.trigger("ai-tool-create-repair-order", { userId, ...params });
+          revalidatePath("/dashboard");
           return `✓ Queued: Creating RO for ${params.part} at ${params.shopName}. It will appear in the dashboard shortly.`;
         },
       },
@@ -255,6 +257,7 @@ Guidelines:
         inputSchema: UpdateRepairOrderSchema,
         execute: async ({ roNumber, fields }: z.infer<typeof UpdateRepairOrderSchema>) => {
           await tasks.trigger("ai-tool-update-repair-order", { userId, roNumber, fields });
+          revalidatePath("/dashboard");
           const changedFields = Object.keys(fields).join(", ");
           return `✓ Queued: Updating RO #${roNumber} (${changedFields}). Changes will sync to Excel shortly.`;
         },
@@ -266,6 +269,7 @@ Guidelines:
         inputSchema: ArchiveRepairOrderSchema,
         execute: async ({ roNumber, destination, reason }: z.infer<typeof ArchiveRepairOrderSchema>) => {
           await tasks.trigger("ai-tool-archive-repair-order", { userId, roNumber, destination, reason });
+          revalidatePath("/dashboard");
           const sheetNames: Record<string, string> = {
             returns: "Returns",
             paid: "Paid",
@@ -281,6 +285,7 @@ Guidelines:
         inputSchema: CreateEmailDraftSchema,
         execute: async ({ roNumber, toAddress, subject, body }: z.infer<typeof CreateEmailDraftSchema>) => {
           await tasks.trigger("ai-tool-create-email-draft", { userId, roNumber, toAddress, subject, body });
+          revalidatePath("/dashboard");
           return `✓ Queued: Creating email draft for RO #${roNumber} to ${toAddress}. Subject: "${subject}". Check the notification queue for approval.`;
         },
       },

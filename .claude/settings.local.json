@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(for branch in origin/feature/auth origin/feature/database origin/feature/triggers origin/data_fetch)",
+      "Bash(do echo \"=== $branch ===\")",
+      "Bash(done)",
+      "Bash(set CI=:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
