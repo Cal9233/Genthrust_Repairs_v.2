@@ -38,12 +38,13 @@ export type ImportFromExcelOutput = z.infer<typeof importFromExcelOutputSchema>;
 
 // Environment configuration
 const WORKBOOK_ID = process.env.EXCEL_WORKBOOK_ID;
-const WORKSHEET_NAME = process.env.EXCEL_WORKSHEET_NAME ?? "Active";
+// We now iterate through these explicit sheets instead of just one
+const TARGET_SHEETS = ["Active", "Net", "Paid", "Returns"];
 
 /**
  * import-from-excel Task
  *
- * Reads data from the Excel Active sheet and imports/updates MySQL database.
+ * Reads data from ALL Excel sheets (Active, Net, Paid, Returns) and imports/updates MySQL database.
  * This is the inverse of sync-repair-orders task.
  *
  * Flow: Excel → This Task → MySQL
@@ -60,7 +61,7 @@ export const importFromExcel = task({
   run: async (payload: ImportFromExcelPayload): Promise<ImportFromExcelOutput> => {
     const { userId } = payload;
 
-    logger.info("Starting Excel import...", { userId });
+    logger.info("Starting Multi-Sheet Excel import...", { userId, sheets: TARGET_SHEETS });
 
     // Initialize progress tracking
     await metadata.set("progress", 0);
@@ -77,6 +78,9 @@ export const importFromExcel = task({
     let deletedCount = 0;
     let skippedCount = 0;
     const errors: string[] = [];
+
+    // We will aggregate rows from ALL sheets here
+    const allParsedRows: { rowNumber: number; sheetName: string; data: DbInsertRow }[] = [];
 
     try {
       // ==========================================
@@ -105,7 +109,7 @@ export const importFromExcel = task({
         throw error;
       }
 
-      // Create Excel session (read-only is sufficient for import)
+      // Create Excel session
       const session = await createExcelSession(client, WORKBOOK_ID);
       sessionId = session.id;
       logger.info("Excel session created", { sessionId });
@@ -113,68 +117,77 @@ export const importFromExcel = task({
       await metadata.set("progress", 10);
 
       // ==========================================
-      // PHASE 2: Read Excel (30%)
+      // PHASE 2: Read Excel (Loop through Sheets) (10-30%)
       // ==========================================
       await metadata.set("status", "reading");
-      logger.info("Phase 2: Reading all rows from Excel");
+      logger.info("Phase 2: Reading all rows from all Excel sheets");
 
-      const excelRows = await readAllRows(
-        client,
-        WORKBOOK_ID,
-        WORKSHEET_NAME,
-        sessionId
-      );
+      for (const sheetName of TARGET_SHEETS) {
+        logger.info(`Reading sheet: ${sheetName}`);
 
-      const totalRows = excelRows.length;
-      logger.info("Read Excel rows", { totalRows });
+        try {
+          const excelRows = await readAllRows(
+            client,
+            WORKBOOK_ID,
+            sheetName,
+            sessionId
+          );
+
+          logger.info(`Read ${excelRows.length} rows from ${sheetName}`);
+
+          for (const row of excelRows) {
+            const dbRow = excelRowToDbRow(row.values);
+            if (dbRow === null) {
+              skippedCount++;
+              logger.debug("Skipped row (no RO)", { sheetName, rowNumber: row.rowNumber });
+            } else {
+              allParsedRows.push({
+                rowNumber: row.rowNumber,
+                sheetName,
+                data: dbRow,
+              });
+            }
+          }
+        } catch (e) {
+          logger.warn(`Failed to read sheet ${sheetName}`, { error: e instanceof Error ? e.message : e });
+          errors.push(`Failed to read sheet ${sheetName}`);
+        }
+      }
+
+      const totalRows = allParsedRows.length;
+      logger.info("Read all Excel rows", { totalRows, skipped: skippedCount });
 
       await metadata.set("totalItems", totalRows);
       await metadata.set("progress", 30);
 
       if (totalRows === 0) {
-        logger.warn("No data rows found in Excel");
+        logger.warn("No data rows found in any sheets");
         await closeExcelSession(client, WORKBOOK_ID, sessionId);
         return {
           totalRows: 0,
           insertedCount: 0,
           updatedCount: 0,
           deletedCount: 0,
-          skippedCount: 0,
-          errorCount: 0,
+          skippedCount,
+          errorCount: errors.length,
+          errors: errors.length > 0 ? errors : undefined,
         };
       }
 
       // ==========================================
-      // PHASE 3: Parse and Build Lookup (40%)
+      // PHASE 3: Prepare Data (30-40%)
       // ==========================================
       await metadata.set("status", "parsing");
-      logger.info("Phase 3: Parsing Excel data and building lookup");
+      logger.info("Phase 3: Building lookup maps");
 
-      // Parse Excel rows to DB format
-      const parsedRows: { rowNumber: number; data: DbInsertRow }[] = [];
-      for (const row of excelRows) {
-        const dbRow = excelRowToDbRow(row.values);
-        if (dbRow === null) {
-          skippedCount++;
-          logger.debug("Skipped row (no RO)", { rowNumber: row.rowNumber });
-        } else {
-          parsedRows.push({ rowNumber: row.rowNumber, data: dbRow });
-        }
-      }
-
-      logger.info("Parsed rows", {
-        parsed: parsedRows.length,
-        skipped: skippedCount,
-      });
-
-      // Collect all RO numbers from Excel for full sync deletion
+      // Collect ALL RO numbers from ALL sheets
       const excelRONumbers = new Set<number>();
-      for (const { data } of parsedRows) {
+      for (const { data } of allParsedRows) {
         if (data.ro !== null) {
           excelRONumbers.add(data.ro);
         }
       }
-      logger.info("Excel RO numbers collected", { count: excelRONumbers.size });
+      logger.info("Excel RO numbers collected from all sheets", { count: excelRONumbers.size });
 
       // Build lookup map: RO number → MySQL id
       const existingROs = await db
@@ -198,8 +211,8 @@ export const importFromExcel = task({
       await metadata.set("status", "importing");
       logger.info("Phase 4: Upserting rows to MySQL");
 
-      for (let i = 0; i < parsedRows.length; i++) {
-        const { rowNumber, data } = parsedRows[i];
+      for (let i = 0; i < allParsedRows.length; i++) {
+        const { rowNumber, sheetName, data } = allParsedRows[i];
 
         try {
           const existingId = data.ro !== null ? roToIdMap.get(data.ro) : null;
@@ -217,14 +230,14 @@ export const importFromExcel = task({
             insertedCount++;
           }
         } catch (error) {
-          const errorMsg = `Row ${rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          const errorMsg = `[${sheetName}] Row ${rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`;
           errors.push(errorMsg);
-          logger.error("Failed to upsert row", { rowNumber, error });
+          logger.error("Failed to upsert row", { sheetName, rowNumber, error });
         }
 
-        // Update progress every 10 rows
-        if ((i + 1) % 10 === 0 || i === parsedRows.length - 1) {
-          const progress = Math.round(40 + ((i + 1) / parsedRows.length) * 50);
+        // Update progress every 20 rows
+        if ((i + 1) % 20 === 0 || i === allParsedRows.length - 1) {
+          const progress = Math.round(40 + ((i + 1) / allParsedRows.length) * 50);
           await metadata.set("progress", Math.min(progress, 90));
           await metadata.set("processedItems", i + 1);
         }
@@ -234,13 +247,14 @@ export const importFromExcel = task({
       // PHASE 4.5: Delete Orphaned MySQL Rows
       // ==========================================
       await metadata.set("status", "cleaning");
-      logger.info("Phase 4.5: Deleting MySQL rows not in Excel");
+      logger.info("Phase 4.5: Deleting MySQL rows not in any Excel sheet");
 
       // Safety guard: Skip deletion if Excel returned no RO numbers
+      // NOW it is safe to delete, because excelRONumbers includes ALL sheets
       if (excelRONumbers.size === 0) {
-        logger.warn("No RO numbers found in Excel - skipping deletion to prevent data loss");
+        logger.warn("No RO numbers found in any Excel sheet - skipping deletion to prevent data loss");
       } else {
-        // Find MySQL rows whose RO is NOT in Excel
+        // Find MySQL rows whose RO is NOT in any Excel sheet
         const orphanedRows = await db
           .select({ id: active.id, ro: active.ro })
           .from(active)
