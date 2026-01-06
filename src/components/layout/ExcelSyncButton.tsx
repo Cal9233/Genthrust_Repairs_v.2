@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
-import { triggerExcelSync } from "@/app/actions/sync";
+import { triggerSyncAllActive } from "@/app/actions/sync";
 import { FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,15 +44,18 @@ export function ExcelSyncButton({ userId }: ExcelSyncButtonProps) {
 
   const handleSync = useCallback(async () => {
     setResultStatus("idle");
-    // Sample IDs for testing - in production, fetch active RO IDs
-    const result = await triggerExcelSync(userId, [1, 2, 3]);
+
+    // Sync ALL active repair orders from the database
+    const result = await triggerSyncAllActive();
+
     if (result.success) {
       setRunId(result.data.runId);
       setAccessToken(result.data.publicAccessToken);
     } else {
+      console.error("Sync failed:", result.error);
       setResultStatus("error");
     }
-  }, [userId]);
+  }, []);
 
   return (
     <Button
