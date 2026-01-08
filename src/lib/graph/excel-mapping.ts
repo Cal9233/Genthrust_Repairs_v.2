@@ -131,13 +131,23 @@ function parseNumber(value: unknown): number | null {
 }
 
 /**
+ * Format a Date object to mm/dd/yy string
+ */
+function formatDateToUS(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${month}/${day}/${year}`;
+}
+
+/**
  * Parse a date value to a normalized string format
  * Handles both:
  * - ISO format: "2025-12-03T05:00:00.000Z"
  * - US format: "mm/dd/yy" or "m/d/yy" (e.g., "12/03/25", "1/5/25")
  * - US format with 4-digit year: "mm/dd/yyyy"
  *
- * Returns date as ISO string (YYYY-MM-DD) or null if invalid
+ * Returns date as US format string (mm/dd/yy) or null if invalid
  */
 function parseDate(value: unknown): string | null {
   if (value === null || value === undefined || value === "") return null;
@@ -149,7 +159,7 @@ function parseDate(value: unknown): string | null {
     const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
     const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
     if (isNaN(date.getTime())) return null;
-    return date.toISOString().split("T")[0];
+    return formatDateToUS(date);
   }
 
   if (typeof value !== "string") return null;
@@ -161,7 +171,7 @@ function parseDate(value: unknown): string | null {
   if (trimmed.includes("-") && !trimmed.includes("/")) {
     const isoDate = new Date(trimmed);
     if (!isNaN(isoDate.getTime())) {
-      return isoDate.toISOString().split("T")[0];
+      return formatDateToUS(isoDate);
     }
   }
 
@@ -172,7 +182,7 @@ function parseDate(value: unknown): string | null {
     const day = parseInt(usMatch[2], 10);
     let year = parseInt(usMatch[3], 10);
 
-    // Convert 2-digit year to 4-digit
+    // Convert 2-digit year to 4-digit for validation
     if (year < 100) {
       // Assume 00-49 = 2000-2049, 50-99 = 1950-1999
       year = year < 50 ? 2000 + year : 1900 + year;
@@ -183,7 +193,7 @@ function parseDate(value: unknown): string | null {
       const date = new Date(year, month - 1, day);
       // Verify the date is valid (handles invalid dates like 2/30)
       if (date.getMonth() === month - 1 && date.getDate() === day) {
-        return date.toISOString().split("T")[0];
+        return formatDateToUS(date);
       }
     }
   }
