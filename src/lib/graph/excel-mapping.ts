@@ -131,6 +131,68 @@ function parseNumber(value: unknown): number | null {
 }
 
 /**
+ * Parse a date value to a normalized string format
+ * Handles both:
+ * - ISO format: "2025-12-03T05:00:00.000Z"
+ * - US format: "mm/dd/yy" or "m/d/yy" (e.g., "12/03/25", "1/5/25")
+ * - US format with 4-digit year: "mm/dd/yyyy"
+ *
+ * Returns date as ISO string (YYYY-MM-DD) or null if invalid
+ */
+function parseDate(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  // Handle Excel serial date numbers
+  if (typeof value === "number") {
+    // Excel serial date: days since 1900-01-01 (with Excel's leap year bug)
+    // Excel incorrectly treats 1900 as a leap year, so we adjust
+    const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString().split("T")[0];
+  }
+
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+
+  // Try ISO format first (2025-12-03T05:00:00.000Z or 2025-12-03)
+  if (trimmed.includes("-") && !trimmed.includes("/")) {
+    const isoDate = new Date(trimmed);
+    if (!isNaN(isoDate.getTime())) {
+      return isoDate.toISOString().split("T")[0];
+    }
+  }
+
+  // Try US format (mm/dd/yy or mm/dd/yyyy)
+  const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (usMatch) {
+    const month = parseInt(usMatch[1], 10);
+    const day = parseInt(usMatch[2], 10);
+    let year = parseInt(usMatch[3], 10);
+
+    // Convert 2-digit year to 4-digit
+    if (year < 100) {
+      // Assume 00-49 = 2000-2049, 50-99 = 1950-1999
+      year = year < 50 ? 2000 + year : 1900 + year;
+    }
+
+    // Validate month and day ranges
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const date = new Date(year, month - 1, day);
+      // Verify the date is valid (handles invalid dates like 2/30)
+      if (date.getMonth() === month - 1 && date.getDate() === day) {
+        return date.toISOString().split("T")[0];
+      }
+    }
+  }
+
+  // Return original string if we can't parse it (for display purposes)
+  return trimmed;
+}
+
+/**
  * Convert an Excel row array to a database insert row
  *
  * @param values - Array of values from Excel (columns A-U)
@@ -154,26 +216,26 @@ export function excelRowToDbRow(
   // Build the database row object
   const dbRow: DbInsertRow = {
     ro,
-    dateMade: parseString(values[1]),
+    dateMade: parseDate(values[1]),
     shopName: parseString(values[2]),
     part: parseString(values[3]),
     serial: parseString(values[4]),
     partDescription: parseString(values[5]),
     reqWork: parseString(values[6]),
-    dateDroppedOff: parseString(values[7]),
+    dateDroppedOff: parseDate(values[7]),
     estimatedCost: parseCurrency(values[EST_COST_INDEX]),
     finalCost: parseCurrency(values[FINAL_COST_INDEX]),
     terms: parseString(values[10]),
     shopRef: parseString(values[11]),
-    estimatedDeliveryDate: parseString(values[12]),
+    estimatedDeliveryDate: parseDate(values[12]),
     curentStatus: cleanStatus(values[13]),
-    curentStatusDate: parseString(values[14]),
+    curentStatusDate: parseDate(values[14]),
     genthrustStatus: cleanStatus(values[15]),
     shopStatus: cleanStatus(values[16]),
     trackingNumberPickingUp: parseString(values[17]),
     notes: parseString(values[18]),
-    lastDateUpdated: parseString(values[19]),
-    nextDateToUpdate: parseString(values[20]),
+    lastDateUpdated: parseDate(values[19]),
+    nextDateToUpdate: parseDate(values[20]),
   };
 
   return dbRow;
