@@ -1,8 +1,14 @@
 import type { RepairOrderExcelRow } from "../types/graph";
-import type { active } from "../schema";
+import type { active, net, paid, returns } from "../schema";
 
-// Infer the row type from the active table
+// Infer the row types from all repair order tables
 type Active = typeof active.$inferSelect;
+type Net = typeof net.$inferSelect;
+type Paid = typeof paid.$inferSelect;
+type Returns = typeof returns.$inferSelect;
+
+// Table name type for multi-sheet import
+export type SheetTableName = "Active" | "Net" | "Paid" | "Returns";
 
 /**
  * Excel column mapping for the active table (repair orders)
@@ -61,6 +67,21 @@ export function excelRowToArray(
  * Type for a database insert row (without auto-generated fields)
  */
 export type DbInsertRow = Omit<Active, "id" | "createdAt">;
+
+/**
+ * Table-specific insert types to handle schema differences:
+ * - active: finalCost: double, dateMade: varchar
+ * - net: finalCost: double, dateMade: datetime
+ * - paid: finalCost: varchar, dateMade: datetime
+ * - returns: finalCost: varchar, dateMade: varchar
+ */
+export type DbInsertRowActive = Omit<Active, "id" | "createdAt">;
+export type DbInsertRowNet = Omit<Net, "id" | "createdAt">;
+export type DbInsertRowPaid = Omit<Paid, "id" | "createdAt">;
+export type DbInsertRowReturns = Omit<Returns, "id" | "createdAt">;
+
+// Union type for any table's insert row
+export type AnyDbInsertRow = DbInsertRowActive | DbInsertRowNet | DbInsertRowPaid | DbInsertRowReturns;
 
 /**
  * Parse a currency string to a number
@@ -249,6 +270,137 @@ export function excelRowToDbRow(
   };
 
   return dbRow;
+}
+
+/**
+ * Convert an Excel row array to a table-specific database insert row
+ * Handles schema differences between tables:
+ * - active: finalCost: double, dateMade: varchar (mm/dd/yy)
+ * - net: finalCost: double, dateMade: datetime (ISO string)
+ * - paid: finalCost: varchar, dateMade: datetime (ISO string)
+ * - returns: finalCost: varchar, dateMade: varchar (mm/dd/yy)
+ *
+ * @param values - Array of values from Excel (columns A-U)
+ * @param tableName - Target table name ("Active", "Net", "Paid", "Returns")
+ * @returns Table-specific database-ready object or null if invalid
+ */
+export function excelRowToDbRowForTable(
+  values: (string | number | boolean | null | undefined)[],
+  tableName: SheetTableName
+): AnyDbInsertRow | null {
+  // Column indices (0-based)
+  const RO_INDEX = 0;
+  const DATE_MADE_INDEX = 1;
+  const FINAL_COST_INDEX = 9;
+
+  // Parse RO number - required field
+  const ro = parseNumber(values[RO_INDEX]);
+  if (ro === null) {
+    return null;
+  }
+
+  // Parse finalCost based on table type
+  // paid & returns use varchar, active & net use double
+  const rawFinalCost = values[FINAL_COST_INDEX];
+  let finalCost: number | string | null;
+  if (tableName === "Paid" || tableName === "Returns") {
+    // Convert to string for varchar columns
+    finalCost = rawFinalCost !== null && rawFinalCost !== undefined && rawFinalCost !== ""
+      ? String(rawFinalCost)
+      : null;
+  } else {
+    // Parse as number for double columns
+    finalCost = parseCurrency(rawFinalCost);
+  }
+
+  // Parse dateMade based on table type
+  // net & paid use datetime (needs ISO format), active & returns use varchar (mm/dd/yy)
+  const rawDateMade = values[DATE_MADE_INDEX];
+  let dateMade: string | null;
+  if (tableName === "Net" || tableName === "Paid") {
+    // For datetime columns, we need ISO format or null
+    dateMade = parseDateToISO(rawDateMade);
+  } else {
+    // For varchar columns, use mm/dd/yy format
+    dateMade = parseDate(rawDateMade);
+  }
+
+  // Build the database row object
+  const dbRow = {
+    ro,
+    dateMade,
+    shopName: parseString(values[2]),
+    part: parseString(values[3]),
+    serial: parseString(values[4]),
+    partDescription: parseString(values[5]),
+    reqWork: parseString(values[6]),
+    dateDroppedOff: parseDate(values[7]),
+    estimatedCost: parseCurrency(values[8]),
+    finalCost,
+    terms: parseString(values[10]),
+    shopRef: parseString(values[11]),
+    estimatedDeliveryDate: parseDate(values[12]),
+    curentStatus: cleanStatus(values[13]),
+    curentStatusDate: parseDate(values[14]),
+    genthrustStatus: cleanStatus(values[15]),
+    shopStatus: cleanStatus(values[16]),
+    trackingNumberPickingUp: parseString(values[17]),
+    notes: parseString(values[18]),
+    lastDateUpdated: parseDate(values[19]),
+    nextDateToUpdate: parseDate(values[20]),
+  };
+
+  return dbRow as AnyDbInsertRow;
+}
+
+/**
+ * Parse a date value to ISO format string (for datetime columns)
+ * Returns format like "2025-12-03 00:00:00" or null
+ */
+function parseDateToISO(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  // Handle Excel serial date numbers
+  if (typeof value === "number") {
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 19).replace("T", " ");
+  }
+
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+
+  // Try ISO format first
+  if (trimmed.includes("-") && !trimmed.includes("/")) {
+    const isoDate = new Date(trimmed);
+    if (!isNaN(isoDate.getTime())) {
+      return isoDate.toISOString().slice(0, 19).replace("T", " ");
+    }
+  }
+
+  // Try US format (mm/dd/yy or mm/dd/yyyy)
+  const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (usMatch) {
+    const month = parseInt(usMatch[1], 10);
+    const day = parseInt(usMatch[2], 10);
+    let year = parseInt(usMatch[3], 10);
+
+    if (year < 100) {
+      year = year < 50 ? 2000 + year : 1900 + year;
+    }
+
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const date = new Date(year, month - 1, day);
+      if (date.getMonth() === month - 1 && date.getDate() === day) {
+        return date.toISOString().slice(0, 19).replace("T", " ");
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
