@@ -35,6 +35,12 @@ const defaultStats: DashboardStats = {
 
 const StatsContext = createContext<StatsContextType | null>(null);
 
+interface StatsProviderProps {
+  children: ReactNode;
+  /** Initial stats from server-side render (prevents flash of zeros) */
+  initialStats?: DashboardStats;
+}
+
 /**
  * StatsProvider - Provides global dashboard statistics
  *
@@ -43,19 +49,24 @@ const StatsContext = createContext<StatsContextType | null>(null);
  * consistent values.
  *
  * Features:
+ * - Accepts initialStats from server for SSR hydration (no flash of zeros)
  * - Automatically refreshes when RefreshContext triggers
  * - Can be manually refreshed via refreshStats()
  * - Tracks loading state for skeleton UI
  * - Records last update time for debugging
  *
  * Usage:
- * - Wrap your app with <StatsProvider> inside <RefreshProvider>
+ * - Wrap your app with <StatsProvider initialStats={...}> inside <RefreshProvider>
  * - Components call useStats() to access stats and refreshStats
  */
-export function StatsProvider({ children }: { children: ReactNode }) {
-  const [stats, setStats] = useState<DashboardStats>(defaultStats);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+export function StatsProvider({ children, initialStats }: StatsProviderProps) {
+  // Use initialStats if provided (SSR hydration), otherwise use defaults
+  const [stats, setStats] = useState<DashboardStats>(initialStats ?? defaultStats);
+  // If we have initialStats, we're not loading on mount
+  const [loading, setLoading] = useState(!initialStats);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(
+    initialStats ? new Date() : null
+  );
 
   // Hook into existing RefreshContext
   const { refreshKey } = useRefresh();
@@ -77,10 +88,15 @@ export function StatsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Fetch on mount and whenever refreshKey changes (RefreshContext trigger)
+  // Only fetch on mount if we don't have initialStats
+  // Always re-fetch when refreshKey changes (user triggered refresh)
   useEffect(() => {
-    refreshStats();
-  }, [refreshKey, refreshStats]);
+    // Skip initial fetch if we have server-provided stats
+    // But still fetch when refreshKey > 0 (user triggered)
+    if (!initialStats || refreshKey > 0) {
+      refreshStats();
+    }
+  }, [refreshKey, refreshStats, initialStats]);
 
   // Also listen for custom events (e.g., from Excel import)
   useEffect(() => {

@@ -3,9 +3,10 @@ import { Navigation } from "@/components/layout/Navigation";
 import { Assistant } from "@/components/agent/Assistant";
 import { RefreshProvider } from "@/contexts/RefreshContext";
 import { StatsProvider } from "@/contexts/StatsContext";
+import { getDashboardStats } from "@/app/actions/dashboard";
 
 /**
- * Protected Layout - Authenticated Shell
+ * Protected Layout - Authenticated Shell (Async Server Component)
  *
  * Provides consistent header, navigation, and AI assistant
  * for all protected routes.
@@ -15,19 +16,24 @@ import { StatsProvider } from "@/contexts/StatsContext";
  *
  * StatsProvider provides global dashboard statistics that are
  * shared across all components (StatsGrid, NotificationBell, etc.).
- * It automatically refreshes when RefreshContext triggers.
+ * - Initial stats are fetched server-side (no flash of zeros)
+ * - It automatically refreshes when RefreshContext triggers
  *
  * Note: Trigger.dev v3 realtime hooks don't require a provider -
  * they use the accessToken passed to each hook directly.
  */
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Fetch initial stats server-side for SSR hydration
+  const statsResult = await getDashboardStats();
+  const initialStats = statsResult.success ? statsResult.data : undefined;
+
   return (
     <RefreshProvider>
-      <StatsProvider>
+      <StatsProvider initialStats={initialStats}>
         <div className="flex min-h-screen flex-col bg-background">
           <Header />
           <Navigation />
