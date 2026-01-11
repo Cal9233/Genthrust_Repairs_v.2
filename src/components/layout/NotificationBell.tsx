@@ -22,6 +22,7 @@ import {
   requeueNotification,
   getRelatedPendingNotifications,
   approveBatchNotifications,
+  getOverdueCount,
 } from "@/app/actions/notifications";
 import type { SiblingNotification, NotificationWithShop } from "@/app/actions/notifications";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
@@ -64,6 +65,7 @@ export function NotificationBell() {
   const [activeTab, setActiveTab] = useState("pending");
   const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [overdueCount, setOverdueCount] = useState(0);
 
   // Batch email prompt state
   const [batchPromptOpen, setBatchPromptOpen] = useState(false);
@@ -127,6 +129,20 @@ export function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  // Fetch overdue count for the badge (matches dashboard "Overdue" card)
+  useEffect(() => {
+    const fetchOverdue = async () => {
+      const result = await getOverdueCount();
+      if (result.success) {
+        setOverdueCount(result.data);
+      }
+    };
+    fetchOverdue();
+    // Poll every 60 seconds to keep badge fresh
+    const interval = setInterval(fetchOverdue, 60000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
   // Listen for refresh events from AutoImportTrigger
   // This ensures notifications are updated after Excel import deletes orphaned records
@@ -309,16 +325,16 @@ export function NotificationBell() {
     setActioningId(null);
   };
 
-  const count = notifications.length;
+  const pendingCount = notifications.length;
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative text-header-foreground hover:bg-header-hover">
           <Bell className="h-5 w-5" />
-          {count > 0 && (
+          {overdueCount > 0 && (
             <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-danger text-danger-foreground p-0 text-xs flex items-center justify-center">
-              {count}
+              {overdueCount}
             </Badge>
           )}
         </Button>
@@ -334,9 +350,9 @@ export function NotificationBell() {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pending" className="gap-1">
               Pending
-              {count > 0 && (
+              {pendingCount > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1">
-                  {count}
+                  {pendingCount}
                 </Badge>
               )}
               {isPending && <TurbineSpinner size="sm" />}

@@ -40,9 +40,11 @@ function getSSLConfig() {
     const certPath = path.join(process.cwd(), "certs", "ca.pem");
     if (fs.existsSync(certPath)) {
       console.log("[db] SSL: Using file-based cert at " + certPath);
+      // Note: rejectUnauthorized:false needed for scripts (tsx) where Node's
+      // TLS doesn't fully trust Aiven's self-signed CA chain
       return {
         ca: fs.readFileSync(certPath).toString(),
-        rejectUnauthorized: true,
+        rejectUnauthorized: false,
       };
     }
 

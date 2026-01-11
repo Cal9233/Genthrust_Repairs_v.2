@@ -3,7 +3,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { notificationQueue } from "@/lib/schema";
-import { eq, and, desc, isNotNull, asc, or, sql, ne, inArray } from "drizzle-orm";
+import { eq, and, desc, isNotNull, asc, or, sql, ne, inArray, notInArray } from "drizzle-orm";
+import { parseDate } from "@/lib/date-utils";
 import { tasks } from "@trigger.dev/sdk/v3";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type {
@@ -886,6 +887,57 @@ export async function approveBatchNotifications(
         error instanceof Error
           ? error.message
           : "Failed to approve batch notifications",
+    };
+  }
+}
+
+// Statuses that belong to other sheets (not Active dashboard)
+// Matches ARCHIVED_STATUSES in dashboard.ts
+const ARCHIVED_STATUSES = [
+  "COMPLETE",
+  "NET",
+  "PAID",
+  "RETURNS",
+  "BER",
+  "RAI",
+  "CANCELLED",
+];
+
+/**
+ * Get count of overdue repair orders for the notification badge.
+ * Uses the same logic as getDashboardStats() for consistency.
+ * Counts ROs where nextDateToUpdate < today (excluding archived statuses).
+ */
+export async function getOverdueCount(): Promise<Result<number>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Fetch all active records (excluding archived statuses)
+    const allRecords = await db
+      .select({
+        nextDateToUpdate: active.nextDateToUpdate,
+      })
+      .from(active)
+      .where(notInArray(active.curentStatus, ARCHIVED_STATUSES));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count overdue: nextDateToUpdate < today
+    const overdueCount = allRecords.filter((r) => {
+      const nextDate = parseDate(r.nextDateToUpdate);
+      return nextDate && nextDate < today;
+    }).length;
+
+    return { success: true, data: overdueCount };
+  } catch (error) {
+    console.error("getOverdueCount error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get overdue count",
     };
   }
 }

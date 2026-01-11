@@ -50,6 +50,10 @@ export const active = mysqlTable(
     notes: varchar("NOTES", { length: 500 }),
     lastDateUpdated: varchar("LAST_DATE_UPDATED", { length: 500 }),
     nextDateToUpdate: varchar("NEXT_DATE_TO_UPDATE", { length: 500 }),
+    // ERP.aero sync columns
+    erpPoId: varchar("erp_po_id", { length: 50 }),
+    erpLastSyncAt: varchar("erp_last_sync_at", { length: 50 }),
+    erpSyncStatus: varchar("erp_sync_status", { length: 20 }).default("LOCAL_ONLY"),
     createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.id], name: "active_id" })]

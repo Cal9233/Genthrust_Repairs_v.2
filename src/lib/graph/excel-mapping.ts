@@ -267,6 +267,10 @@ export function excelRowToDbRow(
     notes: parseString(values[18]),
     lastDateUpdated: parseDate(values[19]),
     nextDateToUpdate: parseDate(values[20]),
+    // ERP fields - null when importing from Excel (not synced from ERP)
+    erpPoId: null,
+    erpLastSyncAt: null,
+    erpSyncStatus: "LOCAL_ONLY",
   };
 
   return dbRow;

@@ -29,6 +29,20 @@
       "when": 1764636339219,
       "tag": "0003_previous_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1768073197739,
+      "tag": "0004_minor_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1768073485324,
+      "tag": "0005_boring_morlocks",
+      "breakpoints": true
     }
   ]
 }
