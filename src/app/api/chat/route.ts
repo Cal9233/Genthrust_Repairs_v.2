@@ -34,14 +34,33 @@ const CreateRepairOrderSchema = z.object({
 const UpdateRepairOrderSchema = z.object({
   roNumber: z.number().describe("Repair order number to update"),
   fields: z.object({
-    curentStatus: z.string().optional().describe("New status (e.g., 'IN PROCESS', 'COMPLETE', 'WAITING QUOTE')"),
-    notes: z.string().optional().describe("Notes to update"),
-    estimatedCost: z.number().optional().describe("Updated estimated cost"),
-    finalCost: z.number().optional().describe("Final cost"),
-    shopRef: z.string().optional().describe("Shop reference number"),
-    estimatedDeliveryDate: z.string().optional().describe("Estimated delivery date (YYYY-MM-DD)"),
-    terms: z.string().optional().describe("Payment terms (e.g., 'NET 30')"),
-  }).describe("Fields to update"),
+    // Basic information
+    shopName: z.string().optional().describe("Shop name"),
+    part: z.string().optional().describe("Part number"),
+    serial: z.string().optional().nullable().describe("Serial number"),
+    partDescription: z.string().optional().nullable().describe("Part description"),
+    reqWork: z.string().optional().nullable().describe("Requested work/repairs"),
+    // Status and dates
+    curentStatus: z.string().optional().describe("New status (e.g., 'IN WORK', 'COMPLETE', 'WAITING QUOTE', 'SHIPPED', 'RECEIVED', etc.)"),
+    curentStatusDate: z.string().optional().nullable().describe("Status change date (YYYY-MM-DD)"),
+    estimatedDeliveryDate: z.string().optional().nullable().describe("Estimated delivery date (YYYY-MM-DD or mm/dd/yy)"),
+    dateDroppedOff: z.string().optional().nullable().describe("Date dropped off (YYYY-MM-DD or mm/dd/yy)"),
+    dateMade: z.string().optional().nullable().describe("Date RO was made (YYYY-MM-DD or mm/dd/yy)"),
+    lastDateUpdated: z.string().optional().nullable().describe("Last update date (YYYY-MM-DD or mm/dd/yy)"),
+    nextDateToUpdate: z.string().optional().nullable().describe("Next follow-up date (YYYY-MM-DD or mm/dd/yy)"),
+    // Costs and terms
+    estimatedCost: z.number().optional().nullable().describe("Updated estimated cost in USD"),
+    finalCost: z.number().optional().nullable().describe("Final cost in USD"),
+    terms: z.string().optional().nullable().describe("Payment terms (e.g., 'NET 30')"),
+    // References and tracking
+    shopRef: z.string().optional().nullable().describe("Shop reference number"),
+    trackingNumberPickingUp: z.string().optional().nullable().describe("Tracking number for pickup"),
+    // Status fields
+    genthrustStatus: z.string().optional().nullable().describe("Genthrust internal status"),
+    shopStatus: z.string().optional().nullable().describe("Shop status"),
+    // Notes
+    notes: z.string().optional().nullable().describe("Notes/comments"),
+  }).describe("Fields to update (all optional - only provided fields will be updated)"),
 });
 
 const ArchiveRepairOrderSchema = z.object({
@@ -90,8 +109,9 @@ Your capabilities:
 - Look up repair order (RO) details by RO number or database ID
 - List and filter repair orders (by status: overdue/active/completed/all, by shop name)
 - Create new repair orders
-- Update existing repair orders (status, notes, costs, dates, etc.)
-- Archive repair orders (move to Returns, Paid, or NET sheets)
+- Update ANY field on existing repair orders (status, shop name, part info, costs, dates, notes, tracking numbers, etc.)
+- Update status to ANY valid status - status changes trigger automated follow-ups (calendar events, to-do tasks, email drafts)
+- Archive repair orders (move to Returns, Paid, or NET sheets) - this is the proper way to "remove" ROs from active tracking
 - Create email drafts for follow-ups (saved to notification queue for user approval)
 
 Guidelines:
@@ -105,7 +125,9 @@ Guidelines:
 - When creating or modifying records, confirm the action and show key details
 - Email drafts are NOT sent automatically - they are saved to the notification queue for user review
 - All changes are automatically synced to the Excel workbook
-- Write operations (create, update, archive, email) are queued for background processing - confirm they've been queued`,
+- Write operations (create, update, archive, email) are queued for background processing - confirm they've been queued
+- To "remove" or "delete" a repair order from active tracking, use the archive_repair_order tool to move it to Returns, Paid, or NET sheet
+- Status changes automatically trigger lifecycle automation (calendar reminders, to-do tasks, email drafts) for tracked statuses`,
     messages: modelMessages,
     tools: {
       // ============================================
@@ -253,13 +275,14 @@ Guidelines:
 
       update_repair_order: {
         description:
-          "Update fields on an existing repair order. Can update status, notes, costs, dates, and more. Changes sync to Excel automatically.",
+          "Update fields on an existing repair order. Can update ANY field including status, shop name, part info, costs, dates, notes, tracking numbers, etc. Status changes will trigger automated follow-ups (calendar events, to-do tasks, email drafts). Changes sync to Excel automatically.",
         inputSchema: UpdateRepairOrderSchema,
         execute: async ({ roNumber, fields }: z.infer<typeof UpdateRepairOrderSchema>) => {
           await tasks.trigger("ai-tool-update-repair-order", { userId, roNumber, fields });
           revalidatePath("/dashboard");
-          const changedFields = Object.keys(fields).join(", ");
-          return `✓ Queued: Updating RO #${roNumber} (${changedFields}). Changes will sync to Excel shortly.`;
+          const changedFields = Object.keys(fields).filter(k => fields[k as keyof typeof fields] !== undefined).join(", ");
+          const statusNote = fields.curentStatus ? " Status changes will trigger automated reminders." : "";
+          return `✓ Queued: Updating RO #${roNumber} (${changedFields}). Changes will sync to Excel shortly.${statusNote}`;
         },
       },
 

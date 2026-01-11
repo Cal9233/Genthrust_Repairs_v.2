@@ -231,25 +231,25 @@ export function RepairOrderTable({
   // Show loading spinner during Excel sync
   if (isSyncing) {
     return (
-      <Card className="shadow-vibrant">
+      <Card className="shadow-sm border-border/50">
         <CardContent className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <TurbineSpinner size="lg" />
-          <p className="text-muted-foreground text-sm">Syncing from Excel...</p>
+          <p className="text-muted-foreground text-sm font-medium">Syncing from Excel...</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="shadow-vibrant">
+    <Card className="shadow-sm border-border/50">
       <CardHeader className="pb-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div>
-              <CardTitle className="text-lg sm:text-xl">
+              <CardTitle className="text-xl sm:text-2xl font-bold">
                 {getSheetDisplayName(sheet)} Repair Orders
               </CardTitle>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1.5">
                 {totalCount} total records{" "}
                 {filter === "overdue" && "(Overdue)"}
               </p>
@@ -285,16 +285,16 @@ export function RepairOrderTable({
       </CardHeader>
       <CardContent>
         {/* Desktop Table View - hidden on mobile */}
-        <div className="hidden sm:block rounded-lg border bg-card/80 backdrop-blur-sm overflow-hidden">
+        <div className="hidden sm:block rounded-lg border border-border/50 bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-b-2">
-                <TableHead className="w-[100px] uppercase tracking-wide text-xs font-semibold">RO #</TableHead>
-                <TableHead className="uppercase tracking-wide text-xs font-semibold">Shop</TableHead>
-                <TableHead className="uppercase tracking-wide text-xs font-semibold">Part / Serial</TableHead>
-                <TableHead className="uppercase tracking-wide text-xs font-semibold">Status</TableHead>
-                <TableHead className="uppercase tracking-wide text-xs font-semibold">Next Update</TableHead>
-                <TableHead className="text-right uppercase tracking-wide text-xs font-semibold">Est. Cost</TableHead>
+              <TableRow className="hover:bg-transparent border-b border-border bg-muted/30">
+                <TableHead className="h-12 w-[100px] px-4 uppercase tracking-wide text-xs font-semibold text-muted-foreground">RO #</TableHead>
+                <TableHead className="h-12 px-4 uppercase tracking-wide text-xs font-semibold text-muted-foreground">Shop</TableHead>
+                <TableHead className="h-12 px-4 uppercase tracking-wide text-xs font-semibold text-muted-foreground">Part / Serial</TableHead>
+                <TableHead className="h-12 px-4 uppercase tracking-wide text-xs font-semibold text-muted-foreground">Status</TableHead>
+                <TableHead className="h-12 px-4 uppercase tracking-wide text-xs font-semibold text-muted-foreground">Next Update</TableHead>
+                <TableHead className="h-12 px-4 text-right uppercase tracking-wide text-xs font-semibold text-muted-foreground">Est. Cost</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -302,7 +302,7 @@ export function RepairOrderTable({
                 <TableRow>
                   <TableCell
                     colSpan={6}
-                    className="h-24 text-center text-muted-foreground"
+                    className="h-32 text-center text-muted-foreground"
                   >
                     No results found.
                   </TableCell>
@@ -311,29 +311,29 @@ export function RepairOrderTable({
                 data.map((ro) => (
                   <TableRow
                     key={ro.id}
-                    className="group cursor-pointer transition-colors hover:bg-muted/50"
+                    className="group cursor-pointer transition-all duration-150 hover:bg-muted/60 active:bg-muted/70 border-b border-border/50"
                     onClick={() => setSelectedRoId(Number(ro.id))}
                   >
-                    <TableCell className="font-mono font-semibold tabular-nums">
+                    <TableCell className="px-4 py-3 font-mono font-semibold tabular-nums">
                       {formatRO(ro.ro)}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={ro.shopName || ""}>
+                    <TableCell className="px-4 py-3 max-w-[200px] truncate" title={ro.shopName || ""}>
                       {ro.shopName || "-"}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-mono font-medium">{ro.part || "-"}</span>
+                    <TableCell className="px-4 py-3">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono font-medium text-sm">{ro.part || "-"}</span>
                         <span className="text-xs text-muted-foreground font-mono">
                           S/N: {ro.serial || "-"}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="px-4 py-3">
                       <StatusBadge status={ro.curentStatus} />
                     </TableCell>
-                    <TableCell className="font-mono tabular-nums">
+                    <TableCell className="px-4 py-3 font-mono tabular-nums text-sm">
                       {isOverdue(ro.nextDateToUpdate) ? (
-                        <span className="text-danger flex items-center gap-1 font-medium">
+                        <span className="text-danger flex items-center gap-1.5 font-medium">
                           <AlertCircle className="h-4 w-4" />
                           {formatDate(ro.nextDateToUpdate)}
                           {getDaysOverdue(ro.nextDateToUpdate) && (
@@ -346,7 +346,7 @@ export function RepairOrderTable({
                         formatDate(ro.nextDateToUpdate)
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
+                    <TableCell className="px-4 py-3 text-right font-mono tabular-nums text-sm font-medium">
                       {formatCurrency(ro.estimatedCost)}
                     </TableCell>
                   </TableRow>

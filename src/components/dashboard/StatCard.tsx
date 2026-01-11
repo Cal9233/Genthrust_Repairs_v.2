@@ -50,26 +50,27 @@ export function StatCard({
 
   return (
     <Card className={cn(
-      "shadow-vibrant cursor-pointer transition-all hover:scale-[1.02]",
+      "shadow-sm border-border/50 cursor-pointer transition-all duration-200",
+      "hover:shadow-md hover:scale-[1.02] hover:border-border",
       styles.card,
       styles.hoverShadow,
       className
     )}>
-      <CardContent className="p-3 sm:p-4">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-center justify-between">
-          <div className="space-y-0.5 sm:space-y-1">
-            <p className="text-xs sm:text-sm font-medium text-muted-foreground">{title}</p>
-            <p className={cn("text-xl sm:text-2xl font-bold tabular-nums select-none", styles.value)}>
+          <div className="space-y-1 flex-1 min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</p>
+            <p className={cn("text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums select-none leading-tight", styles.value)}>
               {value}
             </p>
           </div>
           <div
             className={cn(
-              "flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-muted/50",
+              "flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-muted/50 flex-shrink-0 ml-3",
               styles.icon
             )}
           >
-            <Icon className="h-4 w-4 sm:h-6 sm:w-6" />
+            <Icon className="h-4 w-4 sm:h-5 sm:w-6" />
           </div>
         </div>
       </CardContent>

@@ -62,9 +62,6 @@ export async function getShopEmailByName(
 
     if (fuzzyResult.length > 0) {
       const email = fuzzyResult[0].email;
-      console.log(
-        `[getShopEmailByName] Fuzzy match: "${trimmedName}" → "${fuzzyResult[0].businessName}"`
-      );
       if (email && email.trim() !== "") {
         return email.trim();
       }
@@ -164,9 +161,6 @@ export async function updateShopEmail(
       .set({ email: trimmedEmail })
       .where(sql`UPPER(TRIM(${shops.businessName})) = UPPER(${trimmedName})`);
 
-    console.log(
-      `[updateShopEmail] Updated email for shop "${existingShop[0].businessName}" to "${trimmedEmail}"`
-    );
     return { success: true };
   } catch (error) {
     console.error(

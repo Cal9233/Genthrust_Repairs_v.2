@@ -22,6 +22,7 @@ import {
   roStatusEnum,
 } from "@/lib/validation/repair-order";
 import { addSingleRoToExcel } from "@/lib/graph/write-single-ro";
+import { TRACKED_STATUSES } from "@/lib/constants/statuses";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -272,17 +273,6 @@ export async function updateRepairOrderStatus(
     // Revalidate dashboard to refresh table data
     revalidatePath("/dashboard");
 
-    // Statuses that trigger the follow-up flow
-    const TRACKED_STATUSES = [
-      "WAITING QUOTE",
-      "APPROVED",
-      "IN WORK",
-      "IN PROGRESS",
-      "SHIPPED",
-      "IN TRANSIT",
-      "RECEIVED",
-    ];
-
     // Trigger ro-lifecycle-flow for tracked statuses
     // This starts the durable wait + email drafting flow
     let runId: string | undefined;
@@ -514,6 +504,7 @@ export async function getROActivityLog(
 
 /**
  * Log an activity for a repair order (helper for other actions)
+ * TODO: Verify usage - currently not imported/used anywhere
  */
 export async function logROActivity(
   repairOrderId: number,

@@ -1,5 +1,6 @@
 import type { RepairOrderExcelRow } from "../types/graph";
 import type { active, net, paid, returns } from "../schema";
+import { parseDate, formatDateUS, formatDateISO } from "../date-utils";
 
 // Infer the row types from all repair order tables
 type Active = typeof active.$inferSelect;
@@ -152,75 +153,15 @@ function parseNumber(value: unknown): number | null {
 }
 
 /**
- * Format a Date object to mm/dd/yy string
- */
-function formatDateToUS(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const year = String(date.getFullYear()).slice(-2);
-  return `${month}/${day}/${year}`;
-}
-
-/**
- * Parse a date value to a normalized string format
- * Handles both:
- * - ISO format: "2025-12-03T05:00:00.000Z"
- * - US format: "mm/dd/yy" or "m/d/yy" (e.g., "12/03/25", "1/5/25")
- * - US format with 4-digit year: "mm/dd/yyyy"
+ * Parse a date value to US format string (mm/dd/yy) for varchar columns
+ * Uses centralized date-utils for parsing and formatting
  *
- * Returns date as US format string (mm/dd/yy) or null if invalid
+ * @param value - String, number (Excel serial), Date, or null/undefined
+ * @returns Date as US format string (mm/dd/yy) or null if invalid
  */
-function parseDate(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") return null;
-
-  // Handle Excel serial date numbers
-  if (typeof value === "number") {
-    // Excel serial date: days since 1900-01-01 (with Excel's leap year bug)
-    // Excel incorrectly treats 1900 as a leap year, so we adjust
-    const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
-    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
-    if (isNaN(date.getTime())) return null;
-    return formatDateToUS(date);
-  }
-
-  if (typeof value !== "string") return null;
-
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-
-  // Try ISO format first (2025-12-03T05:00:00.000Z or 2025-12-03)
-  if (trimmed.includes("-") && !trimmed.includes("/")) {
-    const isoDate = new Date(trimmed);
-    if (!isNaN(isoDate.getTime())) {
-      return formatDateToUS(isoDate);
-    }
-  }
-
-  // Try US format (mm/dd/yy or mm/dd/yyyy)
-  const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (usMatch) {
-    const month = parseInt(usMatch[1], 10);
-    const day = parseInt(usMatch[2], 10);
-    let year = parseInt(usMatch[3], 10);
-
-    // Convert 2-digit year to 4-digit for validation
-    if (year < 100) {
-      // Assume 00-49 = 2000-2049, 50-99 = 1950-1999
-      year = year < 50 ? 2000 + year : 1900 + year;
-    }
-
-    // Validate month and day ranges
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const date = new Date(year, month - 1, day);
-      // Verify the date is valid (handles invalid dates like 2/30)
-      if (date.getMonth() === month - 1 && date.getDate() === day) {
-        return formatDateToUS(date);
-      }
-    }
-  }
-
-  // Return original string if we can't parse it (for display purposes)
-  return trimmed;
+function parseDateToUS(value: unknown): string | null {
+  const date = parseDate(value);
+  return formatDateUS(date);
 }
 
 /**
@@ -247,26 +188,26 @@ export function excelRowToDbRow(
   // Build the database row object
   const dbRow: DbInsertRow = {
     ro,
-    dateMade: parseDate(values[1]),
+    dateMade: parseDateToUS(values[1]),
     shopName: parseString(values[2]),
     part: parseString(values[3]),
     serial: parseString(values[4]),
     partDescription: parseString(values[5]),
     reqWork: parseString(values[6]),
-    dateDroppedOff: parseDate(values[7]),
+    dateDroppedOff: parseDateToUS(values[7]),
     estimatedCost: parseCurrency(values[EST_COST_INDEX]),
     finalCost: parseCurrency(values[FINAL_COST_INDEX]),
     terms: parseString(values[10]),
     shopRef: parseString(values[11]),
-    estimatedDeliveryDate: parseDate(values[12]),
+    estimatedDeliveryDate: parseDateToUS(values[12]),
     curentStatus: cleanStatus(values[13]),
-    curentStatusDate: parseDate(values[14]),
+    curentStatusDate: parseDateToUS(values[14]),
     genthrustStatus: cleanStatus(values[15]),
     shopStatus: cleanStatus(values[16]),
     trackingNumberPickingUp: parseString(values[17]),
     notes: parseString(values[18]),
-    lastDateUpdated: parseDate(values[19]),
-    nextDateToUpdate: parseDate(values[20]),
+    lastDateUpdated: parseDateToUS(values[19]),
+    nextDateToUpdate: parseDateToUS(values[20]),
     // ERP fields - null when importing from Excel (not synced from ERP)
     erpPoId: null,
     erpLastSyncAt: null,
@@ -323,10 +264,11 @@ export function excelRowToDbRowForTable(
   let dateMade: string | null;
   if (tableName === "Net" || tableName === "Paid") {
     // For datetime columns, we need ISO format or null
-    dateMade = parseDateToISO(rawDateMade);
+    const date = parseDate(rawDateMade);
+    dateMade = formatDateISO(date);
   } else {
     // For varchar columns, use mm/dd/yy format
-    dateMade = parseDate(rawDateMade);
+    dateMade = parseDateToUS(rawDateMade);
   }
 
   // Build the database row object
@@ -338,74 +280,25 @@ export function excelRowToDbRowForTable(
     serial: parseString(values[4]),
     partDescription: parseString(values[5]),
     reqWork: parseString(values[6]),
-    dateDroppedOff: parseDate(values[7]),
+    dateDroppedOff: parseDateToUS(values[7]),
     estimatedCost: parseCurrency(values[8]),
     finalCost,
     terms: parseString(values[10]),
     shopRef: parseString(values[11]),
-    estimatedDeliveryDate: parseDate(values[12]),
+    estimatedDeliveryDate: parseDateToUS(values[12]),
     curentStatus: cleanStatus(values[13]),
-    curentStatusDate: parseDate(values[14]),
+    curentStatusDate: parseDateToUS(values[14]),
     genthrustStatus: cleanStatus(values[15]),
     shopStatus: cleanStatus(values[16]),
     trackingNumberPickingUp: parseString(values[17]),
     notes: parseString(values[18]),
-    lastDateUpdated: parseDate(values[19]),
-    nextDateToUpdate: parseDate(values[20]),
+    lastDateUpdated: parseDateToUS(values[19]),
+    nextDateToUpdate: parseDateToUS(values[20]),
   };
 
   return dbRow as AnyDbInsertRow;
 }
 
-/**
- * Parse a date value to ISO format string (for datetime columns)
- * Returns format like "2025-12-03 00:00:00" or null
- */
-function parseDateToISO(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") return null;
-
-  // Handle Excel serial date numbers
-  if (typeof value === "number") {
-    const excelEpoch = new Date(1899, 11, 30);
-    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
-    if (isNaN(date.getTime())) return null;
-    return date.toISOString().slice(0, 19).replace("T", " ");
-  }
-
-  if (typeof value !== "string") return null;
-
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-
-  // Try ISO format first
-  if (trimmed.includes("-") && !trimmed.includes("/")) {
-    const isoDate = new Date(trimmed);
-    if (!isNaN(isoDate.getTime())) {
-      return isoDate.toISOString().slice(0, 19).replace("T", " ");
-    }
-  }
-
-  // Try US format (mm/dd/yy or mm/dd/yyyy)
-  const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (usMatch) {
-    const month = parseInt(usMatch[1], 10);
-    const day = parseInt(usMatch[2], 10);
-    let year = parseInt(usMatch[3], 10);
-
-    if (year < 100) {
-      year = year < 50 ? 2000 + year : 1900 + year;
-    }
-
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const date = new Date(year, month - 1, day);
-      if (date.getMonth() === month - 1 && date.getDate() === day) {
-        return date.toISOString().slice(0, 19).replace("T", " ");
-      }
-    }
-  }
-
-  return null;
-}
 
 /**
  * Get the Excel column letter for a given index (0-based)

@@ -27,10 +27,6 @@ type ForensicsResult = {
  * Run forensics queries to analyze condition data
  */
 export async function runConditionForensics(): Promise<ForensicsResult> {
-  console.log("=".repeat(60));
-  console.log("CONDITION DATA FORENSICS REPORT");
-  console.log("=".repeat(60));
-
   // ==========================================
   // PART 1: inventoryindex Analysis
   // ==========================================
@@ -130,24 +126,6 @@ export async function runConditionForensics(): Promise<ForensicsResult> {
     })),
     recommendation,
   };
-
-  // Log results to server console
-  console.log("\n📊 INVENTORYINDEX:");
-  console.log(`  Total: ${result.inventoryindex.total}`);
-  console.log(`  With condition: ${result.inventoryindex.withCondition}`);
-  console.log(`  Without condition: ${result.inventoryindex.withoutCondition}`);
-  console.log(`  Missing: ${missingPercentage}%`);
-  console.log("  Breakdown:", result.inventoryindex.conditionBreakdown);
-
-  console.log("\n📦 BINS_INVENTORY_ACTUAL:");
-  console.log(`  Total: ${result.binsInventoryActual.total}`);
-  console.log(`  With condition: ${result.binsInventoryActual.withCondition}`);
-
-  console.log("\n📋 TABLE SOURCES:");
-  console.log(result.tableSummary);
-
-  console.log("\n💡 RECOMMENDATION:");
-  console.log(result.recommendation);
 
   return result;
 }

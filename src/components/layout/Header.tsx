@@ -10,10 +10,10 @@ export async function Header() {
   const user = session?.user;
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-header-gradient">
-      <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4">
+    <header className="sticky top-0 z-50 w-full bg-header-gradient border-b border-white/10 shadow-sm">
+      <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Logo + Brand */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <Image
             src="/GenLogoTab.png"
             alt="GenThrust Logo"
@@ -23,13 +23,13 @@ export async function Header() {
             priority
           />
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="text-lg sm:text-xl font-bold text-header-foreground">GenThrust</span>
-            <span className="text-xs sm:text-sm text-header-foreground/70">RO Tracker</span>
+            <span className="text-lg sm:text-xl font-bold text-header-foreground tracking-tight">GenThrust</span>
+            <span className="text-xs sm:text-sm text-header-foreground/80 font-medium">RO Tracker</span>
           </div>
         </div>
 
         {/* Right: Excel Sync + Theme Toggle + Notifications + User Avatar */}
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {user && <ExcelDropdownButton userId={user.id} />}
           <ThemeToggle />
           {user && <NotificationBell />}

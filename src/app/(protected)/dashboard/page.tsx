@@ -38,16 +38,18 @@ export default async function DashboardPage({
   const stats = statsResult.success ? statsResult.data : null;
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {user.name ?? user.email}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Welcome back, <span className="font-medium text-foreground">{user.name ?? user.email}</span>
           </p>
         </div>
-        <ERPSyncButton />
+        <div className="flex-shrink-0">
+          <ERPSyncButton />
+        </div>
       </div>
 
       {/* KPI Stats Grid */}

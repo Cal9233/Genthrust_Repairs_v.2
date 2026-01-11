@@ -6,6 +6,8 @@ import { eq } from "drizzle-orm";
 import { insertNotificationCore } from "../lib/data/notifications";
 import { getShopEmailByName } from "../lib/data/shops";
 import { createCalendarEvent, createToDoTask } from "../lib/graph/productivity";
+import { COMPANY_NAME } from "../lib/constants/company";
+import { parseDate } from "../lib/date-utils";
 
 /**
  * Payload schema for handle-ro-status-change task
@@ -38,13 +40,33 @@ export const roStatusChangeOutputSchema = z.object({
 export type RoStatusChangeOutput = z.infer<typeof roStatusChangeOutputSchema>;
 
 /**
+ * Check if payment terms indicate NET-30 payment terms.
+ * Handles patterns like "NET 30", "Net30", "NET-30", "30", etc.
+ * Returns true if terms contain "NET" (case-insensitive) or "30".
+ */
+function hasNet30Terms(terms: string | null | undefined): boolean {
+  if (!terms) return false;
+  const normalizedTerms = terms.toUpperCase().trim();
+  // Check if terms contain "NET" (case-insensitive) or "30"
+  return normalizedTerms.includes("NET") || normalizedTerms.includes("30");
+}
+
+/**
  * Parse payment terms to extract the number of days.
  * Handles patterns like "NET 30", "Net30", "NET 60 DAYS", etc.
+ * For NET-30 specifically, always returns 30.
  */
 function parsePaymentTermsDays(terms: string | null | undefined): number | null {
   if (!terms) return null;
   const match = terms.match(/net\s*(\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  // If no match but terms contain "30", assume NET-30
+  if (hasNet30Terms(terms)) {
+    return 30;
+  }
+  return null;
 }
 
 /**
@@ -71,7 +93,7 @@ Just checking in on RO# G${roNumber} for part ${partNumber}.
 We'd love an update on the quote when you have a moment.
 
 Thanks!
-Genthrust XVII, LLC`,
+${COMPANY_NAME}`,
     reminderTitle: (roNumber, partNumber) =>
       `Follow up on RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -96,7 +118,7 @@ Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
 Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
-Genthrust XVII, LLC`,
+${COMPANY_NAME}`,
     reminderTitle: (roNumber, partNumber) =>
       `Check repair progress: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -121,7 +143,7 @@ Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
 Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
-Genthrust XVII, LLC`,
+${COMPANY_NAME}`,
     reminderTitle: (roNumber, partNumber) =>
       `Check repair progress: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -146,7 +168,7 @@ Checking in on the repair progress for RO# G${roNumber}, part ${partNumber}.
 Please let us know if there are any updates or if you need anything from us.
 
 Thanks!
-Genthrust XVII, LLC`,
+${COMPANY_NAME}`,
     reminderTitle: (roNumber, partNumber) =>
       `Check repair progress: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -169,7 +191,7 @@ Follow up on repair progress.`,
 Could you please provide tracking information for RO# G${roNumber}, part ${partNumber}?
 
 Thanks!
-Genthrust XVII, LLC`,
+${COMPANY_NAME}`,
     reminderTitle: (roNumber, partNumber) =>
       `Check shipment: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -192,7 +214,7 @@ Follow up on shipment tracking.`,
 Could you please provide tracking information for RO# G${roNumber}, part ${partNumber}?
 
 Thanks!
-Genthrust XVII, LLC`,
+${COMPANY_NAME}`,
     reminderTitle: (roNumber, partNumber) =>
       `Check shipment: RO# G${roNumber} - ${partNumber}`,
     reminderBody: (roNumber, partNumber, shopName, droppedOff) =>
@@ -269,48 +291,70 @@ export const handleRoStatusChange = task({
       // SPECIAL HANDLING: RECEIVED with NET Terms
       // ==========================================
       // Handle RECEIVED status FIRST (before checking STATUS_CONFIGS)
-      // For RECEIVED status, create payment reminders based on NET terms
+      // For RECEIVED status, create payment reminders based on NET payment terms
       // then return early (no wait/email flow needed)
       if (normalizedStatus === "RECEIVED") {
+        // Parse payment terms to get the actual number of days (NET 30, NET 60, etc.)
         const paymentDays = parsePaymentTermsDays(repairOrder.terms);
-
         if (!paymentDays) {
-          logger.info("RECEIVED status without NET terms, skipping", {
+          logger.info("RECEIVED status without NET payment terms, skipping", {
             terms: repairOrder.terms
           });
           return { success: true, action: "skipped" };
         }
 
-        // Calculate payment due date
-        const paymentDueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000);
+        // Calculate payment due date: paymentDays from status date (or today if null)
+        const statusDate = parseDate(repairOrder.curentStatusDate);
+        const baseDate = statusDate ? new Date(statusDate) : new Date();
+        // Set to start of day for consistent calculation (all-day event)
+        baseDate.setHours(0, 0, 0, 0);
+        const paymentDueDate = new Date(baseDate);
+        paymentDueDate.setDate(paymentDueDate.getDate() + paymentDays);
+        // Ensure it remains at start of day for all-day event
+        paymentDueDate.setHours(0, 0, 0, 0);
+
         const roNumber = repairOrder.ro ?? repairOrderId;
         const partNumber = repairOrder.part ?? "Unknown Part";
         const shopName = repairOrder.shopName ?? "Repair Shop";
+        const estimatedCost = repairOrder.estimatedCost 
+          ? `$${repairOrder.estimatedCost.toLocaleString()}` 
+          : "N/A";
 
-        const reminderTitle = `Payment Due: RO# G${roNumber} - ${shopName}`;
-        const reminderBody = `Payment due for RO# G${roNumber}
+        // To-Do Task title and body
+        const todoTitle = `PAYMENT DUE: RO#${roNumber} - ${shopName}`;
+        const todoBody = `Amount: ${estimatedCost}. Part: ${partNumber}.`;
+
+        // Calendar Event subject (no shop name in subject)
+        const calendarSubject = `PAYMENT DUE: RO#${roNumber}`;
+        const calendarBody = `Payment due for RO#${roNumber}
 Part: ${partNumber}
 Shop: ${shopName}
-Terms: ${repairOrder.terms}
+Amount: ${estimatedCost}
+Terms: ${repairOrder.terms || "NET-30"}
 Due Date: ${paymentDueDate.toLocaleDateString()}
 
 Process payment for this repair order.`;
 
-        // Create Calendar Event and To-Do Task
+        // Create Calendar Event and To-Do Task with error handling
         try {
           await Promise.all([
-            createCalendarEvent(userId, reminderTitle, paymentDueDate, paymentDueDate, reminderBody),
-            createToDoTask(userId, reminderTitle, paymentDueDate, reminderBody),
+            createCalendarEvent(userId, calendarSubject, paymentDueDate, paymentDueDate, calendarBody),
+            createToDoTask(userId, todoTitle, paymentDueDate, todoBody),
           ]);
-          logger.info("Payment reminders created for RECEIVED RO", {
+          logger.info("Payment reminders created for RECEIVED RO with NET-30 terms", {
             repairOrderId,
-            paymentDays,
+            roNumber,
             paymentDueDate: paymentDueDate.toISOString(),
+            statusDate: statusDate?.toISOString() || "today",
           });
         } catch (error) {
-          logger.warn("Failed to create payment reminders", {
+          // Log error but don't crash the task - payment reminders are important but not critical
+          logger.error("Failed to create payment reminders for NET-30 RO", {
+            repairOrderId,
             error: error instanceof Error ? error.message : String(error),
           });
+          // Still return success since the status change was processed
+          // The reminders can be created manually if needed
         }
 
         return { success: true, action: "reminder_created" };

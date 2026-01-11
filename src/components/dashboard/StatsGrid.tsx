@@ -44,9 +44,9 @@ export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       {/* Hero Row - 3 large gradient cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
         <HeroStatCard
           title="Total Active"
           value={stats.totalActive}
@@ -73,7 +73,7 @@ export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
       </div>
 
       {/* Secondary Row - 4 smaller cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Waiting Quote"
           value={stats.waitingQuote}
