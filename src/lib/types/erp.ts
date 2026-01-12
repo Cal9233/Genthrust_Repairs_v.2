@@ -73,7 +73,7 @@ export interface ERPExternalListResponse {
 // Details Endpoint Types (/repair_order/details)
 // ============================================
 
-export interface ERPRepairOrderDetailsBody extends ERPRepairOrderBody {
+export interface ERPRepairOrderDetailsBody extends Omit<ERPRepairOrderBody, 'modified_time'> {
   vendor: { vendorname: string };
   ship_via: string | null;
   address?: ERPAddressBlock;

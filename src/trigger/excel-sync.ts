@@ -154,7 +154,7 @@ export const syncRepairOrders = task({
         .where(
           and(
             inArray(active.id, repairOrderIds),
-            notInArray(active.curentStatus, ARCHIVED_STATUSES)
+            notInArray(active.curentStatus, [...ARCHIVED_STATUSES])
           )
         );
 

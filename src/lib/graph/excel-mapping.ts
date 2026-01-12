@@ -160,7 +160,7 @@ function parseNumber(value: unknown): number | null {
  * @returns Date as US format string (mm/dd/yy) or null if invalid
  */
 function parseDateToUS(value: unknown): string | null {
-  const date = parseDate(value);
+  const date = parseDate(value as string | number | Date | null | undefined);
   return formatDateUS(date);
 }
 
@@ -264,7 +264,9 @@ export function excelRowToDbRowForTable(
   let dateMade: string | null;
   if (tableName === "Net" || tableName === "Paid") {
     // For datetime columns, we need ISO format or null
-    const date = parseDate(rawDateMade);
+    const date = parseDate(
+      typeof rawDateMade === "boolean" ? null : rawDateMade
+    );
     dateMade = formatDateISO(date);
   } else {
     // For varchar columns, use mm/dd/yy format

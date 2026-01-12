@@ -911,7 +911,7 @@ export async function getOverdueCount(): Promise<Result<number>> {
         nextDateToUpdate: active.nextDateToUpdate,
       })
       .from(active)
-      .where(notInArray(active.curentStatus, ARCHIVED_STATUSES));
+      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]));
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

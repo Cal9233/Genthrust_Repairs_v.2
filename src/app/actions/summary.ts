@@ -63,7 +63,7 @@ export async function getRepairOrdersForSummary(): Promise<Result<NormalizedRepa
     const records = await db
       .select()
       .from(active)
-      .where(notInArray(active.curentStatus, ARCHIVED_STATUSES));
+      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]));
 
     const normalized = records.map((record) =>
       normalizeRepairOrder(record as unknown as Record<string, unknown>)

@@ -19,25 +19,26 @@ async function main() {
       AND COLUMN_NAME IN ('erp_po_id', 'erp_last_sync_at', 'erp_sync_status')
     `);
 
-    const existingColumns = (result[0] as Array<{COLUMN_NAME: string}>).map(r => r.COLUMN_NAME);
-    console.log("Existing ERP columns:", existingColumns.length ? existingColumns : "none");
+    const rows = (result as unknown as Array<{COLUMN_NAME: string}>);
+    const columnNames = rows.map(r => r.COLUMN_NAME);
+    console.log("Existing ERP columns:", columnNames.length ? columnNames : "none");
 
     // Add missing columns
-    if (!existingColumns.includes("erp_po_id")) {
+    if (!columnNames.includes("erp_po_id")) {
       await db.execute(sql`ALTER TABLE active ADD COLUMN erp_po_id varchar(50)`);
       console.log("✓ Added erp_po_id column");
     } else {
       console.log("- erp_po_id already exists");
     }
 
-    if (!existingColumns.includes("erp_last_sync_at")) {
+    if (!columnNames.includes("erp_last_sync_at")) {
       await db.execute(sql`ALTER TABLE active ADD COLUMN erp_last_sync_at varchar(50)`);
       console.log("✓ Added erp_last_sync_at column");
     } else {
       console.log("- erp_last_sync_at already exists");
     }
 
-    if (!existingColumns.includes("erp_sync_status")) {
+    if (!columnNames.includes("erp_sync_status")) {
       await db.execute(sql`ALTER TABLE active ADD COLUMN erp_sync_status varchar(20) DEFAULT 'LOCAL_ONLY'`);
       console.log("✓ Added erp_sync_status column");
     } else {

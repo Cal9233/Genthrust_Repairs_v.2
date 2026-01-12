@@ -23,7 +23,7 @@ export async function GET() {
     const activeRecords = await db
       .select()
       .from(active)
-      .where(notInArray(active.curentStatus, ARCHIVED_STATUSES));
+      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]));
 
     // 3. Status distribution - get all unique statuses and their counts
     const statusDistribution = await db

@@ -22,7 +22,7 @@ import {
   roStatusEnum,
 } from "@/lib/validation/repair-order";
 import { addSingleRoToExcel } from "@/lib/graph/write-single-ro";
-import { TRACKED_STATUSES } from "@/lib/constants/statuses";
+import { isTrackedStatus } from "@/lib/constants/statuses";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -280,7 +280,7 @@ export async function updateRepairOrderStatus(
     const normalizedNew = newStatus.toUpperCase().trim();
     const normalizedOld = oldStatus.toUpperCase().trim();
 
-    if (TRACKED_STATUSES.includes(normalizedNew) && normalizedNew !== normalizedOld) {
+    if (isTrackedStatus(normalizedNew) && normalizedNew !== normalizedOld) {
       const handle = await tasks.trigger("handle-ro-status-change", {
         repairOrderId,
         newStatus: normalizedNew,

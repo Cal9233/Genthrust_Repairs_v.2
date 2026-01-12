@@ -140,7 +140,7 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     const allRecords = await db
       .select()
       .from(active)
-      .where(notInArray(active.curentStatus, ARCHIVED_STATUSES));
+      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]));
 
     // Count NET 30 items (COMPLETE status with Net Terms)
     const net30Result = await db
@@ -266,7 +266,7 @@ export async function getRepairOrders(
     // (date parsing can't be done in SQL with string dates)
     if (filter === "overdue") {
       // Base condition: exclude archived statuses
-      const baseCondition = notInArray(active.curentStatus, ARCHIVED_STATUSES);
+      const baseCondition = notInArray(active.curentStatus, [...ARCHIVED_STATUSES]);
       const whereCondition = searchCondition
         ? and(baseCondition, searchCondition)
         : baseCondition;
@@ -303,7 +303,7 @@ export async function getRepairOrders(
 
     // Standard "all" filter - use SQL pagination
     // Always exclude archived statuses from Active view
-    const baseCondition = notInArray(active.curentStatus, ARCHIVED_STATUSES);
+    const baseCondition = notInArray(active.curentStatus, [...ARCHIVED_STATUSES]);
     const whereCondition = searchCondition
       ? and(baseCondition, searchCondition)
       : baseCondition;
@@ -410,7 +410,7 @@ export async function getRepairOrdersBySheet(
 
     // For active sheet, exclude archived statuses
     if (sheet === "active") {
-      conditions.push(notInArray(table.curentStatus, ARCHIVED_STATUSES));
+      conditions.push(notInArray(table.curentStatus, [...ARCHIVED_STATUSES]));
     }
 
     // Apply status filter (supports startsWith for "APPROVED" variants)
@@ -545,7 +545,7 @@ export async function getUniqueStatuses(): Promise<Result<string[]>> {
       .where(
         and(
           sql`${active.curentStatus} IS NOT NULL AND ${active.curentStatus} != ''`,
-          notInArray(active.curentStatus, ARCHIVED_STATUSES)
+          notInArray(active.curentStatus, [...ARCHIVED_STATUSES])
         )
       )
       .orderBy(active.curentStatus);
