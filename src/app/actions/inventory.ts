@@ -133,8 +133,6 @@ export async function getInventoryStats(): Promise<Result<InventoryStats>> {
       conditionBreakdown,
     };
 
-    console.log("[getInventoryStats]", JSON.stringify(stats));
-
     return { success: true, data: stats };
   } catch (error) {
     console.error("getInventoryStats error:", error);

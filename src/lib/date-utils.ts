@@ -3,20 +3,48 @@
  */
 
 /**
- * Parse a date string in various formats
- * Handles: MM/DD/YYYY, M/D/YYYY, MM-DD-YYYY, YYYY-MM-DD, ISO 8601, and Excel serial numbers
+ * Parse a date value to a Date object
+ * Handles: MM/DD/YYYY, M/D/YYYY, MM/DD/YY, MM-DD-YYYY, YYYY-MM-DD, ISO 8601, and Excel serial numbers
+ * 
+ * @param value - String, number (Excel serial), Date, or null/undefined
+ * @returns Date object or null if invalid
  */
-export function parseDate(dateString: string | null | undefined): Date | null {
-  if (!dateString || typeof dateString !== "string") return null;
+export function parseDate(value: string | number | Date | null | undefined): Date | null {
+  if (value === null || value === undefined || value === "") return null;
 
-  const trimmed = dateString.trim();
+  // Handle Date objects
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+
+  // Handle Excel serial date numbers (days since 1899-12-30)
+  if (typeof value === "number") {
+    const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
   if (!trimmed) return null;
 
-  // Try MM/DD/YYYY or M/D/YYYY format (slashes)
-  const usDateSlashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (usDateSlashMatch) {
-    const [, month, day, year] = usDateSlashMatch;
+  // Try MM/DD/YYYY or M/D/YYYY format (slashes, 4-digit year)
+  const usDateSlashMatch4 = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (usDateSlashMatch4) {
+    const [, month, day, year] = usDateSlashMatch4;
     const date = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  // Try MM/DD/YY or M/D/YY format (slashes, 2-digit year)
+  const usDateSlashMatch2 = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (usDateSlashMatch2) {
+    const [, month, day, year2] = usDateSlashMatch2;
+    let year = Number(year2);
+    // Convert 2-digit year to 4-digit: 00-49 = 2000-2049, 50-99 = 1950-1999
+    year = year < 50 ? 2000 + year : 1900 + year;
+    const date = new Date(year, Number(month) - 1, Number(day));
     if (!isNaN(date.getTime())) return date;
   }
 
@@ -32,14 +60,6 @@ export function parseDate(dateString: string | null | undefined): Date | null {
   const isoDateMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoDateMatch) {
     const date = new Date(trimmed);
-    if (!isNaN(date.getTime())) return date;
-  }
-
-  // Try Excel serial number (days since 1899-12-30)
-  const serialNumber = Number(trimmed);
-  if (!isNaN(serialNumber) && serialNumber > 0 && serialNumber < 100000) {
-    const excelEpoch = new Date(1899, 11, 30);
-    const date = new Date(excelEpoch.getTime() + serialNumber * 86400000);
     if (!isNaN(date.getTime())) return date;
   }
 
@@ -116,4 +136,31 @@ export function formatRelativeDate(dateString: string | null | undefined): strin
       : { day: "numeric", month: "short", year: "numeric" };
 
   return new Intl.DateTimeFormat("en-US", options).format(date);
+}
+
+/**
+ * Format a Date object to US format string (mm/dd/yy)
+ * Used for database varchar columns that store dates as strings
+ * 
+ * @param date - Date object to format
+ * @returns Formatted string like "12/03/25" or null if date is invalid
+ */
+export function formatDateUS(date: Date | null | undefined): string | null {
+  if (!date || isNaN(date.getTime())) return null;
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${month}/${day}/${year}`;
+}
+
+/**
+ * Format a Date object to ISO format string (YYYY-MM-DD HH:mm:ss)
+ * Used for database datetime columns
+ * 
+ * @param date - Date object to format
+ * @returns Formatted string like "2025-12-03 00:00:00" or null if date is invalid
+ */
+export function formatDateISO(date: Date | null | undefined): string | null {
+  if (!date || isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 19).replace("T", " ");
 }

@@ -20,6 +20,8 @@ import { getConversationMessages } from "@/lib/graph/productivity";
 import { active } from "@/lib/schema";
 import { updateShopEmail } from "@/lib/data/shops";
 import { revalidatePath } from "next/cache";
+import { COMPANY_NAME } from "@/lib/constants/company";
+import { ARCHIVED_STATUSES } from "@/lib/constants/statuses";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -400,7 +402,7 @@ function mergeThreadMessages(
       subject: payload.subject,
       bodyPreview: stripHtml(payload.body).slice(0, 200),
       sender: {
-        name: "Genthrust XVII, LLC",
+        name: COMPANY_NAME,
         email: userEmail,
       },
       sentDateTime: dbMsg.createdAt,
@@ -890,18 +892,6 @@ export async function approveBatchNotifications(
     };
   }
 }
-
-// Statuses that belong to other sheets (not Active dashboard)
-// Matches ARCHIVED_STATUSES in dashboard.ts
-const ARCHIVED_STATUSES = [
-  "COMPLETE",
-  "NET",
-  "PAID",
-  "RETURNS",
-  "BER",
-  "RAI",
-  "CANCELLED",
-];
 
 /**
  * Get count of overdue repair orders for the notification badge.

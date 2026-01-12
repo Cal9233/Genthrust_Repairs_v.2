@@ -55,9 +55,6 @@ export async function insertNotificationCore(
     if (targetStatus === "PENDING_APPROVAL") {
       const existingId = await findExistingPendingNotification(data.repairOrderId);
       if (existingId) {
-        console.log(
-          `[notification] Skipping duplicate: RO ${data.repairOrderId} already has pending #${existingId}`
-        );
         return existingId;
       }
     }

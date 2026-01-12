@@ -20,7 +20,6 @@ function getSSLConfig() {
   try {
     // Priority 1: Base64 encoded cert (safe for production - avoids newline issues in dashboards)
     if (process.env.DATABASE_CA_CERT_BASE64) {
-      console.log("[db] SSL: Using Base64 CA Cert");
       return {
         ca: Buffer.from(process.env.DATABASE_CA_CERT_BASE64, "base64").toString("utf-8"),
         rejectUnauthorized: true,
@@ -29,7 +28,6 @@ function getSSLConfig() {
 
     // Priority 2: Environment variable (for containerized environments like Trigger.dev)
     if (process.env.DATABASE_CA_CERT) {
-      console.log("[db] SSL: Using DATABASE_CA_CERT env var");
       return {
         ca: process.env.DATABASE_CA_CERT,
         rejectUnauthorized: true,
@@ -39,7 +37,6 @@ function getSSLConfig() {
     // Priority 3: File-based cert (for local development)
     const certPath = path.join(process.cwd(), "certs", "ca.pem");
     if (fs.existsSync(certPath)) {
-      console.log("[db] SSL: Using file-based cert at " + certPath);
       // Note: rejectUnauthorized:false needed for scripts (tsx) where Node's
       // TLS doesn't fully trust Aiven's self-signed CA chain
       return {

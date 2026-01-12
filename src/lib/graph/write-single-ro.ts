@@ -62,8 +62,6 @@ export async function addSingleRoToExcel(
 
     // Step 6: Close session to persist changes
     await closeExcelSession(client, workbookId, sessionId);
-
-    console.log(`✅ Excel write-back successful: RO #${roData.ro} added to row ${nextRow}`);
   } catch (error) {
     // Attempt to close session on error
     if (client && sessionId && workbookId) {

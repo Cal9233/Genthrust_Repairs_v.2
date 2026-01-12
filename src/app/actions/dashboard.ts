@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { active, net, paid, returns } from "@/lib/schema";
 import { like, or, sql, count, desc, notInArray, and, eq, gte, lte } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
+import { ARCHIVED_STATUSES, isWaitingQuote, isInWork, isShipped, isApproved } from "@/lib/constants/statuses";
 
 // Result type per CLAUDE.md
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -33,17 +34,6 @@ export type PaginatedRepairOrders = {
 
 const ITEMS_PER_PAGE = 20;
 
-// Statuses that belong to other sheets (not Active dashboard)
-// These are filtered out from the main Active view
-const ARCHIVED_STATUSES = [
-  "COMPLETE",
-  "NET",
-  "PAID",
-  "RETURNS",
-  "BER",
-  "RAI",
-  "CANCELLED",
-];
 
 // Filter type for repair orders
 export type RepairOrderFilter = "all" | "overdue";
@@ -196,41 +186,33 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
       }
 
       // Count waiting quote (includes PENDING)
-      const status = record.curentStatus?.toUpperCase()?.trim() || "";
-      if (status === "WAITING QUOTE" || status === "WAITING FOR QUOTE" || status === "AWAITING QUOTE" || status === "PENDING") {
+      const status = record.curentStatus || "";
+      if (isWaitingQuote(status)) {
         waitingQuote++;
       }
 
       // Count in work
-      if (status === "IN WORK" || status === "IN PROGRESS" || status === "WORKING") {
+      if (isInWork(status)) {
         inWork++;
       }
 
       // Count shipped (actual DB values: CURRENTLY BEING SHIPPED, SHIPPING)
-      if (status === "SHIPPED" || status === "IN TRANSIT" || status === "CURRENTLY BEING SHIPPED" || status === "SHIPPING") {
+      if (isShipped(status)) {
         shipped++;
       }
 
       // Count approved (handles "APPROVED >>>>" variant)
-      if (status.startsWith("APPROVED")) {
+      if (isApproved(status)) {
         approved++;
       }
 
       // Sum value in work (excluding completed/closed statuses)
+      // Handle null status by defaulting to empty string for includes check
       if (!excludedStatuses.includes(status) && record.estimatedCost) {
         valueInWork += record.estimatedCost;
       }
     }
 
-    // Log summary for debugging
-    if (unparseableCount > 0) {
-      console.log(
-        `[getDashboardStats] Warning: ${unparseableCount} unparseable dates. Samples: ${unparseableSamples.join(", ")}`
-      );
-    }
-    console.log(
-      `[getDashboardStats] Total: ${allRecords.length}, Overdue: ${overdue}, WaitingQuote: ${waitingQuote}, Approved: ${approved}, Shipped: ${shipped}, ValueInWork: $${valueInWork}`
-    );
 
     return {
       success: true,

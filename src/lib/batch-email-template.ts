@@ -5,6 +5,8 @@
  * are being sent together. Creates an HTML table listing all ROs.
  */
 
+import { COMPANY_NAME } from "./constants/company";
+
 export type RODetail = {
   roNumber: number | null;
   partNumber: string | null;
@@ -89,7 +91,7 @@ export function generateBatchBody(
 <p>Please provide status updates for these orders at your earliest convenience.</p>
 
 <p>Thank you,<br/>
-<strong>Genthrust XVII, LLC</strong></p>
+<strong>${COMPANY_NAME}</strong></p>
 `.trim();
 }
 

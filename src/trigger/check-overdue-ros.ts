@@ -5,6 +5,7 @@ import { eq, and, lt } from "drizzle-orm";
 import { insertNotificationCore } from "../lib/data/notifications";
 import { getShopEmailByName } from "../lib/data/shops";
 import { isOverdue } from "../lib/date-utils";
+import { COMPANY_NAME } from "../lib/constants/company";
 
 /**
  * Overdue Safety Net - Runs daily at 8:00 AM UTC
@@ -114,7 +115,7 @@ Just checking in on RO# G${roNumber} for part ${partNumber}.
 We'd love an update when you have a moment.
 
 Thanks!
-Genthrust XVII, LLC`;
+${COMPANY_NAME}`;
 
         // insertNotificationCore handles deduplication - returns existing ID if duplicate
         const notificationId = await insertNotificationCore({

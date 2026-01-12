@@ -48,10 +48,10 @@ export function HeroStatCard({
   const content = (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg transition-all h-full cursor-pointer",
+        "relative overflow-hidden rounded-xl sm:rounded-2xl p-5 sm:p-6 lg:p-8 shadow-lg transition-all duration-200 h-full cursor-pointer",
         styles.bg,
-        isActive && "ring-2 ring-inset ring-white/50",
-        "hover:scale-[1.02]",
+        isActive && "ring-2 ring-inset ring-white/50 shadow-xl",
+        "hover:scale-[1.02] hover:shadow-xl",
         styles.hoverShadow,
         className
       )}
@@ -63,12 +63,12 @@ export function HeroStatCard({
 
       {/* Content */}
       <div className="relative z-10">
-        <p className="text-xs sm:text-sm font-medium text-white/80">{title}</p>
-        <p className="mt-1 sm:mt-2 text-2xl sm:text-4xl font-bold text-white tabular-nums select-none">
+        <p className="text-xs sm:text-sm font-medium text-white/90 uppercase tracking-wide">{title}</p>
+        <p className="mt-2 sm:mt-3 text-2xl sm:text-4xl lg:text-5xl font-bold text-white tabular-nums select-none leading-tight">
           {value}
         </p>
         {subtitle && (
-          <p className="mt-1 text-xs sm:text-sm text-white/70">{subtitle}</p>
+          <p className="mt-2 text-xs sm:text-sm text-white/80 font-medium">{subtitle}</p>
         )}
       </div>
     </div>

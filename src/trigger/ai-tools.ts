@@ -3,6 +3,7 @@ import { db } from "../lib/db";
 import { active, inventoryindex, notificationQueue, roActivityLog } from "../lib/schema";
 import { eq, like, or, max } from "drizzle-orm";
 import { createDraftEmail } from "../lib/graph/productivity";
+import { TRACKED_STATUSES } from "../lib/constants/statuses";
 
 // Type exports for tool outputs
 export type InventoryItem = typeof inventoryindex.$inferSelect;
@@ -158,7 +159,7 @@ export const createRepairOrderTool = task({
 });
 
 // Sub-task: Update Repair Order
-// Updates fields on an existing repair order and triggers Excel sync
+// Updates fields on an existing repair order, triggers lifecycle automation for status changes, and syncs to Excel
 export const updateRepairOrderTool = task({
   id: "ai-tool-update-repair-order",
   machine: { preset: "micro" },
@@ -167,13 +168,32 @@ export const updateRepairOrderTool = task({
     userId: string;
     roNumber: number;
     fields: {
+      // Basic information
+      shopName?: string;
+      part?: string;
+      serial?: string | null;
+      partDescription?: string | null;
+      reqWork?: string | null;
+      // Status and dates
       curentStatus?: string;
-      notes?: string;
-      estimatedCost?: number;
-      finalCost?: number;
-      shopRef?: string;
-      estimatedDeliveryDate?: string;
-      terms?: string;
+      curentStatusDate?: string | null;
+      estimatedDeliveryDate?: string | null;
+      dateDroppedOff?: string | null;
+      dateMade?: string | null;
+      lastDateUpdated?: string | null;
+      nextDateToUpdate?: string | null;
+      // Costs and terms
+      estimatedCost?: number | null;
+      finalCost?: number | null;
+      terms?: string | null;
+      // References and tracking
+      shopRef?: string | null;
+      trackingNumberPickingUp?: string | null;
+      // Status fields
+      genthrustStatus?: string | null;
+      shopStatus?: string | null;
+      // Notes
+      notes?: string | null;
     };
   }) => {
     const { userId, roNumber, fields } = payload;
@@ -191,42 +211,113 @@ export const updateRepairOrderTool = task({
       return { success: false, error: `RO #${roNumber} not found` };
     }
 
+    // Track old status for lifecycle flow trigger
+    const oldStatus = existing.curentStatus ?? "";
+    let statusChanged = false;
+    let newStatus = "";
+
     // Build update object
     const today = new Date().toISOString().split("T")[0];
-    const updateData: Record<string, unknown> = {
-      lastDateUpdated: today,
-    };
+    const updateData: Record<string, unknown> = {};
 
     const changes: string[] = [];
 
+    // Basic information fields
+    if (fields.shopName !== undefined) {
+      updateData.shopName = fields.shopName;
+      changes.push(`shop name: ${fields.shopName}`);
+    }
+    if (fields.part !== undefined) {
+      updateData.part = fields.part;
+      changes.push(`part: ${fields.part}`);
+    }
+    if (fields.serial !== undefined) {
+      updateData.serial = fields.serial;
+      changes.push(`serial: ${fields.serial ?? "removed"}`);
+    }
+    if (fields.partDescription !== undefined) {
+      updateData.partDescription = fields.partDescription;
+      changes.push("part description updated");
+    }
+    if (fields.reqWork !== undefined) {
+      updateData.reqWork = fields.reqWork;
+      changes.push("requested work updated");
+    }
+
+    // Status and dates
     if (fields.curentStatus !== undefined) {
       updateData.curentStatus = fields.curentStatus;
-      updateData.curentStatusDate = today;
+      updateData.curentStatusDate = fields.curentStatusDate ?? today;
+      newStatus = fields.curentStatus;
+      statusChanged = fields.curentStatus.toUpperCase().trim() !== oldStatus.toUpperCase().trim();
       changes.push(`status: ${fields.curentStatus}`);
     }
+    if (fields.estimatedDeliveryDate !== undefined) {
+      updateData.estimatedDeliveryDate = fields.estimatedDeliveryDate;
+      changes.push(`delivery date: ${fields.estimatedDeliveryDate ?? "removed"}`);
+    }
+    if (fields.dateDroppedOff !== undefined) {
+      updateData.dateDroppedOff = fields.dateDroppedOff;
+      changes.push(`drop-off date: ${fields.dateDroppedOff ?? "removed"}`);
+    }
+    if (fields.dateMade !== undefined) {
+      updateData.dateMade = fields.dateMade;
+      changes.push(`date made: ${fields.dateMade ?? "removed"}`);
+    }
+    if (fields.lastDateUpdated !== undefined) {
+      updateData.lastDateUpdated = fields.lastDateUpdated;
+    } else {
+      // Auto-update lastDateUpdated if not explicitly set
+      updateData.lastDateUpdated = today;
+    }
+    if (fields.nextDateToUpdate !== undefined) {
+      updateData.nextDateToUpdate = fields.nextDateToUpdate;
+      changes.push(`next update date: ${fields.nextDateToUpdate ?? "removed"}`);
+    }
+
+    // Costs and terms
+    if (fields.estimatedCost !== undefined) {
+      updateData.estimatedCost = fields.estimatedCost;
+      changes.push(`estimated cost: $${fields.estimatedCost ?? 0}`);
+    }
+    if (fields.finalCost !== undefined) {
+      updateData.finalCost = fields.finalCost;
+      changes.push(`final cost: $${fields.finalCost ?? 0}`);
+    }
+    if (fields.terms !== undefined) {
+      updateData.terms = fields.terms;
+      changes.push(`terms: ${fields.terms ?? "removed"}`);
+    }
+
+    // References and tracking
+    if (fields.shopRef !== undefined) {
+      updateData.shopRef = fields.shopRef;
+      changes.push(`shop ref: ${fields.shopRef ?? "removed"}`);
+    }
+    if (fields.trackingNumberPickingUp !== undefined) {
+      updateData.trackingNumberPickingUp = fields.trackingNumberPickingUp;
+      changes.push(`tracking: ${fields.trackingNumberPickingUp ?? "removed"}`);
+    }
+
+    // Status fields
+    if (fields.genthrustStatus !== undefined) {
+      updateData.genthrustStatus = fields.genthrustStatus;
+      changes.push(`Genthrust status: ${fields.genthrustStatus ?? "removed"}`);
+    }
+    if (fields.shopStatus !== undefined) {
+      updateData.shopStatus = fields.shopStatus;
+      changes.push(`shop status: ${fields.shopStatus ?? "removed"}`);
+    }
+
+    // Notes
     if (fields.notes !== undefined) {
       updateData.notes = fields.notes;
       changes.push("notes updated");
     }
-    if (fields.estimatedCost !== undefined) {
-      updateData.estimatedCost = fields.estimatedCost;
-      changes.push(`estimated cost: $${fields.estimatedCost}`);
-    }
-    if (fields.finalCost !== undefined) {
-      updateData.finalCost = fields.finalCost;
-      changes.push(`final cost: $${fields.finalCost}`);
-    }
-    if (fields.shopRef !== undefined) {
-      updateData.shopRef = fields.shopRef;
-      changes.push(`shop ref: ${fields.shopRef}`);
-    }
-    if (fields.estimatedDeliveryDate !== undefined) {
-      updateData.estimatedDeliveryDate = fields.estimatedDeliveryDate;
-      changes.push(`delivery date: ${fields.estimatedDeliveryDate}`);
-    }
-    if (fields.terms !== undefined) {
-      updateData.terms = fields.terms;
-      changes.push(`terms: ${fields.terms}`);
+
+    // Only update if there are changes
+    if (Object.keys(updateData).length === 0) {
+      return { success: true, roNumber, updated: [], message: "No fields to update" };
     }
 
     // Update in MySQL
@@ -242,6 +333,29 @@ export const updateRepairOrderTool = task({
       userId,
     });
 
+    // Trigger lifecycle flow if status changed to a tracked status
+    if (statusChanged && newStatus) {
+      const normalizedNew = newStatus.toUpperCase().trim();
+      if (TRACKED_STATUSES.some(s => s === normalizedNew)) {
+        try {
+          await tasks.trigger("handle-ro-status-change", {
+            repairOrderId: existing.id,
+            newStatus: normalizedNew,
+            oldStatus: oldStatus.toUpperCase().trim(),
+            userId,
+          });
+          logger.info("Triggered lifecycle flow for status change", {
+            roNumber,
+            oldStatus,
+            newStatus: normalizedNew,
+          });
+        } catch (e) {
+          logger.error("Failed to trigger lifecycle flow", { error: e });
+          // Don't fail the update if lifecycle flow fails
+        }
+      }
+    }
+
     // Trigger Excel sync
     try {
       await tasks.trigger("sync-repair-orders", {
@@ -252,7 +366,7 @@ export const updateRepairOrderTool = task({
       logger.error("Failed to trigger Excel sync", { error: e });
     }
 
-    logger.info("Repair order updated", { roNumber, changes });
+    logger.info("Repair order updated", { roNumber, changes, statusChanged });
 
     return { success: true, roNumber, updated: changes };
   },

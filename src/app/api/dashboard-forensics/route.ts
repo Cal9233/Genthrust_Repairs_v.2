@@ -10,17 +10,7 @@ import { active } from "@/lib/schema";
 import { sql, notInArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { parseDate } from "@/lib/date-utils";
-
-// Same list as dashboard.ts ARCHIVED_STATUSES
-const ARCHIVED_STATUSES = [
-  "COMPLETE",
-  "NET",
-  "PAID",
-  "RETURNS",
-  "BER",
-  "RAI",
-  "CANCELLED",
-];
+import { ARCHIVED_STATUSES, isWaitingQuote, isInWork, isShipped, isApproved } from "@/lib/constants/statuses";
 
 export async function GET() {
   try {
@@ -74,21 +64,21 @@ export async function GET() {
         overdue++;
       }
 
-      const status = record.curentStatus?.toUpperCase()?.trim() || "";
+      const status = record.curentStatus || "";
 
-      if (["WAITING QUOTE", "WAITING FOR QUOTE", "AWAITING QUOTE", "PENDING"].includes(status)) {
+      if (isWaitingQuote(status)) {
         waitingQuote++;
       }
 
-      if (["IN WORK", "IN PROGRESS", "WORKING"].includes(status)) {
+      if (isInWork(status)) {
         inWork++;
       }
 
-      if (["SHIPPED", "IN TRANSIT", "CURRENTLY BEING SHIPPED", "SHIPPING"].includes(status)) {
+      if (isShipped(status)) {
         shipped++;
       }
 
-      if (status.startsWith("APPROVED")) {
+      if (isApproved(status)) {
         approved++;
       }
 
