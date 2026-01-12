@@ -136,7 +136,7 @@ export function RODocuments({
     [roNumber, repairOrderId, onDocumentsChanged]
   );
 
-  const handleDownload = async (fileId: string, fileName: string) => {
+  const handleDownload = async (fileId: string, _fileName: string) => {
     setDownloadingId(fileId);
     setError(null);
 

@@ -18,7 +18,7 @@ interface ExcelSyncButtonProps {
  * Shows FileSpreadsheet icon by default, TurbineSpinner while syncing,
  * and colored glow shadow (green/red) for 3 seconds after completion.
  */
-export function ExcelSyncButton({ userId }: ExcelSyncButtonProps) {
+export function ExcelSyncButton({ userId: _userId }: ExcelSyncButtonProps) {
   const [runId, setRunId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState<"idle" | "success" | "error">("idle");

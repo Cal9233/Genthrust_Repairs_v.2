@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Circle, ArrowRight } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_FLOW = [

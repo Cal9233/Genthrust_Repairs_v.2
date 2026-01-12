@@ -74,7 +74,7 @@ const formatDate = (dateStr: string | null) => {
     }
     // Fallback: return original string if parsing fails
     return dateStr;
-  } catch (e) {
+  } catch {
     return dateStr;
   }
 };

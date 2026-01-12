@@ -5,7 +5,6 @@ import {
   getInventoryStats,
 } from "@/app/actions/inventory";
 import {
-  WarehouseOverview,
   WarehouseOverviewSkeleton,
 } from "@/components/inventory/WarehouseOverview";
 import { InventoryContent } from "./InventoryContent";

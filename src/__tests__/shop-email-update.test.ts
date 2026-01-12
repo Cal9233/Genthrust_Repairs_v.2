@@ -7,7 +7,7 @@
  * - Future emails to that shop should be pre-populated
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // ============================================================
 // Test Suite 1: updateShopEmail function

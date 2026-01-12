@@ -33,7 +33,7 @@ export interface TriggerImportResult {
  * @returns Result with runId and publicAccessToken for realtime tracking
  */
 export async function triggerExcelImport(
-  userId: string
+  _userId: string
 ): Promise<Result<TriggerImportResult>> {
   try {
     // ==========================================

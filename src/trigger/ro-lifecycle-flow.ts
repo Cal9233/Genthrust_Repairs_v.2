@@ -230,7 +230,8 @@ Follow up on shipment tracking.`,
 
 // Statuses that trigger the follow-up flow
 // Includes RECEIVED explicitly for NET payment reminders (not in STATUS_CONFIGS)
-const TRACKED_STATUSES = [...Object.keys(STATUS_CONFIGS), "RECEIVED"];
+// Note: This is kept for documentation but not used directly (status matching uses STATUS_CONFIGS)
+// const TRACKED_STATUSES = [...Object.keys(STATUS_CONFIGS), "RECEIVED"];
 
 /**
  * handle-ro-status-change Task (The Durable Waiter)

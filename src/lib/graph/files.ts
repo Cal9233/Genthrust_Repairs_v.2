@@ -1,4 +1,3 @@
-import { Client } from "@microsoft/microsoft-graph-client";
 import { getGraphClient } from "../graph";
 
 /**
@@ -118,7 +117,7 @@ export async function uploadRODocument(
   roNumber: string | number,
   fileName: string,
   fileContent: ArrayBuffer | Buffer,
-  contentType?: string
+  _contentType?: string
 ): Promise<UploadResult> {
   try {
     // Ensure the RO folder exists

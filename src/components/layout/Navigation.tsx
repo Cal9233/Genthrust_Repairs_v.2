@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Package, FileText, Menu, X } from "lucide-react";
+import { LayoutDashboard, Package, FileText, Menu } from "lucide-react";
 import {
   Sheet,
   SheetContent,

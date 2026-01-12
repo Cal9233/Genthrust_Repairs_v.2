@@ -53,7 +53,7 @@ export function ROStatusTimeline({ history }: ROStatusTimelineProps) {
         <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-border" />
 
         <div className="space-y-4">
-          {history.map((entry, index) => (
+          {history.map((entry) => (
             <div key={entry.id} className="relative flex gap-4 pl-8">
               {/* Timeline dot */}
               <div

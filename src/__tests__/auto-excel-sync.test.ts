@@ -8,7 +8,8 @@
  * - Error handling
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { z } from 'zod'
 
 // Mock Trigger.dev SDK
 vi.mock('@trigger.dev/sdk/v3', () => ({
@@ -59,7 +60,6 @@ describe('Auto Excel Sync - Phase 25', () => {
   describe('syncRepairOrdersPayloadSchema', () => {
     // Create a local schema that mirrors the one in excel-sync.ts
     // (Avoids importing the actual module which requires Trigger.dev runtime)
-    const { z } = require('zod')
     const syncRepairOrdersPayloadSchema = z.object({
       userId: z.string(),
       repairOrderIds: z.array(z.number()),

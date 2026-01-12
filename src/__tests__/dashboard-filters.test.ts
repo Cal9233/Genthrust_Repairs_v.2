@@ -11,7 +11,7 @@
  * - Unique shops/statuses extraction
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 // ============================================================================
 // Type Definitions (mirrors dashboard.ts)

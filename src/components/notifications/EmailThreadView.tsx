@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getFullThreadHistory } from "@/app/actions/notifications";
-import type { ThreadMessage, ThreadHistoryResult } from "@/lib/types/notification";
+import type { ThreadMessage } from "@/lib/types/notification";
 
 interface EmailThreadViewProps {
   repairOrderId: number;

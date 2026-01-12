@@ -161,12 +161,12 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     let valueInWork = 0;
     let inWork = 0;
     let shipped = 0;
-    let net30 = net30Result[0]?.count ?? 0; // Count of COMPLETE ROs with Net Terms
+    const net30 = net30Result[0]?.count ?? 0; // Count of COMPLETE ROs with Net Terms
     let approved = 0;
 
     const excludedStatuses = ["PAID", "BER", "RAI", "RETURNED"];
 
-    let unparseableCount = 0;
+    let _unparseableCount = 0;
     const unparseableSamples: string[] = [];
 
     for (const record of allRecords) {
@@ -175,7 +175,7 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
 
       // Track unparseable dates for debugging
       if (record.nextDateToUpdate && !nextUpdateDate) {
-        unparseableCount++;
+        _unparseableCount++;
         if (unparseableSamples.length < 3) {
           unparseableSamples.push(`"${record.nextDateToUpdate}"`);
         }

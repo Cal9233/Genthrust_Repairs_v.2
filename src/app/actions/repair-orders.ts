@@ -9,16 +9,12 @@ import {
   roRelationsTable,
   users,
   notificationQueue,
-  type RoStatusHistory,
-  type RoActivityLog,
-  type RoRelation,
 } from "@/lib/schema";
 import { eq, or, desc, and, sql, max } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { revalidatePath } from "next/cache";
 import {
   createRepairOrderSchema,
-  updateRepairOrderSchema,
   roStatusEnum,
 } from "@/lib/validation/repair-order";
 import { addSingleRoToExcel } from "@/lib/graph/write-single-ro";
@@ -226,7 +222,7 @@ export async function updateRepairOrderStatus(
     }
 
     // Use validated status
-    const validatedStatus = statusValidation.data;
+    const _validatedStatus = statusValidation.data;
 
     // Fetch current status for comparison
     const [currentRO] = await db

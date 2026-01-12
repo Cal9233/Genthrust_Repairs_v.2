@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Clock, CheckCircle } from "lucide-react";
+import { AlertCircle, Clock } from "lucide-react";
 import type { DueDateStatus } from "./useRODetail";
 import { parseDate } from "@/lib/date-utils";
 

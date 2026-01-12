@@ -23,7 +23,7 @@ export function ERPSyncButton() {
       const result = await syncAllFromERP();
 
       if (result.success) {
-        const { total, created, updated, failed } = result.data;
+        const { created, updated, failed } = result.data;
         toast.success(
           `ERP Sync complete: ${created} created, ${updated} updated${failed > 0 ? `, ${failed} failed` : ""}`
         );

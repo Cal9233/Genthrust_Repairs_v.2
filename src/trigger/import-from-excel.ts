@@ -258,12 +258,12 @@ export const importFromExcel = task({
               // UPDATE existing row (Excel wins)
               await db
                 .update(table)
-                .set(data as any)
+                .set(data as Record<string, unknown>)
                 .where(eq(table.id, existingId));
               updatedCount++;
             } else {
               // INSERT new row
-              await db.insert(table).values(data as any);
+              await db.insert(table).values(data as Record<string, unknown>);
               insertedCount++;
             }
           } catch (error) {

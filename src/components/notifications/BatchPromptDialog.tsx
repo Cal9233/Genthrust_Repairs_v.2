@@ -97,7 +97,7 @@ export function BatchPromptDialog({
   };
 
   const selectedCount = selectedIds.size;
-  const totalCount = siblings.length + 1; // Including current RO
+  const _totalCount = siblings.length + 1; // Including current RO
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

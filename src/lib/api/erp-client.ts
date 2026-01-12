@@ -102,7 +102,7 @@ async function getAuthToken(): Promise<string> {
   let data: ERPAuthResponse;
   try {
     data = JSON.parse(responseText);
-  } catch (jsonError) {
+  } catch {
     // If JSON parsing fails, show the raw response
     throw new ERPAuthError(
       `Auth request failed: ${res.status} ${res.statusText}. ` +

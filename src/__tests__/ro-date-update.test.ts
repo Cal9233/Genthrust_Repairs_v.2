@@ -7,7 +7,7 @@
  * - The RO is no longer flagged as "overdue"
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { isOverdue, parseDate } from '../lib/date-utils'
 
 // ============================================================
