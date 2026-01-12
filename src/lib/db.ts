@@ -56,9 +56,40 @@ function getSSLConfig() {
 }
 
 const createPool = () => {
+  // Validate required database environment variables
+  // During build time, we allow missing vars (they'll be set in production)
+  // Only throw at runtime when actually trying to use the database
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                      (process.env.NODE_ENV === 'production' && !process.env.VERCEL);
+  
+  if (!process.env.DATABASE_HOST || !process.env.DATABASE_USER || !process.env.DATABASE_PASSWORD || !process.env.DATABASE_NAME) {
+    if (isBuildTime) {
+      // During build, just log a warning and return a mock pool
+      console.warn("[db.ts] Database env vars missing during build - this is OK if they're set in Vercel");
+      // Return a minimal pool that will fail gracefully when used
+      // Use a connection string that won't actually connect
+      return mysql.createPool({
+        host: 'localhost',
+        port: 3306,
+        user: 'build',
+        password: 'build',
+        database: 'build',
+        connectionLimit: 1,
+      });
+    }
+    
+    // At runtime, throw an error
+    console.error("[db.ts] Missing required database environment variables:");
+    console.error("  - DATABASE_HOST:", process.env.DATABASE_HOST ? "✓" : "✗ MISSING");
+    console.error("  - DATABASE_USER:", process.env.DATABASE_USER ? "✓" : "✗ MISSING");
+    console.error("  - DATABASE_PASSWORD:", process.env.DATABASE_PASSWORD ? "✓" : "✗ MISSING");
+    console.error("  - DATABASE_NAME:", process.env.DATABASE_NAME ? "✓" : "✗ MISSING");
+    throw new Error("Missing required database environment variables. Check your .env.local or Vercel environment variables.");
+  }
+
   return mysql.createPool({
     host: process.env.DATABASE_HOST,
-    port: Number(process.env.DATABASE_PORT),
+    port: Number(process.env.DATABASE_PORT) || 3306,
     user: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE_NAME,
@@ -75,15 +106,40 @@ const createPool = () => {
   });
 };
 
-// Reuse pool in development to prevent hot reload exhaustion
-const pool = globalForDb.conn ?? createPool();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.conn = pool;
+// Lazy initialization - only create pool when actually needed
+// This allows the build to complete even if env vars are missing
+function getPool(): mysql.Pool {
+  if (globalForDb.conn) {
+    return globalForDb.conn;
+  }
+  
+  const pool = createPool();
+  
+  if (process.env.NODE_ENV !== "production") {
+    globalForDb.conn = pool;
+  }
+  
+  return pool;
 }
 
-// Export the Drizzle instance with schema for relational queries
-export const db = drizzle(pool, { schema, mode: "default" });
+// Create db instance immediately (needed for Auth.js adapter)
+// The pool itself is lazy, so this won't fail during build
+export const db = drizzle(
+  new Proxy({} as mysql.Pool, {
+    get(_target, prop) {
+      const actualPool = getPool();
+      const value = actualPool[prop as keyof mysql.Pool];
+      return typeof value === 'function' ? value.bind(actualPool) : value;
+    },
+  }),
+  { schema, mode: "default" }
+);
 
-// Export pool for direct access if needed (e.g., cleanup, migrations)
-export { pool };
+// Export pool getter for direct access if needed (e.g., cleanup, migrations)
+export const pool = new Proxy({} as mysql.Pool, {
+  get(_target, prop) {
+    const actualPool = getPool();
+    const value = actualPool[prop as keyof mysql.Pool];
+    return typeof value === 'function' ? value.bind(actualPool) : value;
+  },
+});
