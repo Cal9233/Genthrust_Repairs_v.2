@@ -27,6 +27,8 @@ import type { z } from "zod";
 // This allows scripts to load dotenv before calling these functions
 function getConfig() {
   const cid = process.env.ERP_CID || process.env.ERP_COMPANY_ID || "";
+  const email = process.env.ERP_EMAIL || "";
+  const password = process.env.ERP_PASSWORD || "";
   
   if (!cid) {
     throw new ERPAuthError(
@@ -35,11 +37,23 @@ function getConfig() {
     );
   }
   
+  if (!email) {
+    throw new ERPAuthError(
+      "ERP_EMAIL environment variable is required."
+    );
+  }
+  
+  if (!password) {
+    throw new ERPAuthError(
+      "ERP_PASSWORD environment variable is required."
+    );
+  }
+  
   return {
     baseUrl: process.env.ERP_API_BASE_URL || "https://wapi.erp.aero/v1",
     companyId: cid,
-    email: process.env.ERP_EMAIL || "",
-    password: process.env.ERP_PASSWORD || "",
+    email: email,
+    password: password,
     source: process.env.ERP_SOURCE || "genthrust-ro-tracker",
   };
 }
@@ -81,17 +95,33 @@ async function getAuthToken(): Promise<string> {
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
+  // Read response body as text first (so we can parse as JSON or show as text)
+  const responseText = await res.text().catch(() => "No response body");
+  
+  // Try to parse as JSON (API may return JSON even on error)
+  let data: ERPAuthResponse;
+  try {
+    data = JSON.parse(responseText);
+  } catch (jsonError) {
+    // If JSON parsing fails, show the raw response
     throw new ERPAuthError(
       `Auth request failed: ${res.status} ${res.statusText}. ` +
-      `CID: ${config.companyId}. ` +
-      `Check that ERP_CID is set correctly (GENTHRUST for production, GENTHRUST_TEST for sandbox). ` +
-      `Response: ${errorText}`
+      `CID: ${config.companyId}, Email: ${config.email ? "***" : "MISSING"}. ` +
+      `Check that ERP_CID, ERP_EMAIL, and ERP_PASSWORD are set correctly. ` +
+      `Response: ${responseText}`
     );
   }
 
-  const data: ERPAuthResponse = await res.json();
+  // Check HTTP status code (some APIs return JSON errors with non-200 status)
+  if (!res.ok) {
+    const errorMsg = data.error || data.msg || `HTTP ${res.status} ${res.statusText}`;
+    throw new ERPAuthError(
+      `Auth request failed: ${errorMsg}. ` +
+      `CID: ${config.companyId}, Email: ${config.email ? "***" : "MISSING"}. ` +
+      `Check that ERP_CID is set correctly (GENTHRUST for production, GENTHRUST_TEST for sandbox). ` +
+      `Also verify ERP_EMAIL and ERP_PASSWORD are correct.`
+    );
+  }
 
   // SUCCESS = res: 1 (not 0)
   if (data.res !== 1 || !data.data?.token) {
