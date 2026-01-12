@@ -67,6 +67,14 @@ EXCEL_WORKSHEET_NAME=Active
 
 # --- AI Agent (Anthropic) ---
 ANTHROPIC_API_KEY=sk-ant-...
+
+# --- ERP.aero Integration ---
+ERP_CID=GENTHRUST              # Use GENTHRUST for production, GENTHRUST_TEST for sandbox
+ERP_EMAIL=...                   # ERP account email
+ERP_PASSWORD=...                # ERP account password
+ERP_API_BASE_URL=https://wapi.erp.aero/v1  # Optional, defaults to production API
+ERP_SOURCE=genthrust-ro-tracker  # Optional, defaults to "genthrust-ro-tracker"
+
 Note: You also need a certs/ca.pem file in the root directory to connect to Aiven via SSL.
 
 4. Running the App (The Dual-Terminal Workflow)

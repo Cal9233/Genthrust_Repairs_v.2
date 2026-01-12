@@ -26,9 +26,18 @@ import type { z } from "zod";
 // Note: We use getters to read env vars at call time (not module load time)
 // This allows scripts to load dotenv before calling these functions
 function getConfig() {
+  const cid = process.env.ERP_CID || process.env.ERP_COMPANY_ID || "";
+  
+  if (!cid) {
+    throw new ERPAuthError(
+      "ERP_CID environment variable is required. " +
+      "Set ERP_CID=GENTHRUST for production or ERP_CID=GENTHRUST_TEST for sandbox."
+    );
+  }
+  
   return {
     baseUrl: process.env.ERP_API_BASE_URL || "https://wapi.erp.aero/v1",
-    companyId: process.env.ERP_COMPANY_ID || "",
+    companyId: cid,
     email: process.env.ERP_EMAIL || "",
     password: process.env.ERP_PASSWORD || "",
     source: process.env.ERP_SOURCE || "genthrust-ro-tracker",
@@ -73,14 +82,25 @@ async function getAuthToken(): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new ERPAuthError(`Auth request failed: ${res.status} ${res.statusText}`);
+    const errorText = await res.text().catch(() => "");
+    throw new ERPAuthError(
+      `Auth request failed: ${res.status} ${res.statusText}. ` +
+      `CID: ${config.companyId}. ` +
+      `Check that ERP_CID is set correctly (GENTHRUST for production, GENTHRUST_TEST for sandbox). ` +
+      `Response: ${errorText}`
+    );
   }
 
   const data: ERPAuthResponse = await res.json();
 
   // SUCCESS = res: 1 (not 0)
   if (data.res !== 1 || !data.data?.token) {
-    throw new ERPAuthError(data.error || data.msg || "Unknown authentication error");
+    const errorMsg = data.error || data.msg || "Unknown authentication error";
+    throw new ERPAuthError(
+      `ERP authentication failed: ${errorMsg}. ` +
+      `CID used: ${config.companyId}. ` +
+      `Verify ERP_CID, ERP_EMAIL, and ERP_PASSWORD are correct.`
+    );
   }
 
   // Cache the token
