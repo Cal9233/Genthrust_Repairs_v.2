@@ -59,19 +59,29 @@ async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
     const oldSystemRONumbers = new Set<number>();
     
     for (const ro of erpROs) {
-      // Extract old system RO numbers from notes
-      const notesRONumbers = extractOldSystemRONumbers(ro.notes);
-      notesRONumbers.forEach(num => oldSystemRONumbers.add(num));
-      
-      // Extract old system RO numbers from partDescription
-      const descRONumbers = extractOldSystemRONumbers(ro.partDescription);
-      descRONumbers.forEach(num => oldSystemRONumbers.add(num));
+      try {
+        // Extract old system RO numbers from notes
+        const notesRONumbers = extractOldSystemRONumbers(ro.notes);
+        notesRONumbers.forEach(num => oldSystemRONumbers.add(num));
+        
+        // Extract old system RO numbers from partDescription
+        const descRONumbers = extractOldSystemRONumbers(ro.partDescription);
+        descRONumbers.forEach(num => oldSystemRONumbers.add(num));
+      } catch (roError) {
+        // Skip individual RO errors, continue processing
+        console.warn("Error extracting old system RO numbers from individual RO:", roError);
+      }
+    }
+    
+    if (oldSystemRONumbers.size > 0) {
+      console.log(`[Dashboard Filter] Found ${oldSystemRONumbers.size} old system RO numbers from ${erpROs.length} ERP-synced ROs`);
     }
     
     return oldSystemRONumbers;
   } catch (error) {
     console.error("Error fetching old system RO numbers from ERP:", error);
     // Return empty set on error to avoid blocking dashboard
+    // This ensures the dashboard always shows results even if filtering fails
     return new Set<number>();
   }
 }
