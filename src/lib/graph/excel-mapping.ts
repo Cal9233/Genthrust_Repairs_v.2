@@ -44,14 +44,36 @@ export type ExcelColumnKey = (typeof EXCEL_COLUMNS)[number];
 
 /**
  * Convert a database row to an Excel row array
+ * Formats date fields to US format (mm/dd/yy) for Excel compatibility
  */
 export function dbRowToExcelRow(
   row: Active
 ): (string | number | null)[] {
+  // Date fields that need to be formatted to US format (mm/dd/yy)
+  const dateFields = new Set([
+    "dateMade",
+    "dateDroppedOff",
+    "estimatedDeliveryDate",
+    "curentStatusDate",
+    "lastDateUpdated",
+    "nextDateToUpdate",
+  ]);
+
   return EXCEL_COLUMNS.map((col) => {
     const value = row[col as keyof Active];
+    
     // Convert undefined to null for Excel compatibility
-    return value === undefined ? null : (value as string | number | null);
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    // Format date fields to US format (mm/dd/yy)
+    if (dateFields.has(col)) {
+      const date = parseDate(value as string | number | Date | null);
+      return formatDateUS(date);
+    }
+
+    return value as string | number | null;
   });
 }
 
