@@ -374,10 +374,6 @@ export async function getRepairOrders(
         )
       : undefined;
 
-    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
-    // Note: This filtering only affects Excel ROs (LOCAL_ONLY), not ERP-synced ROs
-    const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
-
     // If filtering for overdue, we need to fetch all and filter in memory
     // (date parsing can't be done in SQL with string dates)
     if (filter === "overdue") {
@@ -397,6 +393,16 @@ export async function getRepairOrders(
       const overdueResults = allResults.filter((r) =>
         isOverdue(r.nextDateToUpdate)
       );
+
+      // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+      // Do this AFTER fetching results so if it fails, we still return results
+      let oldSystemRONumbers: Set<number>;
+      try {
+        oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+      } catch (error) {
+        console.error("Failed to get old system RO numbers, skipping filter:", error);
+        oldSystemRONumbers = new Set<number>(); // Empty set = no filtering
+      }
 
       // Filter out Excel ROs matching old system RO references
       const filteredResults = filterExcelROsMatchingOldSystem(overdueResults, oldSystemRONumbers);
@@ -433,6 +439,16 @@ export async function getRepairOrders(
       .from(active)
       .where(whereCondition)
       .orderBy(desc(active.id));
+
+    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    // Do this AFTER fetching results so if it fails, we still return results
+    let oldSystemRONumbers = new Set<number>(); // Default to empty set (no filtering)
+    try {
+      oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+    } catch (error) {
+      console.error("Failed to get old system RO numbers, skipping filter:", error);
+      // Keep empty set = no filtering
+    }
 
     // Filter out Excel ROs matching old system RO references
     const filteredResults = filterExcelROsMatchingOldSystem(allResults, oldSystemRONumbers);
@@ -562,10 +578,6 @@ export async function getRepairOrdersBySheet(
     // Combine all conditions with AND
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
-    // Note: This filtering only affects Excel ROs (LOCAL_ONLY), not ERP-synced ROs
-    const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
-
     // Handle overdue filter (requires in-memory filtering due to string date format)
     if (filter === "overdue") {
       const allResults = await db
@@ -578,6 +590,16 @@ export async function getRepairOrdersBySheet(
       const overdueResults = allResults.filter((r) =>
         isOverdue(r.nextDateToUpdate)
       );
+
+      // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+      // Do this AFTER fetching results so if it fails, we still return results
+      let oldSystemRONumbers: Set<number>;
+      try {
+        oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+      } catch (error) {
+        console.error("Failed to get old system RO numbers, skipping filter:", error);
+        oldSystemRONumbers = new Set<number>(); // Empty set = no filtering
+      }
 
       // Filter out Excel ROs matching old system RO references
       const filteredResults = filterExcelROsMatchingOldSystem(
@@ -611,6 +633,16 @@ export async function getRepairOrdersBySheet(
       .from(table)
       .where(whereCondition)
       .orderBy(desc(table.id));
+
+    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    // Do this AFTER fetching results so if it fails, we still return results
+    let oldSystemRONumbers: Set<number>;
+    try {
+      oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+    } catch (error) {
+      console.error("Failed to get old system RO numbers, skipping filter:", error);
+      oldSystemRONumbers = new Set<number>(); // Empty set = no filtering
+    }
 
     // Filter out Excel ROs matching old system RO references
     const filteredResults = filterExcelROsMatchingOldSystem(
