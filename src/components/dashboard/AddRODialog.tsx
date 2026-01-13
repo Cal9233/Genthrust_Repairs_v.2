@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { createRepairOrder } from "@/app/actions/repair-orders";
-import { useRefresh } from "@/contexts/RefreshContext";
+import { useRefreshStore } from "@/stores/refresh-store";
+import { useStatsStore } from "@/stores/stats-store";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
@@ -38,7 +39,8 @@ interface AddRODialogProps {
 export function AddRODialog({ children }: AddRODialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const { triggerRefresh } = useRefresh();
+  const triggerRefresh = useRefreshStore((state) => state.triggerRefresh);
+  const refreshStats = useStatsStore((state) => state.refreshStats);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -79,7 +81,8 @@ export function AddRODialog({ children }: AddRODialogProps) {
 
       if (result.success) {
         toast.success(`RO #${result.data.ro} created successfully`);
-        triggerRefresh();
+        triggerRefresh(); // Refresh repair order table
+        refreshStats(); // Refresh stats cards
         setOpen(false);
         // Reset form
         setFormData({

@@ -262,19 +262,23 @@ describe('TriggerSyncResult Type', () => {
   })
 })
 
-describe('RefreshContext Integration', () => {
+describe('Refresh Store Integration', () => {
   it('should increment refresh key on trigger', () => {
-    let refreshKey = 0
-
-    const triggerRefresh = () => {
-      refreshKey = refreshKey + 1
-    }
-
-    expect(refreshKey).toBe(0)
-    triggerRefresh()
-    expect(refreshKey).toBe(1)
-    triggerRefresh()
-    expect(refreshKey).toBe(2)
+    const { useRefreshStore } = require('@/stores/refresh-store')
+    
+    // Get initial state
+    const initialState = useRefreshStore.getState()
+    expect(initialState.refreshKey).toBeGreaterThanOrEqual(0)
+    
+    // Trigger refresh
+    useRefreshStore.getState().triggerRefresh()
+    const afterFirst = useRefreshStore.getState()
+    expect(afterFirst.refreshKey).toBeGreaterThan(initialState.refreshKey)
+    
+    // Trigger again
+    useRefreshStore.getState().triggerRefresh()
+    const afterSecond = useRefreshStore.getState()
+    expect(afterSecond.refreshKey).toBeGreaterThan(afterFirst.refreshKey)
   })
 })
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { SyncProvider } from "@/contexts/SyncContext";
 import { RepairOrderTable } from "./RepairOrderTable";
 import { AutoImportTrigger } from "./AutoImportTrigger";
 import type { RepairOrderFilter, SheetFilter } from "@/app/actions/dashboard";
@@ -13,8 +12,9 @@ interface DashboardContentProps {
 
 /**
  * Client component wrapper for dashboard content.
- * Provides SyncContext to coordinate loading state between
- * AutoImportTrigger and RepairOrderTable.
+ * 
+ * Note: Sync state is now managed via Zustand (useSyncStore),
+ * so no provider wrapper is needed.
  */
 export function DashboardContent({
   userId,
@@ -22,12 +22,12 @@ export function DashboardContent({
   sheet,
 }: DashboardContentProps) {
   return (
-    <SyncProvider>
+    <>
       {/* Auto-import from Excel on first session load */}
       <AutoImportTrigger userId={userId} />
 
       {/* Repair Orders Table */}
       <RepairOrderTable filter={filter} sheet={sheet} />
-    </SyncProvider>
+    </>
   );
 }

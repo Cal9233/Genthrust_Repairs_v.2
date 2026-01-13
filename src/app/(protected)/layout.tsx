@@ -1,8 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { Navigation } from "@/components/layout/Navigation";
 import { Assistant } from "@/components/agent/Assistant";
-import { RefreshProvider } from "@/contexts/RefreshContext";
-import { StatsProvider } from "@/contexts/StatsContext";
+import { StatsHydrator } from "@/components/providers/StatsHydrator";
 import { getDashboardStats } from "@/app/actions/dashboard";
 
 /**
@@ -11,13 +10,8 @@ import { getDashboardStats } from "@/app/actions/dashboard";
  * Provides consistent header, navigation, and AI assistant
  * for all protected routes.
  *
- * RefreshProvider enables cross-component refresh signals
- * (e.g., ExcelDropdownButton triggers RepairOrderTable refresh).
- *
- * StatsProvider provides global dashboard statistics that are
- * shared across all components (StatsGrid, NotificationBell, etc.).
- * - Initial stats are fetched server-side (no flash of zeros)
- * - It automatically refreshes when RefreshContext triggers
+ * StatsHydrator initializes Zustand stores with server-side data
+ * for SSR hydration (no flash of zeros).
  *
  * Note: Trigger.dev v3 realtime hooks don't require a provider -
  * they use the accessToken passed to each hook directly.
@@ -40,15 +34,13 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <RefreshProvider>
-      <StatsProvider initialStats={initialStats}>
-        <div className="flex min-h-screen flex-col bg-background">
-          <Header />
-          <Navigation />
-          <main className="flex-1">{children}</main>
-          <Assistant />
-        </div>
-      </StatsProvider>
-    </RefreshProvider>
+    <StatsHydrator initialStats={initialStats}>
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <Navigation />
+        <main className="flex-1">{children}</main>
+        <Assistant />
+      </div>
+    </StatsHydrator>
   );
 }

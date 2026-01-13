@@ -33,10 +33,6 @@ export default async function DashboardPage({
     ? (params.sheet as SheetFilter)
     : "active";
 
-  // Fetch dashboard stats on the server
-  const statsResult = await getDashboardStats();
-  const stats = statsResult.success ? statsResult.data : null;
-
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header */}
@@ -52,10 +48,10 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <StatsGrid stats={stats} activeFilter={filter} />
+      {/* KPI Stats Grid - Now uses Zustand store for automatic updates */}
+      <StatsGrid activeFilter={filter} />
 
-      {/* Auto-import + Repair Orders Table (coordinated via SyncContext) */}
+      {/* Auto-import + Repair Orders Table (coordinated via Zustand stores) */}
       <DashboardContent userId={user.id} filter={filter} sheet={sheet} />
     </div>
   );

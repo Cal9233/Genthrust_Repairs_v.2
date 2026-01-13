@@ -1,10 +1,12 @@
+"use client";
+
 import { Package, AlertTriangle, Clock, DollarSign, Truck, Calendar, FileCheck } from "lucide-react";
 import { HeroStatCard } from "./HeroStatCard";
 import { StatCard } from "./StatCard";
-import type { DashboardStats, RepairOrderFilter } from "@/app/actions/dashboard";
+import type { RepairOrderFilter } from "@/app/actions/dashboard";
+import { useStatsStore } from "@/stores/stats-store";
 
 type StatsGridProps = {
-  stats: DashboardStats | null;
   activeFilter?: RepairOrderFilter;
 };
 
@@ -20,8 +22,13 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function StatsGrid({ stats, activeFilter = "all" }: StatsGridProps) {
-  if (!stats) {
+export function StatsGrid({ activeFilter = "all" }: StatsGridProps) {
+  // Get stats from Zustand store - automatically updates when data changes
+  const stats = useStatsStore((state) => state.stats);
+  const loading = useStatsStore((state) => state.loading);
+
+  // Show loading skeleton while fetching
+  if (loading || !stats) {
     return (
       <div className="space-y-3 sm:space-y-4">
         {/* Hero skeleton */}

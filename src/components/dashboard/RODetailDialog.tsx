@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { getRepairOrderById, type RepairOrder } from "@/app/actions/dashboard";
 import { updateRepairOrderStatus } from "@/app/actions/repair-orders";
+import { useStatsStore } from "@/stores/stats-store";
 import { toast } from "sonner";
 import {
   Building2,
@@ -167,6 +168,7 @@ export function RODetailDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const refreshStats = useStatsStore((state) => state.refreshStats);
 
   /**
    * Check if the terms column indicates Net Terms (e.g., "Net 30", "Net 60")
@@ -241,6 +243,8 @@ export function RODetailDialog({
         toast.success(`Moving to ${destinationSheet} sheet...`);
       }
       onStatusChanged?.();
+      // Refresh stats to reflect the status change (e.g., NET30, Shipped, Approved counts)
+      refreshStats();
     } else {
       toast.error(result.error);
     }

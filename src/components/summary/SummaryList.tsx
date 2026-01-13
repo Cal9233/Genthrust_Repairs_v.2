@@ -9,7 +9,7 @@ import { RODetailPanel } from "@/components/ro-detail";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { AlertCircle, Clock, Truck, Wrench } from "lucide-react";
-import { useRefresh } from "@/contexts/RefreshContext";
+import { useRefreshStore } from "@/stores/refresh-store";
 
 type SummaryItem = {
   ro: NormalizedRepairOrder;
@@ -89,7 +89,7 @@ export function SummaryList() {
   const [isPending, startTransition] = useTransition();
   const [selectedRoId, setSelectedRoId] = useState<number | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const { refreshKey } = useRefresh();
+  const refreshKey = useRefreshStore((state) => state.refreshKey);
 
   // Fetch all active ROs on mount and when refresh is triggered
   useEffect(() => {

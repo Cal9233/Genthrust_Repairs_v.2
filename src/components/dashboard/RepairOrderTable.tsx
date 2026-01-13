@@ -28,8 +28,8 @@ import { AddRODialog } from "./AddRODialog";
 import { RODetailPanel } from "@/components/ro-detail";
 import { TurbineSpinner } from "@/components/ui/TurbineSpinner";
 import { Search, AlertCircle, ChevronRight } from "lucide-react";
-import { useRefresh } from "@/contexts/RefreshContext";
-import { useSyncStatus } from "@/contexts/SyncContext";
+import { useRefreshStore } from "@/stores/refresh-store";
+import { useSyncStore } from "@/stores/sync-store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -195,8 +195,8 @@ export function RepairOrderTable({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const debouncedQuery = useDebounce(query, 300);
-  const { refreshKey } = useRefresh();
-  const { isSyncing } = useSyncStatus();
+  const refreshKey = useRefreshStore((state) => state.refreshKey);
+  const isSyncing = useSyncStore((state) => state.isSyncing);
 
   // Fetch data when query, page, filter, sheet, filters, refreshTrigger, or refreshKey changes
   useEffect(() => {

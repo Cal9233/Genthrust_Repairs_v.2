@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/repair-orders";
 import { getDocuments, type SharePointFile } from "@/app/actions/documents";
 import { getNotificationsForRO } from "@/app/actions/notifications";
+import { useStatsStore } from "@/stores/stats-store";
 import { parseDate } from "@/lib/date-utils";
 import type { NotificationQueueItem } from "@/lib/schema";
 
@@ -237,6 +238,8 @@ export function useRODetail(
         await fetchData();
         // Also refresh activity log, email threads, etc.
         await fetchAdditionalData();
+        // Refresh stats to reflect any changes (e.g., status, cost, etc.)
+        useStatsStore.getState().refreshStats();
         setEditMode(false);
         setEditedFields({});
         return { success: true };

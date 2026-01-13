@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { triggerExcelImport } from "@/app/actions/import";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
-import { useSyncStatus } from "@/contexts/SyncContext";
-// Note: Not using RefreshContext because StatsGrid is server-rendered
-// and needs a full page reload to update
+import { useSyncStore } from "@/stores/sync-store";
 import { toast } from "sonner";
 
 interface AutoImportTriggerProps {
@@ -28,7 +26,7 @@ export function AutoImportTrigger({ userId }: AutoImportTriggerProps) {
   const hasTriggeredRef = useRef(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const { setIsSyncing } = useSyncStatus();
+  const setIsSyncing = useSyncStore((state) => state.setIsSyncing);
 
   const { status } = useTriggerRun(runId, accessToken);
 
@@ -39,8 +37,10 @@ export function AutoImportTrigger({ userId }: AutoImportTriggerProps) {
       // Dispatch event to refresh NotificationBell immediately
       // This prevents stale notifications from being actioned before page reload
       window.dispatchEvent(new CustomEvent("notifications-refresh"));
-      // Full page reload to refresh server-rendered stats cards
-      // triggerRefresh() only updates client components, not StatsGrid
+      // Dispatch stats refresh event (though we'll reload anyway)
+      window.dispatchEvent(new CustomEvent("stats-refresh"));
+      // Full page reload to ensure all data is fresh
+      // Note: StatsGrid now uses context, but reload ensures consistency
       setTimeout(() => {
         window.location.reload();
       }, 1000); // Brief delay to show toast

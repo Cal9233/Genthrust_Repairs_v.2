@@ -15,7 +15,8 @@ import { triggerExcelImport } from "@/app/actions/import";
 import { FileSpreadsheet, Download, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useRefresh } from "@/contexts/RefreshContext";
+import { useRefreshStore } from "@/stores/refresh-store";
+import { useStatsStore } from "@/stores/stats-store";
 
 interface ExcelDropdownButtonProps {
   userId: string;
@@ -40,7 +41,8 @@ export function ExcelDropdownButton({ userId }: ExcelDropdownButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { status, isRunning } = useTriggerRun(runId, accessToken);
-  const { triggerRefresh } = useRefresh();
+  const triggerRefresh = useRefreshStore((state) => state.triggerRefresh);
+  const refreshStats = useStatsStore((state) => state.refreshStats);
 
   // Set result status when action completes
   useEffect(() => {
@@ -49,6 +51,7 @@ export function ExcelDropdownButton({ userId }: ExcelDropdownButtonProps) {
       const actionName = activeAction === "import" ? "Import" : "Sync";
       toast.success(`${actionName} completed successfully`);
       triggerRefresh(); // Refresh the RepairOrderTable
+      refreshStats(); // Refresh stats cards
       setActiveAction(null);
     } else if (status === "failed" || status === "canceled") {
       setResultStatus("error");
