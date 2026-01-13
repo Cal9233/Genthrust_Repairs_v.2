@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "dev:trigger": "npx trigger.dev@latest dev"
+    "dev:trigger": "npx trigger.dev@latest dev",
+    "deploy:trigger": "npx trigger.dev@latest deploy"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.50",
