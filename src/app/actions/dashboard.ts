@@ -82,6 +82,9 @@ async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
  * Note: Only rows from the 'active' table have erpSyncStatus. Rows from other tables
  * (net, paid, returns) don't have this field, so they are kept (archived records).
  * 
+ * IMPORTANT: This function ONLY filters Excel ROs (LOCAL_ONLY). ERP-synced ROs (SYNCED)
+ * and rows from other tables are ALWAYS kept, regardless of old system RO references.
+ * 
  * @param results - Array of repair orders to filter
  * @param oldSystemRONumbers - Set of old system RO numbers to exclude
  * @returns Filtered array of repair orders
@@ -90,25 +93,48 @@ function filterExcelROsMatchingOldSystem(
   results: RepairOrder[],
   oldSystemRONumbers: Set<number>
 ): RepairOrder[] {
+  // Safety: If no old system RO numbers found, return all results
   if (oldSystemRONumbers.size === 0) {
-    return results; // No filtering needed if no old system ROs found
+    return results;
   }
   
-  return results.filter((ro) => {
-    // Only filter rows that have erpSyncStatus field (from 'active' table)
-    // Rows from other tables (net, paid, returns) don't have this field
-    // and should be kept as they are archived records
-    if (!("erpSyncStatus" in ro) || ro.erpSyncStatus !== "LOCAL_ONLY") {
-      return true; // Keep ERP-synced ROs and rows from other tables
+  let filteredCount = 0;
+  const filtered = results.filter((ro) => {
+    // Safety: Only filter rows that explicitly have erpSyncStatus === "LOCAL_ONLY"
+    // This ensures we NEVER filter out:
+    // - ERP-synced ROs (erpSyncStatus === "SYNCED")
+    // - Rows from other tables (no erpSyncStatus field)
+    // - Rows with null/undefined erpSyncStatus
+    
+    const hasErpSyncStatus = "erpSyncStatus" in ro;
+    const isLocalOnly = hasErpSyncStatus && ro.erpSyncStatus === "LOCAL_ONLY";
+    
+    // If not a LOCAL_ONLY Excel RO, always keep it
+    if (!isLocalOnly) {
+      return true;
     }
     
-    // Check if this Excel RO's number matches any old system RO reference
+    // Only filter LOCAL_ONLY Excel ROs that match old system RO references
     if (ro.ro !== null && oldSystemRONumbers.has(ro.ro)) {
+      filteredCount++;
       return false; // Exclude this Excel RO
     }
     
     return true; // Keep this Excel RO
   });
+  
+  // Log filtering activity for debugging
+  if (filteredCount > 0) {
+    console.log(`[Dashboard Filter] Filtered out ${filteredCount} Excel ROs matching old system RO references (out of ${results.length} total)`);
+  }
+  
+  // Safety check: If we filtered out more than 50% of results, something is wrong
+  // This shouldn't happen in normal operation - log a warning
+  if (filteredCount > 0 && filtered.length < results.length * 0.5) {
+    console.warn(`[Dashboard Filter] WARNING: Filtered out ${filteredCount} out of ${results.length} ROs (${Math.round(filteredCount / results.length * 100)}%). This seems excessive.`);
+  }
+  
+  return filtered;
 }
 
 // Filter type for repair orders
@@ -339,6 +365,7 @@ export async function getRepairOrders(
       : undefined;
 
     // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    // Note: This filtering only affects Excel ROs (LOCAL_ONLY), not ERP-synced ROs
     const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
 
     // If filtering for overdue, we need to fetch all and filter in memory
@@ -526,6 +553,7 @@ export async function getRepairOrdersBySheet(
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    // Note: This filtering only affects Excel ROs (LOCAL_ONLY), not ERP-synced ROs
     const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
 
     // Handle overdue filter (requires in-memory filtering due to string date format)
