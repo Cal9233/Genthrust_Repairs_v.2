@@ -25,8 +25,19 @@ interface SignInPageProps {
 }
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const session = await auth();
   const params = await searchParams;
+  
+  // Try to get session, but gracefully handle database connection errors
+  // (NextAuth with JWT strategy should work even if DB is temporarily unavailable)
+  let session;
+  try {
+    session = await auth();
+  } catch (error) {
+    // Log error but don't crash - allow sign-in to proceed
+    // Database connection errors shouldn't block authentication
+    console.error("[SignInPage] Error checking session:", error);
+    session = null;
+  }
 
   // Redirect if already logged in
   if (session?.user) {
