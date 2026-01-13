@@ -2,9 +2,10 @@
 
 import { db } from "@/lib/db";
 import { active, net, paid, returns } from "@/lib/schema";
-import { like, or, sql, count, desc, notInArray, and, eq, gte, lte } from "drizzle-orm";
+import { like, or, sql, count, desc, notInArray, and, eq, gte, lte, isNotNull } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
 import { ARCHIVED_STATUSES, isWaitingQuote, isInWork, isShipped, isApproved } from "@/lib/constants/statuses";
+import { extractOldSystemRONumbers } from "@/lib/utils";
 
 // Result type per CLAUDE.md
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -34,6 +35,81 @@ export type PaginatedRepairOrders = {
 
 const ITEMS_PER_PAGE = 20;
 
+/**
+ * Get set of old system RO numbers from ERP-synced repair orders.
+ * Extracts old system RO references (e.g., "RO G 38569") from notes and partDescription fields.
+ * 
+ * @returns Set of old system RO numbers found in ERP ROs
+ */
+async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
+  try {
+    // Fetch all ERP-synced ROs (SYNCED status means they came from ERP)
+    // Only query ROs that have erpSyncStatus set to "SYNCED" (not null)
+    const erpROs = await db
+      .select({
+        notes: active.notes,
+        partDescription: active.partDescription,
+      })
+      .from(active)
+      .where(and(
+        isNotNull(active.erpSyncStatus),
+        eq(active.erpSyncStatus, "SYNCED")
+      ));
+
+    const oldSystemRONumbers = new Set<number>();
+    
+    for (const ro of erpROs) {
+      // Extract old system RO numbers from notes
+      const notesRONumbers = extractOldSystemRONumbers(ro.notes);
+      notesRONumbers.forEach(num => oldSystemRONumbers.add(num));
+      
+      // Extract old system RO numbers from partDescription
+      const descRONumbers = extractOldSystemRONumbers(ro.partDescription);
+      descRONumbers.forEach(num => oldSystemRONumbers.add(num));
+    }
+    
+    return oldSystemRONumbers;
+  } catch (error) {
+    console.error("Error fetching old system RO numbers from ERP:", error);
+    // Return empty set on error to avoid blocking dashboard
+    return new Set<number>();
+  }
+}
+
+/**
+ * Filter out Excel ROs (LOCAL_ONLY) that match old system RO references from ERP ROs.
+ * 
+ * Note: Only rows from the 'active' table have erpSyncStatus. Rows from other tables
+ * (net, paid, returns) don't have this field, so they are kept (archived records).
+ * 
+ * @param results - Array of repair orders to filter
+ * @param oldSystemRONumbers - Set of old system RO numbers to exclude
+ * @returns Filtered array of repair orders
+ */
+function filterExcelROsMatchingOldSystem(
+  results: RepairOrder[],
+  oldSystemRONumbers: Set<number>
+): RepairOrder[] {
+  if (oldSystemRONumbers.size === 0) {
+    return results; // No filtering needed if no old system ROs found
+  }
+  
+  return results.filter((ro) => {
+    // Only filter rows that have erpSyncStatus field (from 'active' table)
+    // Rows from other tables (net, paid, returns) don't have this field
+    // and should be kept as they are archived records
+    if (!("erpSyncStatus" in ro) || ro.erpSyncStatus !== "LOCAL_ONLY") {
+      return true; // Keep ERP-synced ROs and rows from other tables
+    }
+    
+    // Check if this Excel RO's number matches any old system RO reference
+    if (ro.ro !== null && oldSystemRONumbers.has(ro.ro)) {
+      return false; // Exclude this Excel RO
+    }
+    
+    return true; // Keep this Excel RO
+  });
+}
 
 // Filter type for repair orders
 export type RepairOrderFilter = "all" | "overdue";
@@ -262,6 +338,9 @@ export async function getRepairOrders(
         )
       : undefined;
 
+    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+
     // If filtering for overdue, we need to fetch all and filter in memory
     // (date parsing can't be done in SQL with string dates)
     if (filter === "overdue") {
@@ -282,12 +361,15 @@ export async function getRepairOrders(
         isOverdue(r.nextDateToUpdate)
       );
 
+      // Filter out Excel ROs matching old system RO references
+      const filteredResults = filterExcelROsMatchingOldSystem(overdueResults, oldSystemRONumbers);
+
       // Apply pagination to filtered results
-      const paginatedResults = overdueResults.slice(
+      const paginatedResults = filteredResults.slice(
         offset,
         offset + ITEMS_PER_PAGE
       );
-      const totalCount = overdueResults.length;
+      const totalCount = filteredResults.length;
       const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
       return {
@@ -301,29 +383,35 @@ export async function getRepairOrders(
       };
     }
 
-    // Standard "all" filter - use SQL pagination
-    // Always exclude archived statuses from Active view
+    // Standard "all" filter - fetch all matching results to filter in memory
+    // (we need to filter Excel ROs matching old system RO references)
     const baseCondition = notInArray(active.curentStatus, [...ARCHIVED_STATUSES]);
     const whereCondition = searchCondition
       ? and(baseCondition, searchCondition)
       : baseCondition;
 
-    const dataQuery = db.select().from(active).where(whereCondition);
-    const countQuery = db.select({ count: count() }).from(active).where(whereCondition);
+    // Fetch all results (we'll filter and paginate in memory)
+    const allResults = await db
+      .select()
+      .from(active)
+      .where(whereCondition)
+      .orderBy(desc(active.id));
 
-    // Execute queries in parallel
-    const [results, countResult] = await Promise.all([
-      dataQuery.orderBy(desc(active.id)).limit(ITEMS_PER_PAGE).offset(offset),
-      countQuery,
-    ]);
+    // Filter out Excel ROs matching old system RO references
+    const filteredResults = filterExcelROsMatchingOldSystem(allResults, oldSystemRONumbers);
 
-    const totalCount = countResult[0]?.count ?? 0;
+    // Apply pagination to filtered results
+    const paginatedResults = filteredResults.slice(
+      offset,
+      offset + ITEMS_PER_PAGE
+    );
+    const totalCount = filteredResults.length;
     const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
     return {
       success: true,
       data: {
-        data: results,
+        data: paginatedResults,
         totalCount,
         totalPages,
         currentPage: page,
@@ -437,6 +525,9 @@ export async function getRepairOrdersBySheet(
     // Combine all conditions with AND
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
+    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+
     // Handle overdue filter (requires in-memory filtering due to string date format)
     if (filter === "overdue") {
       const allResults = await db
@@ -450,12 +541,18 @@ export async function getRepairOrdersBySheet(
         isOverdue(r.nextDateToUpdate)
       );
 
+      // Filter out Excel ROs matching old system RO references
+      const filteredResults = filterExcelROsMatchingOldSystem(
+        overdueResults as RepairOrder[],
+        oldSystemRONumbers
+      );
+
       // Apply pagination to filtered results
-      const paginatedResults = overdueResults.slice(
+      const paginatedResults = filteredResults.slice(
         offset,
         offset + ITEMS_PER_PAGE
       );
-      const totalCount = overdueResults.length;
+      const totalCount = filteredResults.length;
       const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
       return {
@@ -469,25 +566,32 @@ export async function getRepairOrdersBySheet(
       };
     }
 
-    // Standard "all" filter - use SQL pagination for efficiency
-    const [results, countResult] = await Promise.all([
-      db
-        .select()
-        .from(table)
-        .where(whereCondition)
-        .orderBy(desc(table.id))
-        .limit(ITEMS_PER_PAGE)
-        .offset(offset),
-      db.select({ count: count() }).from(table).where(whereCondition),
-    ]);
+    // Standard "all" filter - fetch all results to filter in memory
+    // (we need to filter Excel ROs matching old system RO references)
+    const allResults = await db
+      .select()
+      .from(table)
+      .where(whereCondition)
+      .orderBy(desc(table.id));
 
-    const totalCount = countResult[0]?.count ?? 0;
+    // Filter out Excel ROs matching old system RO references
+    const filteredResults = filterExcelROsMatchingOldSystem(
+      allResults as RepairOrder[],
+      oldSystemRONumbers
+    );
+
+    // Apply pagination to filtered results
+    const paginatedResults = filteredResults.slice(
+      offset,
+      offset + ITEMS_PER_PAGE
+    );
+    const totalCount = filteredResults.length;
     const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
     return {
       success: true,
       data: {
-        data: results.map((r) => normalizeRepairOrder(r as Record<string, unknown>)),
+        data: paginatedResults.map((r) => normalizeRepairOrder(r as Record<string, unknown>)),
         totalCount,
         totalPages,
         currentPage: page,

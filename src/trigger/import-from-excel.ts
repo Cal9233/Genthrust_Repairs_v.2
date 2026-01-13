@@ -2,7 +2,7 @@ import { task, metadata, logger } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { db } from "../lib/db";
 import { active, net, paid, returns, notificationQueue } from "../lib/schema";
-import { eq, notInArray, isNull, inArray } from "drizzle-orm";
+import { eq, notInArray, isNull, inArray, and, isNotNull } from "drizzle-orm";
 import {
   getGraphClient,
   createExcelSession,
@@ -283,10 +283,18 @@ export const importFromExcel = task({
 
         // Delete orphaned rows from THIS table only
         if (sheetRONumbers.size > 0) {
+          // Filter out NULL RO values and use NOT IN for non-NULL values
+          // This prevents SQL errors with NULL comparisons in NOT IN clauses
+          const roArray = Array.from(sheetRONumbers);
           const orphanedRows = await db
             .select({ id: table.id, ro: table.ro })
             .from(table)
-            .where(notInArray(table.ro, Array.from(sheetRONumbers)));
+            .where(
+              and(
+                isNotNull(table.ro),
+                notInArray(table.ro, roArray)
+              )
+            );
 
           if (orphanedRows.length > 0) {
             logger.info(`Found ${orphanedRows.length} orphaned rows in ${sheetName} table`, {
