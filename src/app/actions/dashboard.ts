@@ -249,10 +249,12 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
   try {
     // Get active records (exclude archived statuses) for client-side calculations
     // (needed for date parsing which can't be done in SQL with string dates)
+    // Note: This query can fail if database connection is exhausted or timed out
     const allRecords = await db
       .select()
       .from(active)
-      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]));
+      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]))
+      .limit(10000); // Safety limit to prevent huge queries
 
     // Count NET 30 items (COMPLETE status with Net Terms)
     const net30Result = await db
@@ -341,12 +343,19 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     };
   } catch (error) {
     console.error("getDashboardStats error:", error);
+    // Provide more helpful error message for database connection issues
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConnectionError = 
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("Connection") ||
+      errorMessage.includes("timeout");
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch dashboard stats",
+      error: isConnectionError
+        ? "Database connection failed. Please check your database connection and try again."
+        : `Failed to fetch dashboard stats: ${errorMessage}`,
     };
   }
 }
@@ -472,12 +481,19 @@ export async function getRepairOrders(
     };
   } catch (error) {
     console.error("getRepairOrders error:", error);
+    // Provide more helpful error message for database connection issues
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConnectionError = 
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("Connection") ||
+      errorMessage.includes("timeout");
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch repair orders",
+      error: isConnectionError
+        ? "Database connection failed. Please check your database connection and try again."
+        : `Failed to fetch repair orders: ${errorMessage}`,
     };
   }
 }
@@ -669,12 +685,19 @@ export async function getRepairOrdersBySheet(
     };
   } catch (error) {
     console.error(`getRepairOrdersBySheet(${sheet}) error:`, error);
+    // Provide more helpful error message for database connection issues
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConnectionError = 
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("Connection") ||
+      errorMessage.includes("timeout");
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : `Failed to fetch repair orders from ${sheet} sheet`,
+      error: isConnectionError
+        ? "Database connection failed. Please check your database connection and try again."
+        : `Failed to fetch repair orders from ${sheet} sheet: ${errorMessage}`,
     };
   }
 }
