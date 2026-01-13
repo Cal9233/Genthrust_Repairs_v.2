@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { active, net, paid, returns } from "@/lib/schema";
-import { like, or, sql, count, desc, notInArray, and, eq, gte, lte, isNotNull } from "drizzle-orm";
+import { like, or, sql, count, desc, notInArray, and, eq, gte, lte, isNotNull, isNull } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
 import { ARCHIVED_STATUSES, isWaitingQuote, isInWork, isShipped, isApproved } from "@/lib/constants/statuses";
 import { extractOldSystemRONumbers } from "@/lib/utils";
@@ -250,10 +250,16 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     // Get active records (exclude archived statuses) for client-side calculations
     // (needed for date parsing which can't be done in SQL with string dates)
     // Note: This query can fail if database connection is exhausted or timed out
+    // Include NULL statuses as "active" (not archived)
     const allRecords = await db
       .select()
       .from(active)
-      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]))
+      .where(
+        or(
+          isNull(active.curentStatus),
+          notInArray(active.curentStatus, [...ARCHIVED_STATUSES])
+        )
+      )
       .limit(10000); // Safety limit to prevent huge queries
 
     // Count NET 30 items (COMPLETE status with Net Terms)
@@ -387,7 +393,11 @@ export async function getRepairOrders(
     // (date parsing can't be done in SQL with string dates)
     if (filter === "overdue") {
       // Base condition: exclude archived statuses
-      const baseCondition = notInArray(active.curentStatus, [...ARCHIVED_STATUSES]);
+      // Include NULL statuses as "active" (not archived)
+      const baseCondition = or(
+        isNull(active.curentStatus),
+        notInArray(active.curentStatus, [...ARCHIVED_STATUSES])
+      );
       const whereCondition = searchCondition
         ? and(baseCondition, searchCondition)
         : baseCondition;
@@ -551,7 +561,7 @@ export async function getRepairOrdersBySheet(
     const searchPattern = query.trim() ? `%${query.trim()}%` : null;
 
     // Build conditions array for AND logic
-    const conditions: ReturnType<typeof eq>[] = [];
+    const conditions: (ReturnType<typeof eq> | ReturnType<typeof or> | ReturnType<typeof notInArray>)[] = [];
 
     // Search condition - works for all tables since they share column names
     if (searchPattern) {
@@ -566,8 +576,14 @@ export async function getRepairOrdersBySheet(
     }
 
     // For active sheet, exclude archived statuses
+    // Include NULL statuses as "active" (not archived)
     if (sheet === "active") {
-      conditions.push(notInArray(table.curentStatus, [...ARCHIVED_STATUSES]));
+      conditions.push(
+        or(
+          isNull(table.curentStatus),
+          notInArray(table.curentStatus, [...ARCHIVED_STATUSES])
+        )
+      );
     }
 
     // Apply status filter (supports startsWith for "APPROVED" variants)
