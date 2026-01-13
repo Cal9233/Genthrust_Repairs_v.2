@@ -131,6 +131,9 @@ export function mapERPDetailsToLocal(data: ERPExternalDetailsResponse) {
   );
 
   // Build notes from condition if present
+  // Note: Old system RO references (e.g., "RO G 38569") may be in the comment field,
+  // which is mapped to partDescription. We'll extract them from both notes and partDescription
+  // when filtering Excel ROs in the dashboard.
   const noteParts: string[] = [];
   if (mainPart?.condition) {
     noteParts.push(`Condition: ${mainPart.condition}`);
