@@ -29,6 +29,8 @@ export default defineConfig([
           varsIgnorePattern: "^_",
         },
       ],
+      // Allow require() in test files for mocking
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ]);

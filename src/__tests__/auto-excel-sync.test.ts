@@ -263,8 +263,8 @@ describe('TriggerSyncResult Type', () => {
 })
 
 describe('Refresh Store Integration', () => {
-  it('should increment refresh key on trigger', () => {
-    const { useRefreshStore } = require('@/stores/refresh-store')
+  it('should increment refresh key on trigger', async () => {
+    const { useRefreshStore } = await import('@/stores/refresh-store')
     
     // Get initial state
     const initialState = useRefreshStore.getState()

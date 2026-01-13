@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import {
-  getDashboardStats,
   type RepairOrderFilter,
   type SheetFilter,
 } from "@/app/actions/dashboard";

@@ -10,17 +10,6 @@ interface StatsState {
   setInitialStats: (stats: DashboardStats) => void;
 }
 
-const defaultStats: DashboardStats = {
-  totalActive: 0,
-  overdue: 0,
-  waitingQuote: 0,
-  valueInWork: 0,
-  inWork: 0,
-  shipped: 0,
-  net30: 0,
-  approved: 0,
-};
-
 /**
  * Stats Store - Global state for dashboard statistics
  * 
@@ -34,7 +23,7 @@ const defaultStats: DashboardStats = {
  * - Listens to refreshKey changes from refresh store
  */
 export const useStatsStore = create<StatsState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set) => ({
     stats: null,
     loading: false,
     lastUpdated: null,
@@ -72,15 +61,15 @@ if (typeof window !== "undefined") {
   // Dynamically import to avoid circular dependency
   import("./refresh-store").then(({ useRefreshStore }) => {
     // Listen to refreshKey changes from refresh store
-    useRefreshStore.subscribe(
-      (state) => state.refreshKey,
-      (refreshKey) => {
-        // Only refresh if refreshKey > 0 (user triggered refresh)
-        if (refreshKey > 0) {
-          useStatsStore.getState().refreshStats();
-        }
+    let previousRefreshKey = useRefreshStore.getState().refreshKey;
+    useRefreshStore.subscribe((state) => {
+      const currentRefreshKey = state.refreshKey;
+      // Only refresh if refreshKey changed and is > 0 (user triggered refresh)
+      if (currentRefreshKey !== previousRefreshKey && currentRefreshKey > 0) {
+        previousRefreshKey = currentRefreshKey;
+        useStatsStore.getState().refreshStats();
       }
-    );
+    });
   });
 
   // Listen for custom refresh events
