@@ -59,7 +59,7 @@ export function ExcelDropdownButton({ userId }: ExcelDropdownButtonProps) {
       toast.error(`${actionName} failed`);
       setActiveAction(null);
     }
-  }, [status, activeAction, triggerRefresh]);
+  }, [status, activeAction, triggerRefresh, refreshStats]);
 
   // Auto-clear result status after 3 seconds
   useEffect(() => {
