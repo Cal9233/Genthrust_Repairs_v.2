@@ -355,13 +355,12 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     
     if (error instanceof Error) {
       errorMessage = error.message;
-      // Check for MySQL error code (usually in errno property)
-      if ('errno' in error) {
-        errorCode = String(error.errno);
-      }
-      // Check for error code property
+      // Prefer 'code' property (string codes like "ECONNREFUSED") over 'errno' (numeric codes)
+      // Use else-if to prevent overwriting when both exist
       if ('code' in error) {
         errorCode = String(error.code);
+      } else if ('errno' in error) {
+        errorCode = String(error.errno);
       }
     } else if (typeof error === 'object' && error !== null) {
       // Handle error objects that aren't Error instances
@@ -381,6 +380,8 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
       error: error,
     });
     
+    // Check for connection errors using both error message and code
+    // MySQL connection errors have string codes like "ECONNREFUSED", "ETIMEDOUT"
     const isConnectionError = 
       errorMessage.includes("ECONNREFUSED") ||
       errorMessage.includes("ETIMEDOUT") ||
@@ -739,13 +740,12 @@ export async function getRepairOrdersBySheet(
     
     if (error instanceof Error) {
       errorMessage = error.message;
-      // Check for MySQL error code (usually in errno property)
-      if ('errno' in error) {
-        errorCode = String(error.errno);
-      }
-      // Check for error code property
+      // Prefer 'code' property (string codes like "ECONNREFUSED") over 'errno' (numeric codes)
+      // Use else-if to prevent overwriting when both exist
       if ('code' in error) {
         errorCode = String(error.code);
+      } else if ('errno' in error) {
+        errorCode = String(error.errno);
       }
     } else if (typeof error === 'object' && error !== null) {
       // Handle error objects that aren't Error instances
@@ -765,6 +765,8 @@ export async function getRepairOrdersBySheet(
       error: error,
     });
     
+    // Check for connection errors using both error message and code
+    // MySQL connection errors have string codes like "ECONNREFUSED", "ETIMEDOUT"
     const isConnectionError = 
       errorMessage.includes("ECONNREFUSED") ||
       errorMessage.includes("ETIMEDOUT") ||
