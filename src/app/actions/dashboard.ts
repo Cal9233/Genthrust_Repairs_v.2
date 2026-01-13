@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { active, net, paid, returns } from "@/lib/schema";
-import { like, or, sql, count, desc, notInArray, and, eq, gte, lte, isNotNull } from "drizzle-orm";
+import { like, or, sql, count, desc, notInArray, and, eq, gte, lte, isNotNull, isNull } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
 import { ARCHIVED_STATUSES, isWaitingQuote, isInWork, isShipped, isApproved } from "@/lib/constants/statuses";
 import { extractOldSystemRONumbers } from "@/lib/utils";
@@ -59,19 +59,29 @@ async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
     const oldSystemRONumbers = new Set<number>();
     
     for (const ro of erpROs) {
-      // Extract old system RO numbers from notes
-      const notesRONumbers = extractOldSystemRONumbers(ro.notes);
-      notesRONumbers.forEach(num => oldSystemRONumbers.add(num));
-      
-      // Extract old system RO numbers from partDescription
-      const descRONumbers = extractOldSystemRONumbers(ro.partDescription);
-      descRONumbers.forEach(num => oldSystemRONumbers.add(num));
+      try {
+        // Extract old system RO numbers from notes
+        const notesRONumbers = extractOldSystemRONumbers(ro.notes);
+        notesRONumbers.forEach(num => oldSystemRONumbers.add(num));
+        
+        // Extract old system RO numbers from partDescription
+        const descRONumbers = extractOldSystemRONumbers(ro.partDescription);
+        descRONumbers.forEach(num => oldSystemRONumbers.add(num));
+      } catch (roError) {
+        // Skip individual RO errors, continue processing
+        console.warn("Error extracting old system RO numbers from individual RO:", roError);
+      }
+    }
+    
+    if (oldSystemRONumbers.size > 0) {
+      console.log(`[Dashboard Filter] Found ${oldSystemRONumbers.size} old system RO numbers from ${erpROs.length} ERP-synced ROs`);
     }
     
     return oldSystemRONumbers;
   } catch (error) {
     console.error("Error fetching old system RO numbers from ERP:", error);
     // Return empty set on error to avoid blocking dashboard
+    // This ensures the dashboard always shows results even if filtering fails
     return new Set<number>();
   }
 }
@@ -82,6 +92,9 @@ async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
  * Note: Only rows from the 'active' table have erpSyncStatus. Rows from other tables
  * (net, paid, returns) don't have this field, so they are kept (archived records).
  * 
+ * IMPORTANT: This function ONLY filters Excel ROs (LOCAL_ONLY). ERP-synced ROs (SYNCED)
+ * and rows from other tables are ALWAYS kept, regardless of old system RO references.
+ * 
  * @param results - Array of repair orders to filter
  * @param oldSystemRONumbers - Set of old system RO numbers to exclude
  * @returns Filtered array of repair orders
@@ -90,25 +103,48 @@ function filterExcelROsMatchingOldSystem(
   results: RepairOrder[],
   oldSystemRONumbers: Set<number>
 ): RepairOrder[] {
+  // Safety: If no old system RO numbers found, return all results
   if (oldSystemRONumbers.size === 0) {
-    return results; // No filtering needed if no old system ROs found
+    return results;
   }
   
-  return results.filter((ro) => {
-    // Only filter rows that have erpSyncStatus field (from 'active' table)
-    // Rows from other tables (net, paid, returns) don't have this field
-    // and should be kept as they are archived records
-    if (!("erpSyncStatus" in ro) || ro.erpSyncStatus !== "LOCAL_ONLY") {
-      return true; // Keep ERP-synced ROs and rows from other tables
+  let filteredCount = 0;
+  const filtered = results.filter((ro) => {
+    // Safety: Only filter rows that explicitly have erpSyncStatus === "LOCAL_ONLY"
+    // This ensures we NEVER filter out:
+    // - ERP-synced ROs (erpSyncStatus === "SYNCED")
+    // - Rows from other tables (no erpSyncStatus field)
+    // - Rows with null/undefined erpSyncStatus
+    
+    const hasErpSyncStatus = "erpSyncStatus" in ro;
+    const isLocalOnly = hasErpSyncStatus && ro.erpSyncStatus === "LOCAL_ONLY";
+    
+    // If not a LOCAL_ONLY Excel RO, always keep it
+    if (!isLocalOnly) {
+      return true;
     }
     
-    // Check if this Excel RO's number matches any old system RO reference
+    // Only filter LOCAL_ONLY Excel ROs that match old system RO references
     if (ro.ro !== null && oldSystemRONumbers.has(ro.ro)) {
+      filteredCount++;
       return false; // Exclude this Excel RO
     }
     
     return true; // Keep this Excel RO
   });
+  
+  // Log filtering activity for debugging
+  if (filteredCount > 0) {
+    console.log(`[Dashboard Filter] Filtered out ${filteredCount} Excel ROs matching old system RO references (out of ${results.length} total)`);
+  }
+  
+  // Safety check: If we filtered out more than 50% of results, something is wrong
+  // This shouldn't happen in normal operation - log a warning
+  if (filteredCount > 0 && filtered.length < results.length * 0.5) {
+    console.warn(`[Dashboard Filter] WARNING: Filtered out ${filteredCount} out of ${results.length} ROs (${Math.round(filteredCount / results.length * 100)}%). This seems excessive.`);
+  }
+  
+  return filtered;
 }
 
 // Filter type for repair orders
@@ -213,10 +249,18 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
   try {
     // Get active records (exclude archived statuses) for client-side calculations
     // (needed for date parsing which can't be done in SQL with string dates)
+    // Note: This query can fail if database connection is exhausted or timed out
+    // Include NULL statuses as "active" (not archived)
     const allRecords = await db
       .select()
       .from(active)
-      .where(notInArray(active.curentStatus, [...ARCHIVED_STATUSES]));
+      .where(
+        or(
+          isNull(active.curentStatus),
+          notInArray(active.curentStatus, [...ARCHIVED_STATUSES])
+        )
+      )
+      .limit(10000); // Safety limit to prevent huge queries
 
     // Count NET 30 items (COMPLETE status with Net Terms)
     const net30Result = await db
@@ -305,12 +349,19 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     };
   } catch (error) {
     console.error("getDashboardStats error:", error);
+    // Provide more helpful error message for database connection issues
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConnectionError = 
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("Connection") ||
+      errorMessage.includes("timeout");
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch dashboard stats",
+      error: isConnectionError
+        ? "Database connection failed. Please check your database connection and try again."
+        : `Failed to fetch dashboard stats: ${errorMessage}`,
     };
   }
 }
@@ -338,14 +389,15 @@ export async function getRepairOrders(
         )
       : undefined;
 
-    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
-    const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
-
     // If filtering for overdue, we need to fetch all and filter in memory
     // (date parsing can't be done in SQL with string dates)
     if (filter === "overdue") {
       // Base condition: exclude archived statuses
-      const baseCondition = notInArray(active.curentStatus, [...ARCHIVED_STATUSES]);
+      // Include NULL statuses as "active" (not archived)
+      const baseCondition = or(
+        isNull(active.curentStatus),
+        notInArray(active.curentStatus, [...ARCHIVED_STATUSES])
+      );
       const whereCondition = searchCondition
         ? and(baseCondition, searchCondition)
         : baseCondition;
@@ -360,6 +412,16 @@ export async function getRepairOrders(
       const overdueResults = allResults.filter((r) =>
         isOverdue(r.nextDateToUpdate)
       );
+
+      // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+      // Do this AFTER fetching results so if it fails, we still return results
+      let oldSystemRONumbers: Set<number>;
+      try {
+        oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+      } catch (error) {
+        console.error("Failed to get old system RO numbers, skipping filter:", error);
+        oldSystemRONumbers = new Set<number>(); // Empty set = no filtering
+      }
 
       // Filter out Excel ROs matching old system RO references
       const filteredResults = filterExcelROsMatchingOldSystem(overdueResults, oldSystemRONumbers);
@@ -397,6 +459,16 @@ export async function getRepairOrders(
       .where(whereCondition)
       .orderBy(desc(active.id));
 
+    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    // Do this AFTER fetching results so if it fails, we still return results
+    let oldSystemRONumbers = new Set<number>(); // Default to empty set (no filtering)
+    try {
+      oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+    } catch (error) {
+      console.error("Failed to get old system RO numbers, skipping filter:", error);
+      // Keep empty set = no filtering
+    }
+
     // Filter out Excel ROs matching old system RO references
     const filteredResults = filterExcelROsMatchingOldSystem(allResults, oldSystemRONumbers);
 
@@ -419,12 +491,19 @@ export async function getRepairOrders(
     };
   } catch (error) {
     console.error("getRepairOrders error:", error);
+    // Provide more helpful error message for database connection issues
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConnectionError = 
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("Connection") ||
+      errorMessage.includes("timeout");
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch repair orders",
+      error: isConnectionError
+        ? "Database connection failed. Please check your database connection and try again."
+        : `Failed to fetch repair orders: ${errorMessage}`,
     };
   }
 }
@@ -482,7 +561,7 @@ export async function getRepairOrdersBySheet(
     const searchPattern = query.trim() ? `%${query.trim()}%` : null;
 
     // Build conditions array for AND logic
-    const conditions: ReturnType<typeof eq>[] = [];
+    const conditions: (ReturnType<typeof eq> | ReturnType<typeof or> | ReturnType<typeof notInArray>)[] = [];
 
     // Search condition - works for all tables since they share column names
     if (searchPattern) {
@@ -497,8 +576,14 @@ export async function getRepairOrdersBySheet(
     }
 
     // For active sheet, exclude archived statuses
+    // Include NULL statuses as "active" (not archived)
     if (sheet === "active") {
-      conditions.push(notInArray(table.curentStatus, [...ARCHIVED_STATUSES]));
+      conditions.push(
+        or(
+          isNull(table.curentStatus),
+          notInArray(table.curentStatus, [...ARCHIVED_STATUSES])
+        )
+      );
     }
 
     // Apply status filter (supports startsWith for "APPROVED" variants)
@@ -525,9 +610,6 @@ export async function getRepairOrdersBySheet(
     // Combine all conditions with AND
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
-    const oldSystemRONumbers = await getOldSystemRONumbersFromERP();
-
     // Handle overdue filter (requires in-memory filtering due to string date format)
     if (filter === "overdue") {
       const allResults = await db
@@ -540,6 +622,16 @@ export async function getRepairOrdersBySheet(
       const overdueResults = allResults.filter((r) =>
         isOverdue(r.nextDateToUpdate)
       );
+
+      // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+      // Do this AFTER fetching results so if it fails, we still return results
+      let oldSystemRONumbers: Set<number>;
+      try {
+        oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+      } catch (error) {
+        console.error("Failed to get old system RO numbers, skipping filter:", error);
+        oldSystemRONumbers = new Set<number>(); // Empty set = no filtering
+      }
 
       // Filter out Excel ROs matching old system RO references
       const filteredResults = filterExcelROsMatchingOldSystem(
@@ -574,6 +666,16 @@ export async function getRepairOrdersBySheet(
       .where(whereCondition)
       .orderBy(desc(table.id));
 
+    // Get old system RO numbers from ERP ROs to filter out matching Excel ROs
+    // Do this AFTER fetching results so if it fails, we still return results
+    let oldSystemRONumbers: Set<number>;
+    try {
+      oldSystemRONumbers = await getOldSystemRONumbersFromERP();
+    } catch (error) {
+      console.error("Failed to get old system RO numbers, skipping filter:", error);
+      oldSystemRONumbers = new Set<number>(); // Empty set = no filtering
+    }
+
     // Filter out Excel ROs matching old system RO references
     const filteredResults = filterExcelROsMatchingOldSystem(
       allResults as RepairOrder[],
@@ -599,12 +701,19 @@ export async function getRepairOrdersBySheet(
     };
   } catch (error) {
     console.error(`getRepairOrdersBySheet(${sheet}) error:`, error);
+    // Provide more helpful error message for database connection issues
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConnectionError = 
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("Connection") ||
+      errorMessage.includes("timeout");
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : `Failed to fetch repair orders from ${sheet} sheet`,
+      error: isConnectionError
+        ? "Database connection failed. Please check your database connection and try again."
+        : `Failed to fetch repair orders from ${sheet} sheet: ${errorMessage}`,
     };
   }
 }
