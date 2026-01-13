@@ -36,7 +36,6 @@ import {
 import { generateBatchEmailContent } from "@/lib/batch-email-template";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type { EmailDraftPayload, NotificationStatus } from "@/lib/types/notification";
-import { useStatsStore } from "@/stores/stats-store";
 
 const statusConfig: Record<NotificationStatus, { label: string; className: string; icon: typeof Clock }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-warning text-warning-foreground", icon: Clock },
@@ -65,10 +64,6 @@ export function NotificationBell() {
   const [activeTab, setActiveTab] = useState("pending");
   const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Get overdue count from global stats store (matches dashboard)
-  const stats = useStatsStore((state) => state.stats);
-  const overdueCount = stats?.overdue ?? 0;
 
   // Batch email prompt state
   const [batchPromptOpen, setBatchPromptOpen] = useState(false);
@@ -314,16 +309,16 @@ export function NotificationBell() {
     setActioningId(null);
   };
 
-  const pendingCount = notifications.length;
+  const count = notifications.length;
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative text-header-foreground hover:bg-header-hover">
           <Bell className="h-5 w-5" />
-          {overdueCount > 0 && (
+          {count > 0 && (
             <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-danger text-danger-foreground p-0 text-xs flex items-center justify-center">
-              {overdueCount}
+              {count}
             </Badge>
           )}
         </Button>
@@ -339,9 +334,9 @@ export function NotificationBell() {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pending" className="gap-1">
               Pending
-              {pendingCount > 0 && (
+              {count > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1">
-                  {pendingCount}
+                  {count}
                 </Badge>
               )}
               {isPending && <TurbineSpinner size="sm" />}
