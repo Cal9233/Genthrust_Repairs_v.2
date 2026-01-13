@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { active, net, paid, returns } from "@/lib/schema";
-import { like, or, sql, count, desc, notInArray, and, eq, gte, lte } from "drizzle-orm";
+import { like, or, sql, count, desc, notInArray, and, eq, gte, lte, isNotNull } from "drizzle-orm";
 import { parseDate, isOverdue } from "@/lib/date-utils";
 import { ARCHIVED_STATUSES, isWaitingQuote, isInWork, isShipped, isApproved } from "@/lib/constants/statuses";
 import { extractOldSystemRONumbers } from "@/lib/utils";
@@ -44,13 +44,17 @@ const ITEMS_PER_PAGE = 20;
 async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
   try {
     // Fetch all ERP-synced ROs (SYNCED status means they came from ERP)
+    // Only query ROs that have erpSyncStatus set to "SYNCED" (not null)
     const erpROs = await db
       .select({
         notes: active.notes,
         partDescription: active.partDescription,
       })
       .from(active)
-      .where(eq(active.erpSyncStatus, "SYNCED"));
+      .where(and(
+        isNotNull(active.erpSyncStatus),
+        eq(active.erpSyncStatus, "SYNCED")
+      ));
 
     const oldSystemRONumbers = new Set<number>();
     
