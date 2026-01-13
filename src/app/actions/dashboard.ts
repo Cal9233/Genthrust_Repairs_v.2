@@ -79,6 +79,9 @@ async function getOldSystemRONumbersFromERP(): Promise<Set<number>> {
 /**
  * Filter out Excel ROs (LOCAL_ONLY) that match old system RO references from ERP ROs.
  * 
+ * Note: Only rows from the 'active' table have erpSyncStatus. Rows from other tables
+ * (net, paid, returns) don't have this field, so they are kept (archived records).
+ * 
  * @param results - Array of repair orders to filter
  * @param oldSystemRONumbers - Set of old system RO numbers to exclude
  * @returns Filtered array of repair orders
@@ -92,9 +95,11 @@ function filterExcelROsMatchingOldSystem(
   }
   
   return results.filter((ro) => {
-    // Only filter Excel ROs (LOCAL_ONLY)
-    if (ro.erpSyncStatus !== "LOCAL_ONLY") {
-      return true; // Keep ERP-synced ROs
+    // Only filter rows that have erpSyncStatus field (from 'active' table)
+    // Rows from other tables (net, paid, returns) don't have this field
+    // and should be kept as they are archived records
+    if (!("erpSyncStatus" in ro) || ro.erpSyncStatus !== "LOCAL_ONLY") {
+      return true; // Keep ERP-synced ROs and rows from other tables
     }
     
     // Check if this Excel RO's number matches any old system RO reference
