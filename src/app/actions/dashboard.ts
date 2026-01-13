@@ -349,19 +349,52 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
     };
   } catch (error) {
     console.error("getDashboardStats error:", error);
-    // Provide more helpful error message for database connection issues
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    // Extract detailed error information
+    let errorMessage = "Unknown error";
+    let errorCode: string | undefined;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      // Prefer 'code' property (string codes like "ECONNREFUSED") over 'errno' (numeric codes)
+      // Use else-if to prevent overwriting when both exist
+      if ('code' in error) {
+        errorCode = String(error.code);
+      } else if ('errno' in error) {
+        errorCode = String(error.errno);
+      }
+    } else if (typeof error === 'object' && error !== null) {
+      // Handle error objects that aren't Error instances
+      errorMessage = String(error);
+      if ('message' in error) {
+        errorMessage = String(error.message);
+      }
+      if ('code' in error) {
+        errorCode = String(error.code);
+      }
+    }
+    
+    // Log full error details for debugging
+    console.error("getDashboardStats full error details:", {
+      message: errorMessage,
+      code: errorCode,
+      error: error,
+    });
+    
+    // Check for connection errors using both error message and code
+    // MySQL connection errors have string codes like "ECONNREFUSED", "ETIMEDOUT"
     const isConnectionError = 
       errorMessage.includes("ECONNREFUSED") ||
       errorMessage.includes("ETIMEDOUT") ||
       errorMessage.includes("Connection") ||
-      errorMessage.includes("timeout");
+      errorMessage.includes("timeout") ||
+      errorCode === "ECONNREFUSED" ||
+      errorCode === "ETIMEDOUT";
     
     return {
       success: false,
       error: isConnectionError
         ? "Database connection failed. Please check your database connection and try again."
-        : `Failed to fetch dashboard stats: ${errorMessage}`,
+        : `Failed to fetch dashboard stats: ${errorMessage}${errorCode ? ` (code: ${errorCode})` : ''}`,
     };
   }
 }
@@ -701,19 +734,52 @@ export async function getRepairOrdersBySheet(
     };
   } catch (error) {
     console.error(`getRepairOrdersBySheet(${sheet}) error:`, error);
-    // Provide more helpful error message for database connection issues
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    // Extract detailed error information
+    let errorMessage = "Unknown error";
+    let errorCode: string | undefined;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      // Prefer 'code' property (string codes like "ECONNREFUSED") over 'errno' (numeric codes)
+      // Use else-if to prevent overwriting when both exist
+      if ('code' in error) {
+        errorCode = String(error.code);
+      } else if ('errno' in error) {
+        errorCode = String(error.errno);
+      }
+    } else if (typeof error === 'object' && error !== null) {
+      // Handle error objects that aren't Error instances
+      errorMessage = String(error);
+      if ('message' in error) {
+        errorMessage = String(error.message);
+      }
+      if ('code' in error) {
+        errorCode = String(error.code);
+      }
+    }
+    
+    // Log full error details for debugging
+    console.error(`getRepairOrdersBySheet(${sheet}) full error details:`, {
+      message: errorMessage,
+      code: errorCode,
+      error: error,
+    });
+    
+    // Check for connection errors using both error message and code
+    // MySQL connection errors have string codes like "ECONNREFUSED", "ETIMEDOUT"
     const isConnectionError = 
       errorMessage.includes("ECONNREFUSED") ||
       errorMessage.includes("ETIMEDOUT") ||
       errorMessage.includes("Connection") ||
-      errorMessage.includes("timeout");
+      errorMessage.includes("timeout") ||
+      errorCode === "ECONNREFUSED" ||
+      errorCode === "ETIMEDOUT";
     
     return {
       success: false,
       error: isConnectionError
         ? "Database connection failed. Please check your database connection and try again."
-        : `Failed to fetch repair orders from ${sheet} sheet: ${errorMessage}`,
+        : `Failed to fetch repair orders from ${sheet} sheet: ${errorMessage}${errorCode ? ` (code: ${errorCode})` : ''}`,
     };
   }
 }

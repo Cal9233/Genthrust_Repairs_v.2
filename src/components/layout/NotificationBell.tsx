@@ -22,7 +22,6 @@ import {
   requeueNotification,
   getRelatedPendingNotifications,
   approveBatchNotifications,
-  getOverdueCount,
 } from "@/app/actions/notifications";
 import type { SiblingNotification, NotificationWithShop } from "@/app/actions/notifications";
 import { useTriggerRun } from "@/hooks/use-trigger-run";
@@ -37,6 +36,7 @@ import {
 import { generateBatchEmailContent } from "@/lib/batch-email-template";
 import type { NotificationQueueItem } from "@/lib/schema";
 import type { EmailDraftPayload, NotificationStatus } from "@/lib/types/notification";
+import { useStatsStore } from "@/stores/stats-store";
 
 const statusConfig: Record<NotificationStatus, { label: string; className: string; icon: typeof Clock }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-warning text-warning-foreground", icon: Clock },
@@ -65,7 +65,10 @@ export function NotificationBell() {
   const [activeTab, setActiveTab] = useState("pending");
   const [previewNotification, setPreviewNotification] = useState<NotificationQueueItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [overdueCount, setOverdueCount] = useState(0);
+  
+  // Get overdue count from global stats store (matches dashboard)
+  const stats = useStatsStore((state) => state.stats);
+  const overdueCount = stats?.overdue ?? 0;
 
   // Batch email prompt state
   const [batchPromptOpen, setBatchPromptOpen] = useState(false);
@@ -129,20 +132,6 @@ export function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
   }, []);
-
-  // Fetch overdue count for the badge (matches dashboard "Overdue" card)
-  useEffect(() => {
-    const fetchOverdue = async () => {
-      const result = await getOverdueCount();
-      if (result.success) {
-        setOverdueCount(result.data);
-      }
-    };
-    fetchOverdue();
-    // Poll every 60 seconds to keep badge fresh
-    const interval = setInterval(fetchOverdue, 60000);
-    return () => clearInterval(interval);
-  }, [isOpen]);
 
   // Listen for refresh events from AutoImportTrigger
   // This ensures notifications are updated after Excel import deletes orphaned records
